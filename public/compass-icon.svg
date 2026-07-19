@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Compass icon">
+  <defs>
+    <linearGradient id="summer-rim" x1="92" y1="82" x2="426" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EEBFF"/>
+      <stop offset=".34" stop-color="#3B9CFF"/>
+      <stop offset=".68" stop-color="#43E6B1"/>
+      <stop offset="1" stop-color="#FFD166"/>
+    </linearGradient>
+    <radialGradient id="summer-face" cx="0" cy="0" r="1" gradientTransform="translate(214 198) rotate(48) scale(190)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#146F8A"/>
+      <stop offset=".55" stop-color="#0A4967"/>
+      <stop offset="1" stop-color="#082B48"/>
+    </radialGradient>
+    <linearGradient id="needle-north" x1="244" y1="282" x2="324" y2="126" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#EAFBFF"/>
+      <stop offset="1" stop-color="#6DEBFF"/>
+    </linearGradient>
+    <linearGradient id="needle-south" x1="194" y1="382" x2="274" y2="226" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF7A59"/>
+      <stop offset="1" stop-color="#FFD166"/>
+    </linearGradient>
+    <filter id="summer-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- The outer ink is an exact circle, with no background outside the mark. -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#092A43" stroke-width="34" opacity=".9"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#summer-rim)" stroke-width="24" filter="url(#summer-glow)"/>
+
+  <circle cx="256" cy="256" r="137" fill="url(#summer-face)" stroke="#B9F5FF" stroke-width="5"/>
+  <circle cx="256" cy="256" r="113" fill="none" stroke="#DDFBFF" stroke-width="3" opacity=".28"/>
+  <circle cx="256" cy="256" r="82" fill="none" stroke="#70E6EE" stroke-width="7" opacity=".8"/>
+  <circle cx="256" cy="256" r="54" fill="none" stroke="#FFD166" stroke-width="7" opacity=".92"/>
+
+  <path d="M280 233 333 120 226 286Z" fill="url(#needle-north)" stroke="#F4FCFF" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M228 280 175 393 282 227Z" fill="url(#needle-south)" stroke="#071D31" stroke-width="9" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="25" fill="#071D31" stroke="#F4FCFF" stroke-width="9"/>
+  <circle cx="256" cy="256" r="8" fill="#5EEBFF"/>
+</svg>
