@@ -1131,7 +1131,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       <span style="color:var(--acc);font-size:17px" aria-hidden="true">✓</span>
     </button>
 
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px"><span style="font:700 12px 'Noto Sans JP';color:var(--tx1)">ほかのアプリ</span><span style="height:1px;flex:1;background:var(--line)"></span><span style="font-size:10px;color:var(--tx3)">公開後にここから移動できます</span></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px"><span style="font:700 12px 'Noto Sans JP';color:var(--tx1)">ほかのアプリ</span><span style="height:1px;flex:1;background:var(--line)"></span><span style="font-size:10px;color:var(--tx3)">アプリを選ぶと移動できます</span></div>
     <div class="app-switcher-grid">
       <sc-for list="{{ appSwitcherApps }}" as="app" hint-placeholder-count="3">
         <button type="button" class="app-switcher-tile" onClick="{{ app.onOpen }}" aria-disabled="{{ app.disabled }}" style="--app-accent:{{ app.accent }}">
@@ -1204,7 +1204,7 @@ class Component extends DCLogic {
     this.SIZE_MIN = { XS: 5, S: 10, M: 20, L: 30 };
     // 新しいアプリが公開されたら、該当項目の url に公開URLを入れるだけで遷移が有効になる。
     this.APP_CATALOG = [
-      { id:'gratitude-note', name:'感謝ノート', description:'毎日の「ありがとう」を残すノート', icon:'♡', status:'準備中', accent:'#ff8fb8', url:'' },
+      { id:'gratitude-note', name:'感謝ノート', description:'毎日の「ありがとう」を残すノート', icon:'♡', status:'公開中', accent:'#ff8fb8', url:'https://kansha-note.vercel.app/' },
       { id:'future-app-1', name:'次のアプリ', description:'新しいCompassアプリのための場所', icon:'＋', status:'COMING SOON', accent:'#9a79f6', url:'' },
       { id:'future-app-2', name:'アプリを追加', description:'これから増えるアプリをここに並べます', icon:'＋', status:'COMING SOON', accent:'#43e6b1', url:'' }
     ];
@@ -2882,7 +2882,7 @@ class Component extends DCLogic {
       accent: app.accent,
       disabled: app.url ? 'false' : 'true',
       onOpen: () => {
-        if (app.url) { window.location.assign(app.url); return; }
+        if (app.url) { window.top.location.assign(app.url); return; }
         this.showToast('「' + app.name + '」は準備中です');
       }
     }));
