@@ -1,40 +1,153 @@
-# Design QA — Summer Compass Intro
+# Design QA — Ink & Paper v0.8
 
-- Source visual truth: conversation attachment `Brave Browser Appshot 2026-07-17T13-35-14.721Z.png`
-- Implementation screenshot: `/private/tmp/compass-v065-summer-intro.png`
-- Focused asset screenshot: `/private/tmp/compass-v065-summer-icon.png`
-- Mobile screenshot: `/private/tmp/compass-v065-summer-intro-mobile.png`
-- Viewports: desktop 1272 × 720; mobile 390 × 844
-- State: intro at approximately 1.35 seconds, dark theme
+前回の「Dark Notebook」を土台に、UI/UXを大きく作り直したパス。
+紙とインクという性格は残したまま、**画面ごとの署名カラー**・**手書き見出しの階層**・
+**色鉛筆の教科カラー**・**モバイル前提の操作系**を design system として整理した。
+あわせて、このアプリの心臓部である**タスク配置ロジックのバグを修正**した。
 
-## Full-view comparison evidence
+- 対象: `Compass App.dc.html`(アプリ本体) / `src/app/globals.css` + `layout.tsx`(ログイン画面) / `public/compass-icon.svg`
+- 検証ビューポート: desktop 1600 × 900 / iPhone 相当 390 × 844
+- 検証テーマ: ノート(既定) / ライト / ダーク
+- 検証画面: Cockpit, Tests, ToDo, Review, Add, Data, アプリ切替モーダル, スプラッシュ
 
-The centered composition, dark blue stage, compact COMPASS wordmark, and restrained glow remain consistent with the supplied intro. The requested changes are intentional: the former violet/pink/orange ink is now ocean blue, cyan, seafoam, and sun yellow. The irregular outer paint path is replaced by an exact circle.
+## 変更の柱
 
-## Focused region comparison evidence
+### 1. 画面ごとの署名カラー(`--view`)
+`themeStyle` に `--view` / `--viewBg` を追加し、`--grad` をそれに束ねた。
+コックピット=象牙 / 試験計画=藤 / ToDo=珊瑚 / 復習=若草 / タスク追加=琥珀 / データ=藍。
+ナビの選択状態・画面タイトルの縦罫・主要ボタン・進捗バー・フォーカスリング・背景の淡い光が
+同じ色に連動するので、「いまどの画面にいるか」が色だけで分かる。
 
-The compass mark was inspected both in the intro and as the standalone SVG. The outer circumference is circular, the compass face is filled, and the transparent area outside the mark has no background shape. Intro and navigation now reference the exact same `/compass-icon.svg?v=20260717-summer` asset, eliminating illustration drift.
+### 2. タイポグラフィの階層
+見出し(画面名・パネル名・ブランド)を Klee One に統一し、字間 .035em で手書きの調子を出した。
+数値は Space Grotesk + `tabular-nums` で桁が揺れない。本文は Noto Sans JP のまま。
 
-## Required fidelity surfaces
+### 3. 教科カラーを「色鉛筆」トークン化
+ハードコードされていたネオン系の教科色を `--sj-*`(terra / rose / indigo / ochre / forest /
+teal / olive / amber / plum / graphite / steel)に置き換え、テーマごとに濃度を持たせた。
+ノートでは白墨寄り、ライトでは芯の濃い色になり、どちらの紙でも読める。
 
-- Fonts and typography: existing Space Grotesk wordmark, weight, tracking, and hierarchy preserved.
-- Spacing and layout rhythm: centered mark and wordmark spacing preserved; no clipping at desktop or mobile sizes.
-- Colors and visual tokens: summer palette has adequate contrast against the existing navy background.
-- Image quality and asset fidelity: one shared vector asset stays sharp at splash, navigation, auth, and favicon sizes.
-- Copy and content: COMPASS and existing intro copy are unchanged.
+### 4. 常時見える「今日の進捗」
+トップバー下端に 2px の進捗レール(`--view` 色)、右上に `完了 / 全体` のカウンタを追加。
+画面を移動しても今日の消化率が視界から消えない。
 
-## Findings
+### 5. モバイルの操作系
+- 「タスク追加」をボトムナビから浮かせた円形 FAB に(最頻の入力導線を親指の位置へ)
+- トップバーを 1 行 + 検索行に圧縮し、画面名は省略記号付きの 1 行に固定
+- ナビの ⚠ バッジと重複していた「未完了 → 再配分」ピルは狭い画面では非表示
+- FAB が最下部のカードに重ならないよう、シェルの下余白を追加
 
-No actionable P0, P1, or P2 differences remain. The visual differences from the source are the requested seasonal palette, circular outer ink, and unified illustration.
+### 6. キーボードショートカット(デスクトップ)
+`1`–`6` で画面切替(ナビの並び順に追従) / `/` で検索 / `N` でタスク追加 / `F` で集中モード。
+ナビ下部にヒントを常設し、ホバー時は各項目に番号バッジが出る。
+入力中(input / textarea)は発火しない。既存の ⌘K・⌘Z・⌘S・Esc はそのまま。
 
-## Comparison history
+### 7. 空状態の追加
+コックピットの「今日のタスク」「復習」「試験・予習計画」が空のとき、
+次に何をすればいいかを書いた点線カードを出すようにした(従来は無言の空白)。
 
-- Pass 1: desktop and mobile captures showed a centered, unclipped mark; the post-intro navigation used the same asset; no corrective iteration was required.
+### 8. 起動アニメーション: 「製図 → 計器起動」
+旧スプラッシュ(3.45秒、ネオンのグラデーションが主役)を作り直した。**2.75秒**に短縮し、
+紙にコンパスを製図してから計器として起動する流れにした。
 
-## Interaction and console checks
+| 時刻 | 起きること |
+| --- | --- |
+| 0.04s | 破線の製図ガイド(十字＋外周円)が中心から引かれる |
+| 0.16s | 鉛筆の下書き線 → 象牙のインク線の順にリムが描かれる |
+| 0.40s | ベゼルの目盛り(36本)が回り込んで止まる |
+| 0.62s | 文字盤が立ち上がり、色鉛筆の内側リングが描かれる |
+| 0.72s | 針が430°振り切れ、減衰しながら北に収まる |
+| 0.95s | レーダーが一周する |
+| 0.98s | N / E / S / W が順に打たれる |
+| 1.30s | 中心ピンが着地し、波紋がひとつ広がる |
+| 1.74s | 完成マークへクロスフェード |
+| 1.98s | COMPASS が1文字ずつ立ち上がる |
+| 2.06s | ToDo が左から拭き出され、下線が手書きで引かれる |
+| 準備完了時 | ステージが拡大＋ブラーしながら消え、下からアプリが現れる |
 
-- Intro completed and revealed the application.
-- The Review navigation control remained functional after the transition.
-- No application console errors or warnings were observed in the direct app render.
+計器の色は `--sp-*` トークンで持たせたので、テーマごとに正しい色で描かれる
+(ノート=鉛筆と色鉛筆 / ライト=濃いインクと色鉛筆 / ダーク=従来のシアン計器)。
+`prefers-reduced-motion` では製図・レーダー・ガイドを出さず、アイコンと文字だけを静止表示する。
+
+### 9. 配置エンジンの作り直し(機能バグ修正)
+「均等に配分」が均等になっていなかった。原因は再配分と計画作成の**2箇所に別々の実装**があり、
+どちらも同じ欠陥を持っていたこと:
+
+```js
+let earliest = 0;
+planSegs.forEach((seg, i) => {
+  for (let d = earliest; d < candidates.length; d++) ...  // earliest 以降しか見ない
+  earliest = picked;                                       // 置くたびに前進する
+});
+```
+
+先頭のタスクが1日ずつ食い潰して `earliest` が最終日に張り付くため、
+**溢れた分がすべて最終日に積み上がる**(40件/31日なら最終日に9件)。
+
+これを `scheduleItems(items, room, spread)` 1本に統合した。
+期間を「各日の空き容量」の比で区間に割り、タスクの重心がどの区間に落ちるかで日を決める。
+重みが空き容量なので、平日/休日の上限差も既存の予定も自動的に織り込まれる。
+
+| 入力 | 修正前 | 修正後 |
+| --- | --- | --- |
+| 40件(S)/31日 | 1日1件 → 最終日に9件 | 1〜2件/日・空き日なし・未配置0 |
+| 1件/10日 | — | 初日 |
+| 混在サイズ12件/9日 | 空き日3日 | 空き日0 |
+| 30件(M)/4日 上限120 | — | 24件配置・6件を「未配置」として報告 |
+| 途中に満杯日がある | — | その日を飛ばして前後に配分 |
+
+順序(例題61–65 → 66–70)は全ケースで保たれることを確認済み。
+
+### 10. アイコンを作り直し、動くようにした
+`public/compass-icon.svg` を Ink & Paper 版に描き直した(黒紙の台紙・象牙のリム・
+36本の目盛り・色鉛筆の緑と琥珀のリング・象牙の北針と琥珀の南針)。
+スプラッシュで組み上がる計器と**同じ寸法**で描いてあるので、切り替わりで輪郭がずれない。
+
+スプラッシュ側の最終マークは `<img>` をやめて**インラインSVG**にした。これにより:
+- `--sp-*` トークンで描かれる → ライト/ノート/ダークで正しい色になる
+  (以前は1枚のネオン画像に `filter: saturate(.55)` をかけて誤魔化していた)
+- 置き終わったあとも動き続ける — 針が北を探して微かに揺れ(7秒周期)、
+  ベゼルがごくゆっくり回り(90秒)、中心のドットが呼吸する(3.4秒)
+
+台紙(`r=240` の円)はファビコン用にファイル側だけが持ち、スプラッシュ側は持たない。
+紙の上に直接描くことで、ビルド用SVGからの切り替わりが見えなくなる。
+
+### 11. 質感の底上げ
+角丸を 5px → 12–13px、カードに紙の厚みぶんの淡い影とホバーの浮き上がりを戻し、
+ライトテーマも同じ罫線入りの生成り紙に揃えた。スプラッシュも 3 テーマとも紙面に合わせた。
+
+## 検証結果
+
+| 項目 | 結果 |
+| --- | --- |
+| 6画面 × 3テーマの表示崩れ | なし |
+| 390 × 844 の横スクロール発生 | なし(試験計画のタイムラインのみ意図的な横スクロール) |
+| ショートカット 1–6 / N / F / ⌘K | 動作確認済み |
+| モバイル FAB の形状・浮き | ノート/ライト/ダークで円形・浮きを確認 |
+| ナビ番号バッジと ⚠ バッジの衝突 | ホバー時にバッジを左へ寄せて解消 |
+| `npx tsc --noEmit` | エラーなし |
+| コンソールエラー | なし |
+| スプラッシュ各フェーズ(0.32 / 0.65 / 1.15 / 1.45 / 2.30 / 2.40 / 2.76s + 退場) | Web Animations API で `currentTime` を固定して1コマずつ確認 |
+| スプラッシュ 3テーマ × desktop/390px | 崩れなし・はみ出しなし |
+| 未使用になった旧キーフレーム/クラス | 残存なし(20個すべて定義＝使用) |
+| 配置エンジン単体(10ケース) | すべて期待どおり・順序保持 |
+| 40件の再配分を実アプリで適用 | 31日に分散/最大2件・未配置0 |
+| 旧実装の残存(`evenlySpacedSlots` 等) | 0件 |
+| dcスクリプトの構文 | パース通過 |
+
+## 既知のメモ
+
+- 詳細度の都合で、モバイル FAB の指定は `.compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]`
+  としている(ノートテーマの角丸指定に勝たせるため)。セレクタを短くすると角丸が戻るので注意。
+- `next dev` は `.next` のマニフェストが壊れると 500 を返すことがある(本変更とは無関係)。
+  その場合は `.next` を消して再起動する。
+- アイコン差し替えに伴い、参照のクエリを `?v=20260728-ink` に更新済み(旧: `?v=20260717-summer`)。
+
+## 積み残し(未着手)
+
+`src/components/*` と `src/lib/data.ts` / `reviewLogic.ts` はどの経路からも到達しない死んだコード。
+実際に動いているのは `Compass App.dc.html` 1枚を iframe で読み込む構成で、README の記述とも一致しない。
+今回のバグも「同じロジックが2箇所にコピーされていた」ことが原因なので、
+ロジックをテスト可能なモジュールへ切り出す価値は高い。方針(切り出しのみ / React移行 / 死にコード削除)は未決。
 
 final result: passed

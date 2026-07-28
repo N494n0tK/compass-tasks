@@ -1,41 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Compass icon">
+  <!-- Ink & Paper — スプラッシュで組み上がる計器と同じ寸法で描いてある。
+       アニメーションからこのアイコンへ切り替わっても輪郭がずれない。 -->
   <defs>
-    <linearGradient id="summer-rim" x1="92" y1="82" x2="426" y2="430" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5EEBFF"/>
-      <stop offset=".34" stop-color="#3B9CFF"/>
-      <stop offset=".68" stop-color="#43E6B1"/>
-      <stop offset="1" stop-color="#FFD166"/>
-    </linearGradient>
-    <radialGradient id="summer-face" cx="0" cy="0" r="1" gradientTransform="translate(214 198) rotate(48) scale(190)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#146F8A"/>
-      <stop offset=".55" stop-color="#0A4967"/>
-      <stop offset="1" stop-color="#082B48"/>
+    <radialGradient id="ip-face" cx="0" cy="0" r="1"
+      gradientTransform="translate(210 196) rotate(48) scale(210)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#221f18"/>
+      <stop offset=".62" stop-color="#16140f"/>
+      <stop offset="1" stop-color="#100f0c"/>
     </radialGradient>
-    <linearGradient id="needle-north" x1="244" y1="282" x2="324" y2="126" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#EAFBFF"/>
-      <stop offset="1" stop-color="#6DEBFF"/>
+    <linearGradient id="ip-needle-n" x1="244" y1="282" x2="324" y2="126" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fffdf6"/>
+      <stop offset="1" stop-color="#e6dfd0"/>
     </linearGradient>
-    <linearGradient id="needle-south" x1="194" y1="382" x2="274" y2="226" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF7A59"/>
-      <stop offset="1" stop-color="#FFD166"/>
+    <linearGradient id="ip-needle-s" x1="194" y1="382" x2="274" y2="226" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c8944f"/>
+      <stop offset="1" stop-color="#ddb277"/>
     </linearGradient>
-    <filter id="summer-glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="7" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
 
-  <!-- The outer ink is an exact circle, with no background outside the mark. -->
-  <circle cx="256" cy="256" r="190" fill="none" stroke="#092A43" stroke-width="34" opacity=".9"/>
-  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#summer-rim)" stroke-width="24" filter="url(#summer-glow)"/>
+  <!-- 台紙 -->
+  <circle cx="256" cy="256" r="240" fill="#17150f"/>
 
-  <circle cx="256" cy="256" r="137" fill="url(#summer-face)" stroke="#B9F5FF" stroke-width="5"/>
-  <circle cx="256" cy="256" r="113" fill="none" stroke="#DDFBFF" stroke-width="3" opacity=".28"/>
-  <circle cx="256" cy="256" r="82" fill="none" stroke="#70E6EE" stroke-width="7" opacity=".8"/>
-  <circle cx="256" cy="256" r="54" fill="none" stroke="#FFD166" stroke-width="7" opacity=".92"/>
+  <!-- ベゼルの目盛り 36本 (円周 2πr = 1332 / 36 = 37) -->
+  <circle cx="256" cy="256" r="212" fill="none" stroke="#f2ede1" stroke-opacity=".42"
+    stroke-width="13" stroke-dasharray="3.6 33.4"/>
 
-  <path d="M280 233 333 120 226 286Z" fill="url(#needle-north)" stroke="#F4FCFF" stroke-width="9" stroke-linejoin="round"/>
-  <path d="M228 280 175 393 282 227Z" fill="url(#needle-south)" stroke="#071D31" stroke-width="9" stroke-linejoin="round"/>
-  <circle cx="256" cy="256" r="25" fill="#071D31" stroke="#F4FCFF" stroke-width="9"/>
-  <circle cx="256" cy="256" r="8" fill="#5EEBFF"/>
+  <!-- リム: 鉛筆の下書き + 象牙のインク -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#f2ede1" stroke-opacity=".12" stroke-width="34"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#f2ede1" stroke-width="23"/>
+
+  <!-- 文字盤 -->
+  <circle cx="256" cy="256" r="137" fill="url(#ip-face)" stroke="#f2ede1" stroke-opacity=".42" stroke-width="4"/>
+  <circle cx="256" cy="256" r="113" fill="none" stroke="#f2ede1" stroke-opacity=".22" stroke-width="3"/>
+  <circle cx="256" cy="256" r="82" fill="none" stroke="#96c49c" stroke-opacity=".85" stroke-width="7"/>
+  <circle cx="256" cy="256" r="54" fill="none" stroke="#ddb277" stroke-width="7"/>
+
+  <!-- 方位 -->
+  <g fill="#f2ede1" fill-opacity=".42" font-family="'Space Grotesk',system-ui,sans-serif"
+     font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="central">
+    <text x="256" y="100">N</text>
+    <text x="412" y="256">E</text>
+    <text x="256" y="412">S</text>
+    <text x="100" y="256">W</text>
+  </g>
+
+  <!-- 針 -->
+  <path d="M280 233 333 120 226 286Z" fill="url(#ip-needle-n)" stroke="#f2ede1" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M228 280 175 393 282 227Z" fill="url(#ip-needle-s)" stroke="#8a6a3c" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- 中心ピン -->
+  <circle cx="256" cy="256" r="25" fill="#100f0c" stroke="#f2ede1" stroke-width="9"/>
+  <circle cx="256" cy="256" r="8" fill="#f2ede1"/>
 </svg>

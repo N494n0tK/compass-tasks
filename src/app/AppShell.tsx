@@ -13,6 +13,7 @@ import {
 
 type AppShellProps = {
   srcDoc: string;
+  preview?: boolean;
 };
 
 declare global {
@@ -96,7 +97,7 @@ function AuthScreen({
     <main className="auth-screen">
       <section className="auth-panel">
         <div className="auth-brand">
-          <img src="/compass-icon.svg?v=20260717-summer" alt="" width="46" height="46" />
+          <img src="/compass-icon.svg?v=20260728-ink" alt="" width="46" height="46" />
           <div>
             <h1>Compass</h1>
             <span>学習コックピット</span>
@@ -121,13 +122,17 @@ function AuthScreen({
   );
 }
 
-export function AppShell({ srcDoc }: AppShellProps) {
+export function AppShell({ srcDoc, preview = false }: AppShellProps) {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [bridgeReady, setBridgeReady] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (preview) {
+      setChecking(false);
+      return;
+    }
     if (!isFirebaseConfigured()) {
       setChecking(false);
       return;
@@ -137,10 +142,19 @@ export function AppShell({ srcDoc }: AppShellProps) {
       setUser(nextUser);
       setChecking(false);
     });
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
     setBridgeReady(false);
+    if (preview) {
+      window.COMPASS_CLOUD_GET = async () => ({ data: null, email: "preview@localhost" });
+      window.COMPASS_CLOUD_PUT = async () => ({ ok: true, storage: "firebase" });
+      setBridgeReady(true);
+      return () => {
+        delete window.COMPASS_CLOUD_GET;
+        delete window.COMPASS_CLOUD_PUT;
+      };
+    }
     if (!user) return;
 
     window.COMPASS_CLOUD_GET = async () => {
@@ -168,12 +182,20 @@ export function AppShell({ srcDoc }: AppShellProps) {
       delete window.COMPASS_CLOUD_GET;
       delete window.COMPASS_CLOUD_PUT;
     };
-  }, [user]);
+  }, [preview, user]);
 
   const framedDoc = useMemo(() => {
-    const email = user?.email ?? "";
+    const email = preview ? "preview@localhost" : (user?.email ?? "");
     return srcDoc.replace("<head>", `<head>${injectedSessionScript(email)}`);
-  }, [srcDoc, user?.email]);
+  }, [preview, srcDoc, user?.email]);
+
+  if (preview && bridgeReady) {
+    return (
+      <main className="legacy-shell">
+        <iframe className="legacy-frame" title="Compass Preview" srcDoc={framedDoc} />
+      </main>
+    );
+  }
 
   if (!isFirebaseConfigured()) {
     return (

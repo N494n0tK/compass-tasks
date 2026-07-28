@@ -5,9 +5,9 @@ export const metadata: Metadata = {
   title: "Compass 復習スケジュール",
   description: "時間割をデータ源にした復習キュー管理",
   icons: {
-    icon: "/compass-icon.svg?v=20260717-summer",
-    shortcut: "/compass-icon.svg?v=20260717-summer",
-    apple: "/compass-icon.svg?v=20260717-summer"
+    icon: "/compass-icon.svg?v=20260728-ink",
+    shortcut: "/compass-icon.svg?v=20260728-ink",
+    apple: "/compass-icon.svg?v=20260728-ink"
   }
 };
 
@@ -16,7 +16,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#090f1d"
+  themeColor: "#100f0c"
 };
 
 export default function RootLayout({
@@ -26,6 +26,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
+      <head>
+        {/* ログイン画面もアプリ本体と同じ書体(手書き見出し + 本文)で揃える */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

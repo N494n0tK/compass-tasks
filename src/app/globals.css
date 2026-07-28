@@ -3,26 +3,37 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Ink & Paper — アプリ本体(Compass App.dc.html)と同じトークンを使う */
 :root {
-  --bg: #071421;
-  --panel: #0b1b2b;
-  --panel-2: #10273a;
-  --border: rgba(119, 157, 185, 0.25);
-  --text: #f1f6fb;
-  --text-dim: #8fa5b9;
-  --accent: #42d7f2;
-  --accent-2: #9a79f6;
-  --danger: #ff6e5b;
-  --ok: #4cda91;
+  --bg: #100f0c;
+  --panel: #1a1814;
+  --panel-2: #26231c;
+  --border: rgba(242, 237, 225, 0.2);
+  --text: #f2ede1;
+  --text-dim: #a9a296;
+  --accent: #f2ede1;
+  --accent-2: #bda7e6;
+  --danger: #dd9184;
+  --ok: #96c49c;
+  --rule: rgba(242, 237, 225, 0.06);
+  --font-hand: "Klee One", "Noto Sans JP", serif;
 }
 
 html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 31px,
+    var(--rule) 31px,
+    var(--rule) 32px
+  );
   color: var(--text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 button {
@@ -53,9 +64,16 @@ input {
 
 .auth-screen {
   align-items: center;
-  background:
-    radial-gradient(circle at 50% -12%, rgba(66, 215, 242, 0.13), transparent 34%),
-    #071421;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 50% -10%, rgba(242, 237, 225, 0.05), transparent 44%),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 31px,
+      rgba(242, 237, 225, 0.065) 31px,
+      rgba(242, 237, 225, 0.065) 32px
+    );
   display: flex;
   justify-content: center;
   min-height: 100vh;
@@ -63,13 +81,15 @@ input {
   padding: 24px;
 }
 
+/* ノートを1枚めくったような紙面。左端の綴じ線が Compass の目印 */
 .auth-panel {
-  background: rgba(11, 27, 43, 0.92);
+  background: rgba(26, 24, 20, 0.97);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: 16px;
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.34);
+  box-shadow: 0 26px 70px -24px rgba(0, 0, 0, 0.72);
   max-width: 460px;
-  padding: 34px;
+  padding: 34px 32px;
   width: 100%;
 }
 
@@ -77,31 +97,38 @@ input {
   align-items: center;
   display: flex;
   gap: 14px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .auth-brand img {
-  filter: drop-shadow(0 8px 18px rgba(66, 215, 242, 0.18));
+  border: 1px solid rgba(242, 237, 225, 0.22);
+  border-radius: 14px;
+  background: rgba(242, 237, 225, 0.06);
+  padding: 5px;
 }
 
 .auth-brand h1 {
-  font-size: 25px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-hand);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  line-height: 1.15;
   margin: 0;
 }
 
 .auth-brand span {
   color: var(--text-dim);
   display: block;
-  font-size: 11px;
-  font-weight: 600;
-  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  margin-top: 3px;
 }
 
 .auth-panel p {
   color: var(--text-dim);
-  font-size: 14px;
-  line-height: 1.8;
+  font-size: 13.5px;
+  line-height: 1.85;
   margin: 0 0 24px;
 }
 
@@ -109,21 +136,26 @@ input {
   align-items: center;
   background: var(--accent);
   border: 0;
-  border-radius: 10px;
-  color: #04131d;
+  border-radius: 12px;
+  color: #141310;
   display: inline-flex;
   font-size: 15px;
   font-weight: 700;
   justify-content: center;
   gap: 9px;
-  min-height: 50px;
+  min-height: 52px;
   padding: 0 22px;
+  transition: transform 0.16s ease, filter 0.16s ease;
   width: 100%;
 }
 
 .auth-button:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.04);
   transform: translateY(-1px);
+}
+
+.auth-button:active {
+  transform: none;
 }
 
 .auth-button:focus-visible {
@@ -132,11 +164,11 @@ input {
 }
 
 .auth-footnote {
-  color: #5d768c;
+  color: #867f76;
   display: block;
   font-size: 11px;
-  line-height: 1.5;
-  margin-top: 13px;
+  line-height: 1.6;
+  margin-top: 14px;
   text-align: center;
 }
 
@@ -165,7 +197,7 @@ input {
 
   .auth-panel {
     align-self: center;
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 24px 20px;
   }
 
