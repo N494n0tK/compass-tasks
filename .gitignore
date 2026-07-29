@@ -49,3 +49,6 @@ Thumbs.db
 
 # Local QA captures generated during verification
 /qa-iphone-se-production*.png
+
+# Restore snapshot taken before recovering the v0.8 working tree
+/.restore-backup-20260728-220104/
