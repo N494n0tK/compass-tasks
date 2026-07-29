@@ -1,7 +1,7 @@
 "use client";
 
 import { onAuthStateChanged, User } from "firebase/auth";
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, writeBatch } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getDb,
@@ -16,10 +16,13 @@ type AppShellProps = {
   preview?: boolean;
 };
 
+type MigrateResult = { ok: boolean; migrated: number; skipped?: string };
+
 declare global {
   interface Window {
     COMPASS_CLOUD_GET?: () => Promise<{ data: unknown; email: string }>;
     COMPASS_CLOUD_PUT?: (data: unknown) => Promise<{ ok: true; storage: "firebase" }>;
+    COMPASS_MIGRATE_REVIEWS?: () => Promise<MigrateResult>;
   }
 }
 
@@ -67,6 +70,80 @@ function sortAndStripSeq(rows: { id: string; body: ReviewTask }[]): ReviewTask[]
       void _drop;
       return rest;
     });
+}
+
+const DOC_ID_MAX_BYTES = 1500;
+const FIRESTORE_BATCH_LIMIT = 500;
+
+/** Firestore のドキュメントIDとして使えない理由を返す。使えるなら null。 */
+function invalidDocIdReason(id: unknown): string | null {
+  if (typeof id !== "string") return `id が文字列でない (型: ${typeof id})`;
+  if (!id) return "id が空文字";
+  if (/^ +$/.test(id)) return "id が半角スペースのみ";
+  if (id.includes("/")) return '"/" を含む';
+  if (id === "." || id === "..") return `"${id}" と完全一致`;
+  if (id.startsWith("__") && id.endsWith("__")) return '"__" で始まり "__" で終わる';
+  const bytes = new TextEncoder().encode(id).length;
+  if (bytes > DOC_ID_MAX_BYTES) return `UTF-8 ${bytes} バイト (>${DOC_ID_MAX_BYTES})`;
+  return null;
+}
+
+/**
+ * state.reviews を users/{uid}/reviewTasks/{review.id} へ複製する（A-2-2）。
+ * state.reviews 側は消さない（二重保持）。
+ *
+ * - 配列内の位置を _seq として付与する。読み出し側はこれで元の並びへ戻す。
+ * - 使えない id が1件でもあれば、1件も書かずに中断する。
+ * - reviewsMigratedAt は必ず merge:true で書く。compass-ui-data の
+ *   既存フィールド（data / email / updatedAt）を消さないため。
+ * - 全件 + フラグを1つの writeBatch でアトミックにコミットする。
+ */
+async function migrateReviewsToCollection(
+  uid: string,
+  reviews: ReviewTask[]
+): Promise<MigrateResult> {
+  // 先に全件を検査する。1件でもNGなら書き込みを開始しない。
+  const bad = reviews
+    .map((review, i) => {
+      const id = (review as { id?: unknown }).id;
+      return { i, id, reason: invalidDocIdReason(id) };
+    })
+    .filter((row) => row.reason !== null);
+
+  if (bad.length > 0) {
+    const detail = bad.map((b) => `#${b.i} ${JSON.stringify(b.id)}: ${b.reason}`).join(" / ");
+    return {
+      ok: false,
+      migrated: 0,
+      skipped: `ドキュメントIDに使えない id が ${bad.length} 件あるため中断: ${detail}`
+    };
+  }
+
+  // reviews 全件 + フラグ1件を1バッチで送るので、上限を超えないこと。
+  if (reviews.length + 1 > FIRESTORE_BATCH_LIMIT) {
+    return {
+      ok: false,
+      migrated: 0,
+      skipped: `1バッチの上限 ${FIRESTORE_BATCH_LIMIT} 件を超えるため中断 (reviews ${reviews.length} 件 + フラグ1件)`
+    };
+  }
+
+  const batch = writeBatch(getDb());
+  reviews.forEach((review, seq) => {
+    const id = (review as { id: string }).id;
+    batch.set(
+      doc(reviewTasksCol(uid), id),
+      firestoreSafeData({ ...review, _seq: seq }) as ReviewTask
+    );
+  });
+  batch.set(
+    compassStateDoc(uid),
+    { reviewsMigratedAt: new Date().toISOString() },
+    { merge: true }
+  );
+  await batch.commit();
+
+  return { ok: true, migrated: reviews.length };
 }
 
 function injectedSessionScript(email: string) {
@@ -258,11 +335,55 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
       return { ok: true, storage: "firebase" };
     };
 
+    // A-2-2 の移行トリガー。自動実行はしない。
+    // ブラウザのコンソールから await COMPASS_MIGRATE_REVIEWS() で1回だけ呼ぶ。
+    window.COMPASS_MIGRATE_REVIEWS = async (): Promise<MigrateResult> => {
+      try {
+        const snap = await getDoc(compassStateDoc(user.uid));
+        const saved = snap.exists() ? snap.data() : null;
+
+        // 二重実行の防止。フラグがあれば何も書かない。
+        if (saved?.reviewsMigratedAt) {
+          const skipped = `移行済み (${String(saved.reviewsMigratedAt)})`;
+          console.info(`[A-2-2] ${skipped}`);
+          return { ok: true, migrated: 0, skipped };
+        }
+
+        const holder = reviewsHolderOf(saved?.data ?? null);
+        if (!holder || !Array.isArray(holder.state.reviews)) {
+          const skipped = "state.reviews が見つからないため中断";
+          console.warn(`[A-2-2] ${skipped}`);
+          return { ok: false, migrated: 0, skipped };
+        }
+
+        const reviews = holder.state.reviews as ReviewTask[];
+        if (reviews.length === 0) {
+          // 空でフラグだけ立てると、以後コレクション側（空）を正としてしまう。
+          const skipped = "reviews が0件のため中断（フラグも立てない）";
+          console.warn(`[A-2-2] ${skipped}`);
+          return { ok: false, migrated: 0, skipped };
+        }
+
+        const result = await migrateReviewsToCollection(user.uid, reviews);
+        if (result.ok) {
+          console.info(`[A-2-2] migrated ${result.migrated} reviews to collection`);
+        } else {
+          console.warn(`[A-2-2] ${result.skipped ?? "移行に失敗"}`);
+        }
+        return result;
+      } catch (e) {
+        const skipped = e instanceof Error ? e.message : String(e);
+        console.warn("[A-2-2] 移行に失敗", e);
+        return { ok: false, migrated: 0, skipped };
+      }
+    };
+
     setBridgeReady(true);
 
     return () => {
       delete window.COMPASS_CLOUD_GET;
       delete window.COMPASS_CLOUD_PUT;
+      delete window.COMPASS_MIGRATE_REVIEWS;
     };
   }, [preview, user]);
 
