@@ -1,8 +1,8 @@
 "use client";
 
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getDb,
   getFirebaseAuth,
@@ -27,8 +27,46 @@ function compassStateDoc(uid: string) {
   return doc(getDb(), "users", uid, "settings", "compass-ui-data");
 }
 
+const reviewTasksCol = (uid: string) => collection(getDb(), "users", uid, "reviewTasks");
+
 function firestoreSafeData(data: unknown): unknown {
   return JSON.parse(JSON.stringify(data));
+}
+
+type ReviewTask = Record<string, unknown>;
+
+/** state.reviews を持つ形かどうかだけを見る。想定外の構造なら null を返す。 */
+function reviewsHolderOf(data: unknown): { state: Record<string, unknown> } | null {
+  if (!data || typeof data !== "object") return null;
+  const state = (data as Record<string, unknown>).state;
+  if (!state || typeof state !== "object" || Array.isArray(state)) return null;
+  return { state: state as Record<string, unknown> };
+}
+
+/**
+ * reviewTasks コレクションを読み、保存時に振った _seq の昇順へ戻す。
+ * _seq が無いものは末尾へ送り、その中は id 昇順で安定させる。
+ * 返す各要素からは _seq を取り除く（埋め込み時と同じ形にするため）。
+ */
+function sortAndStripSeq(rows: { id: string; body: ReviewTask }[]): ReviewTask[] {
+  const seqOf = (body: ReviewTask) =>
+    typeof body._seq === "number" && Number.isFinite(body._seq) ? body._seq : null;
+
+  return rows
+    .slice()
+    .sort((a, b) => {
+      const sa = seqOf(a.body);
+      const sb = seqOf(b.body);
+      if (sa !== null && sb !== null) return sa - sb || a.id.localeCompare(b.id);
+      if (sa !== null) return -1;
+      if (sb !== null) return 1;
+      return a.id.localeCompare(b.id);
+    })
+    .map(({ body }) => {
+      const { _seq: _drop, ...rest } = body;
+      void _drop;
+      return rest;
+    });
 }
 
 function injectedSessionScript(email: string) {
@@ -128,6 +166,11 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
   const [bridgeReady, setBridgeReady] = useState(false);
   const [error, setError] = useState("");
 
+  // 直近の GET で確定した reviews の控え。A-2-1 では書き込むだけで参照しない。
+  // A-2-3 の差分書き込み（追加・更新・削除の判定）で使う土台。
+  const baselineReviews = useRef<ReviewTask[] | null>(null);
+  const baselineLoaded = useRef(false);
+
   useEffect(() => {
     if (preview) {
       setChecking(false);
@@ -160,10 +203,49 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
     window.COMPASS_CLOUD_GET = async () => {
       const snap = await getDoc(compassStateDoc(user.uid));
       const saved = snap.exists() ? snap.data() : null;
-      return {
-        data: saved?.data ?? null,
-        email: user.email ?? ""
-      };
+      const data = saved?.data ?? null;
+      const result = { data, email: user.email ?? "" };
+
+      const holder = reviewsHolderOf(data);
+      if (!holder) {
+        // 保存が空、または state を持たない構造。従来どおり返す。
+        baselineReviews.current = null;
+        baselineLoaded.current = false;
+        return result;
+      }
+
+      // 未移行なら、埋め込みの state.reviews をそのまま使う。
+      if (!saved?.reviewsMigratedAt) {
+        const embedded = Array.isArray(holder.state.reviews)
+          ? (holder.state.reviews as ReviewTask[])
+          : [];
+        baselineReviews.current = structuredClone(embedded);
+        baselineLoaded.current = true;
+        console.info(`[A-2-1] reviews source = embedded (${embedded.length}件)`);
+        return result;
+      }
+
+      // 移行済みなら、コレクションを正としてサブコレクションから読み直す。
+      try {
+        const qs = await getDocs(reviewTasksCol(user.uid));
+        const rows = qs.docs.map((d) => ({ id: d.id, body: d.data() as ReviewTask }));
+        const reviews = sortAndStripSeq(rows);
+        holder.state.reviews = reviews;
+        baselineReviews.current = structuredClone(reviews);
+        baselineLoaded.current = true;
+        console.info(`[A-2-1] reviews source = collection (${reviews.length}件)`);
+      } catch (e) {
+        // 読めなくても落とさない。state.reviews は触らず、埋め込み側をそのまま使わせる。
+        const embedded = Array.isArray(holder.state.reviews)
+          ? (holder.state.reviews as ReviewTask[])
+          : [];
+        baselineReviews.current = null;
+        baselineLoaded.current = false;
+        console.warn("[A-2-1] reviewTasks の読み込みに失敗。埋め込みの reviews を使用します", e);
+        console.info(`[A-2-1] reviews source = fallback (${embedded.length}件)`);
+      }
+
+      return result;
     };
 
     window.COMPASS_CLOUD_PUT = async (data: unknown) => {
