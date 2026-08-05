@@ -1004,7 +1004,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
             </div>
           </sc-for>
           <sc-if value="{{ ckReviewsEmpty }}" hint-placeholder-val="{{ false }}">
-            <div class="empty-note"><b>復習の予定はありません</b><span>タスクを完了すると、1日後・1週間後・1ヶ月後の復習が自動で積まれます。</span></div>
+            <div class="empty-note"><b>復習の予定はありません</b><span>復習タスクを完了して理解度を記録すると、翌日→3日後→1週間後→2週間後の間隔で次の復習が自動で積まれます。</span></div>
           </sc-if>
         </div>
         <div class="cockpit-week-rate" onClick="{{ goReview }}" style="margin-top:auto;padding:10px 12px;background:var(--bg2);border-radius:10px;display:flex;gap:10px;align-items:center;cursor:pointer">
@@ -2629,7 +2629,8 @@ class Component extends DCLogic {
       { id:'add', label:'タスク追加', dot:'var(--org)', g:'none' },
       { id:'data', label:'データ', dot:'var(--blue)', g:'none' }
     ];
-    const overdue = S.segs.filter(s => !s.done && !s.manualDay && s.day < T && P[s.plan] && P[s.plan].due > T);
+    // 手動配置(manualDay)でも遅れていることに変わりはないので数える(行バッジ odCount と揃える)
+    const overdue = S.segs.filter(s => !s.done && s.day < T && P[s.plan] && P[s.plan].due > T);
     const redistTargets = S.segs.filter(s => !s.done && (!s.manualDay || S.redistIncludeManual) && P[s.plan] && P[s.plan].due > T);
     const validNavIds = views.map(v => v.id);
     const navOrder = (Array.isArray(S.navOrder) ? S.navOrder : []).filter(id => validNavIds.indexOf(id) >= 0).concat(validNavIds.filter(id => !Array.isArray(S.navOrder) || S.navOrder.indexOf(id) < 0));
@@ -2827,6 +2828,8 @@ class Component extends DCLogic {
     };
     const todayIds = S.order.slice();
     S.segs.forEach(s => { if (s.day === T && todayIds.indexOf(s.id) < 0) todayIds.push(s.id); });
+    // 未来日で作った単発タスクは order に入らないので、その日が来たらここで拾う(手動並びは order 側が優先)
+    S.extras.forEach(x => { if (x.day === T && todayIds.indexOf(x.id) < 0) todayIds.push(x.id); });
     S.reviews.forEach(r => { if (r.added && !(r.done && r.due < T) && todayIds.indexOf(r.id) < 0) todayIds.push(r.id); });
     // ToDoは「Testsの計画タスク」を上、「復習・単発」を下に仕切って表示する(並び替えは同じ区画内のみ)
     const seqItems = todayIds.map(itemOf).filter(Boolean);
@@ -3093,7 +3096,10 @@ class Component extends DCLogic {
       let msg;
       const ns = grade === 'high' ? stageNext[askR.stage] : (grade === 'mid' ? askR.stage : '翌日');
       let nextReview = null;
-      if (grade === 'high' && !stageDays[ns]) {
+      // 次の間隔が無い(= 定着 🎉 に到達した)ならシリーズ終了。
+      // 「まあまあ」でも stage が既に '定着 🎉' なら間隔が無いので、翌日の復習を作り続けない。
+      // 「不安…」だけは stage に関係なく翌日から組み直す。
+      if (grade !== 'low' && !stageDays[ns]) {
         msg = '定着！「' + askR.title + '」の復習は完了です 🎉';
       } else {
         const due = this.isoShift(T, stageDays[ns] || 1);
@@ -3397,11 +3403,13 @@ class Component extends DCLogic {
     const addDayOverrides = (S.dayOverrides && S.dayOverrides[addScheduleDate]) || {};
     const setSlotOverride = (period, patch) => {
       this.setState(s => {
-        const date = s.timetableFocusDate || addScheduleDate;
+        // 保存先は「いま表示している日」= addScheduleDate に揃える。
+        // timetableFocusDate が土日のとき表示はその週の月曜になるため、
+        // focus 日付で保存すると読み出しキーとずれて画面に反映されない。
         const all = Object.assign({}, s.dayOverrides || {});
-        const day = Object.assign({}, all[date] || {});
+        const day = Object.assign({}, all[addScheduleDate] || {});
         day[period] = Object.assign({}, day[period] || {}, patch);
-        all[date] = day;
+        all[addScheduleDate] = day;
         return { dayOverrides: all };
       });
     };
@@ -3723,10 +3731,18 @@ class Component extends DCLogic {
           this.showToast('「' + current.name + '」を完了として非表示にしました（勉強時間は保持）');
           return;
         }
-        if (window.confirm && !window.confirm('「' + current.name + '」と、そのミニタスクをすべて削除しますか？')) return;
-        const ids = this.state.segs.filter(x => x.plan === edPid).map(x => x.id);
+        if (window.confirm && !window.confirm('「' + current.name + '」と、そのミニタスクをすべて削除しますか？\n完了済みミニタスクの勉強時間は、データ画面の記録に残ります。')) return;
+        const mineSegs = this.state.segs.filter(x => x.plan === edPid);
+        const ids = mineSegs.map(x => x.id);
+        const doneSegs = mineSegs.filter(x => x.done);
         delete this.PLANS[edPid];
         this.setState(s => ({
+          // 完了ミニタスクを消す前に学習履歴へ移し、集計済みの勉強時間を保持する。
+          studyLog: s.studyLog.concat(doneSegs.map(seg => ({
+            day: seg.day || T,
+            subj: current.subj,
+            min: seg.min
+          }))),
           segs: s.segs.filter(x => x.plan !== edPid),
           order: s.order.filter(id => ids.indexOf(id) < 0),
           selId: ids.indexOf(s.selId) >= 0 ? null : s.selId,
