@@ -1235,6 +1235,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <!-- ════ DATA ════ -->
     <sc-if value="{{ isData }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Data" style="flex:1;overflow:auto;display:grid;grid-template-columns:minmax(320px,2fr) minmax(430px,3fr);gap:16px;padding:18px 20px;align-content:start;animation:fadeUp .22s ease">
+      <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;background:var(--bg1);border:1px solid var(--line);border-radius:99px;padding:2px">
+          <sc-for list="{{ dataRangeChips }}" as="m" hint-placeholder-count="3">
+            <span onClick="{{ m.onPick }}" style="font:700 11px 'Noto Sans JP';color:{{ m.c }};background:{{ m.bg }};border-radius:99px;padding:6px 15px;cursor:pointer;white-space:nowrap">{{ m.label }}</span>
+          </sc-for>
+        </div>
+        <span style="font-size:10.5px;color:var(--tx3);font-family:'Space Grotesk'">{{ dataRangeNote }}</span>
+        <span style="margin-left:auto;padding:6px 14px;background:var(--bg1);border:1px solid {{ streakBd }};border-radius:99px;font:700 12px 'Noto Sans JP';color:{{ streakC }};white-space:nowrap">{{ streakLabel }}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0;height:fit-content">
       <div style="background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:16px;display:flex;flex-direction:column;gap:12px;height:fit-content">
         <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:99px;background:var(--acc);box-shadow:var(--gAcc)"></span><span style="font:700 14px 'Noto Sans JP';color:var(--tx0)">教科別 勉強時間</span><span style="margin-left:auto;font-size:11px;color:var(--tx3)">学習ログ+完了タスク</span></div>
         <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
@@ -1259,6 +1269,27 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           </div>
         </div>
         <div style="font-size:11px;color:var(--tx3)">タスクや復習を完了すると、その分数が自動で加算されます</div>
+      </div>
+      <div style="background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:16px;display:flex;flex-direction:column;gap:12px;height:fit-content">
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:99px;background:var(--org);box-shadow:none"></span><span style="font:700 14px 'Noto Sans JP';color:var(--tx0)">日別の学習量</span><span style="margin-left:auto;font-size:11px;color:var(--tx3)">直近15週</span></div>
+        <svg viewBox="{{ heatVB }}" style="width:100%;max-width:520px;height:auto">
+          <sc-for list="{{ heatMonths }}" as="m" hint-placeholder-count="4">
+            <text x="{{ m.x }}" y="8" style="font:700 7.5px 'Space Grotesk';fill:var(--tx3)">{{ m.label }}</text>
+          </sc-for>
+          <sc-for list="{{ heatDows }}" as="d" hint-placeholder-count="3">
+            <text x="0" y="{{ d.y }}" style="font:8px 'Noto Sans JP';fill:var(--tx3)">{{ d.label }}</text>
+          </sc-for>
+          <sc-for list="{{ heatCells }}" as="c" hint-placeholder-count="21">
+            <rect x="{{ c.x }}" y="{{ c.y }}" width="12" height="12" rx="3" fill="{{ c.fill }}"><title>{{ c.tip }}</title></rect>
+          </sc-for>
+        </svg>
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--tx3)">
+          <span>少</span>
+          <sc-for list="{{ heatLegend }}" as="l" hint-placeholder-count="5"><span style="width:11px;height:11px;border-radius:3px;background:{{ l.fill }};flex:none"></span></sc-for>
+          <span>多</span>
+          <span style="margin-left:auto;text-align:right">マスにカーソルを合わせるとその日の分数が出ます</span>
+        </div>
+      </div>
       </div>
       <div style="background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:16px;display:flex;flex-direction:column;gap:12px;height:fit-content">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="width:8px;height:8px;border-radius:99px;background:var(--vio);box-shadow:var(--gVio)"></span><span style="font:700 14px 'Noto Sans JP';color:var(--tx0)">テスト結果</span><span style="margin-left:auto;font-size:11px;color:var(--tx3)">クリックで推移を表示</span></div>
@@ -2028,6 +2059,8 @@ class Component extends DCLogic {
       editorPlan:null, editorCollapsed:false, edPlanName:'', edPlanSubj:'', edPlanDue:'', edPlanRange:'', edPlanType:'test', edNewTitle:'', edNewSize:'M', dragMini:null, dragMiniOver:null, dragMiniPos:'before', editMiniName:null, todoNewSub:'', todoNewSize:'S',
       revSel:null, revFilter:null, revSort:'due', revAsk:null, revAskGrade:null, revAskSize:null, dragRev:null, revEditName:null,
       scoreName:'', scoreSubj:'', scoreVal:'', scoreDay:this.TODAY, scoreSel:null,
+      // データ画面の期間切替。集計の見せ方だけを変える表示状態なので保存しない(persistentKeys に入れない)
+      dataRange:'all',
       countdowns: [], countdownTitle:'', countdownDate:this.TODAY,
       // サイドバー・ドロワーの幅(ドラッグで変更可・localStorageに保存)
       panelW: { nav:196, search:308, editor:410, review:380, score:400 },
@@ -3319,10 +3352,33 @@ class Component extends DCLogic {
     };
 
     // ── data tab (円グラフ: 学習ログ+完了タスクの分数 / 折れ線: テスト点数の推移)
+    // 集計元を1本のリストにまとめる。日付は studyLog=day / 完了seg=day / 完了extra=day で拾う。
+    // 完了した復習(completedAt)は confirmAsk が同じ分数を studyLog に書いているので、ここでは足さない(二重計上になる)。
+    const studyEntries = [];
+    S.studyLog.forEach(e => studyEntries.push({ day: e.day || '', subj: e.subj, min: e.min }));
+    S.segs.forEach(s => { if (s.done && P[s.plan]) studyEntries.push({ day: s.day || '', subj: P[s.plan].subj, min: s.min }); });
+    S.extras.forEach(x => { if (x.done) studyEntries.push({ day: x.day || '', subj: x.subj, min: x.min }); });
+    // 週は月曜始まり(復習の消化率と同じ数え方)
+    const dataWeekStart = this.isoShift(T, -((new Date(T + 'T00:00:00Z').getUTCDay() + 6) % 7));
+    const dataWeekEnd = this.isoShift(dataWeekStart, 6);
+    const dataRange = (S.dataRange === 'week' || S.dataRange === 'month') ? S.dataRange : 'all';
+    // 日付を持たないもの(未配分のまま完了した単発タスクなど)は「全期間」でだけ数える
+    const inDataRange = (day) => {
+      if (dataRange === 'all') return true;
+      if (!day) return false;
+      if (dataRange === 'month') return day.slice(0, 7) === T.slice(0, 7);
+      return day >= dataWeekStart && day <= dataWeekEnd;
+    };
+    const dataRangeChips = [ { id:'week', label:'今週' }, { id:'month', label:'今月' }, { id:'all', label:'全期間' } ].map(mode => ({
+      label: mode.label,
+      c: dataRange === mode.id ? 'var(--onAcc)' : 'var(--tx2)',
+      bg: dataRange === mode.id ? 'var(--acc)' : 'transparent',
+      onPick: () => this.setState({ dataRange: mode.id })
+    }));
+    const dataRangeNote = dataRange === 'week' ? (this.fmtMD(dataWeekStart) + ' 〜 ' + this.fmtMD(dataWeekEnd))
+      : (dataRange === 'month' ? (parseInt(T.slice(5, 7), 10) + '月') : 'すべての記録');
     const pieTotals = {};
-    S.studyLog.forEach(e => { pieTotals[e.subj] = (pieTotals[e.subj] || 0) + e.min; });
-    S.segs.forEach(s => { if (s.done) { const sj = P[s.plan].subj; pieTotals[sj] = (pieTotals[sj] || 0) + s.min; } });
-    S.extras.forEach(x => { if (x.done) pieTotals[x.subj] = (pieTotals[x.subj] || 0) + x.min; });
+    studyEntries.forEach(e => { if (inDataRange(e.day)) pieTotals[e.subj] = (pieTotals[e.subj] || 0) + e.min; });
     const pieTotal = Object.keys(pieTotals).reduce((a, k) => a + pieTotals[k], 0);
     const pieArcs = [], pieLegend = [];
     let pieCum = 0;
@@ -3333,6 +3389,41 @@ class Component extends DCLogic {
       pieLegend.push({ name: name, c: sub.c, bg: sub.bg, h: toH(min), pct: Math.round(pct) + '%' });
       pieCum += pct;
     });
+    // ── ストリークとヒートマップは「その日に何分やったか」だけを見る。期間切替とは独立(常に実データ全体)。
+    const dayMin = {};
+    studyEntries.forEach(e => { if (e.day) dayMin[e.day] = (dayMin[e.day] || 0) + (Number(e.min) || 0); });
+    // 今日がまだ0分でも昨日までの連続は途切れていない扱いにする
+    let streakDays = 0, streakCursor = dayMin[T] > 0 ? T : this.isoShift(T, -1);
+    while (streakDays < 3650 && dayMin[streakCursor] > 0) { streakDays++; streakCursor = this.isoShift(streakCursor, -1); }
+    const HEAT_WEEKS = 15, HEAT_CELL = 12, HEAT_PITCH = 15, HEAT_PAD = 18, HEAT_TOP = 12;
+    const heatFill = (m, future) => {
+      if (future) return 'color-mix(in srgb, var(--tx3) 6%, transparent)';
+      if (!m) return 'color-mix(in srgb, var(--tx3) 14%, transparent)';
+      if (m < 30) return 'color-mix(in srgb, var(--acc) 22%, var(--bg2))';
+      if (m < 60) return 'color-mix(in srgb, var(--acc) 45%, var(--bg2))';
+      if (m < 120) return 'color-mix(in srgb, var(--acc) 70%, var(--bg2))';
+      return 'var(--acc)';
+    };
+    // SVG の <text>/<title> の中では {{ }} が <span> に包まれて描画されないため、
+    // 配列で渡してランタイムに素のテキストノードとして展開させる(support.js の walkText)。
+    const svgText = (s) => [s];
+    const heatCells = [], heatMonths = [];
+    for (let w = 0; w < HEAT_WEEKS; w++) {
+      const colX = HEAT_PAD + w * HEAT_PITCH;
+      const colMon = this.isoShift(dataWeekStart, (w - (HEAT_WEEKS - 1)) * 7);
+      // 月の最初の月曜だけに月ラベルを置く(ラベル同士が必ず4列以上離れる)
+      if (parseInt(colMon.slice(8, 10), 10) <= 7) heatMonths.push({ x: colX, label: svgText(parseInt(colMon.slice(5, 7), 10) + '月') });
+      for (let d = 0; d < 7; d++) {
+        const iso = this.isoShift(colMon, d), future = iso > T, m = dayMin[iso] || 0;
+        heatCells.push({
+          x: colX, y: HEAT_TOP + d * HEAT_PITCH, fill: heatFill(m, future),
+          tip: svgText(future ? this.fmtMD(iso) : (this.fmtMD(iso) + ' · ' + m + '分'))
+        });
+      }
+    }
+    const heatDows = [ { i:0, label:'月' }, { i:2, label:'水' }, { i:4, label:'金' } ]
+      .map(r => ({ y: HEAT_TOP + r.i * HEAT_PITCH + HEAT_CELL - 3, label: svgText(r.label) }));
+    const heatLegend = [0, 20, 45, 90, 150].map(m => ({ fill: heatFill(m, false) }));
     // テストは名前ごとにグループ化してリスト表示し、クリックで右ドロワーに推移を出す
     const scoreSorted = S.scores.slice().sort((a, b) => a.day < b.day ? -1 : 1);
     const scGroupMap = {};
@@ -4165,6 +4256,12 @@ class Component extends DCLogic {
       ckReturnDragOver: ckReturnDragOver,
       ckReturnDrop: ckReturnDrop,
       pieArcs: pieArcs, pieLegend: pieLegend, pieTotalH: toH(pieTotal),
+      dataRangeChips: dataRangeChips, dataRangeNote: dataRangeNote,
+      streakLabel: streakDays > 0 ? ('🔥 連続' + streakDays + '日') : 'まだ連続記録はありません',
+      streakC: streakDays > 0 ? 'var(--org)' : 'var(--tx3)',
+      streakBd: streakDays > 0 ? 'color-mix(in srgb, var(--org) 40%, var(--line))' : 'var(--line)',
+      heatCells: heatCells, heatMonths: heatMonths, heatDows: heatDows, heatLegend: heatLegend,
+      heatVB: '0 0 ' + (HEAT_PAD + HEAT_WEEKS * HEAT_PITCH - (HEAT_PITCH - HEAT_CELL)) + ' ' + (HEAT_TOP + 7 * HEAT_PITCH - (HEAT_PITCH - HEAT_CELL)),
       scoreGroups: scoreGroups, scoreGroupsHas: scoreGroups.length > 0, scoreGroupsNone: scoreGroups.length === 0,
       scOpen: scOpen,
       closeSc: () => this.setState({ scoreSel: null }),
