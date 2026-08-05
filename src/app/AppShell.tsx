@@ -74,6 +74,40 @@ function sortAndStripSeq(rows: { id: string; body: ReviewTask }[]): ReviewTask[]
 
 const DOC_ID_MAX_BYTES = 1500;
 const FIRESTORE_BATCH_LIMIT = 500;
+/** 1バッチに詰める操作数の上限。Firestore の 500 に対して余裕を取る。 */
+const OPS_PER_BATCH = 450;
+
+function idOf(review: ReviewTask): string | null {
+  const id = (review as { id?: unknown }).id;
+  return typeof id === "string" && id ? id : null;
+}
+
+/** _seq を落とした素の内容を返す。差分比較と baseline の保存に使う。 */
+function stripSeq(review: ReviewTask): ReviewTask {
+  const { _seq: _drop, ...rest } = review;
+  void _drop;
+  return rest;
+}
+
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === "object") {
+    const src = value as Record<string, unknown>;
+    return Object.keys(src)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, k) => {
+        acc[k] = sortDeep(src[k]);
+        return acc;
+      }, {});
+  }
+  return value;
+}
+
+/** キー順に依存しない JSON 文字列。Firestore 由来とアプリ由来で
+ *  キーの並びが違っても、内容が同じなら同じ文字列になる。 */
+function stableJson(value: unknown): string {
+  return JSON.stringify(sortDeep(value));
+}
 
 /** Firestore のドキュメントIDとして使えない理由を返す。使えるなら null。 */
 function invalidDocIdReason(id: unknown): string | null {
@@ -243,10 +277,13 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
   const [bridgeReady, setBridgeReady] = useState(false);
   const [error, setError] = useState("");
 
-  // 直近の GET で確定した reviews の控え。A-2-1 では書き込むだけで参照しない。
-  // A-2-3 の差分書き込み（追加・更新・削除の判定）で使う土台。
+  // 直近の GET で確定した reviews の控え。A-2-3 の差分書き込み
+  // （追加・更新・削除の判定）の基準になる。
   const baselineReviews = useRef<ReviewTask[] | null>(null);
   const baselineLoaded = useRef(false);
+  // 直近の GET で読んだ reviewsMigratedAt。PUT が全置換でこれを書き戻すことで
+  // フラグを永続させる（merge を使わないため、payload に明示する必要がある）。
+  const migratedAtRef = useRef<unknown>(null);
 
   useEffect(() => {
     if (preview) {
@@ -280,6 +317,8 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
     window.COMPASS_CLOUD_GET = async () => {
       const snap = await getDoc(compassStateDoc(user.uid));
       const saved = snap.exists() ? snap.data() : null;
+      // PUT が全置換で書き戻せるよう、フラグの値をそのまま保持しておく。
+      migratedAtRef.current = saved?.reviewsMigratedAt ?? null;
       const data = saved?.data ?? null;
       const result = { data, email: user.email ?? "" };
 
@@ -327,11 +366,147 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
 
     window.COMPASS_CLOUD_PUT = async (data: unknown) => {
       const safeData = firestoreSafeData(data);
-      await setDoc(compassStateDoc(user.uid), {
+      const migratedAt = migratedAtRef.current;
+      const mainRef = compassStateDoc(user.uid);
+
+      // ── 未移行: 従来と完全に同一の動作。
+      //    reviewTasks には触れず、reviewsMigratedAt も payload に含めない。
+      if (migratedAt == null) {
+        await setDoc(mainRef, {
+          data: safeData,
+          email: user.email ?? "",
+          updatedAt: new Date().toISOString()
+        });
+        console.info("[A-2-3] put: embedded only");
+        return { ok: true, storage: "firebase" };
+      }
+
+      // ── 移行済み。
+      // ★ merge は使わない。merge はネストしたマップを再帰マージするため、
+      //   plans / dayOverrides / scores / studyLog / countdowns / planQuota から
+      //   キーを消しても復活してしまう。全置換のまま、payload に
+      //   reviewsMigratedAt を明示することでフラグを永続させる。
+      //
+      // フラグは「コレクションを正確に更新できた」と確認できたときだけ付ける。
+      // 読み込み側は移行済みなら state.reviews をコレクションの内容で丸ごと
+      // 差し替えるため、書けなかったタスクがあるままフラグを残すと、
+      // そのタスクが画面から消えて見える。付けなければ埋め込みモードへ退避する。
+      const mainPayload: Record<string, unknown> = {
         data: safeData,
         email: user.email ?? "",
         updatedAt: new Date().toISOString()
+      };
+      let collectionTrusted = true;
+
+      const holder = reviewsHolderOf(safeData);
+      const reviews =
+        holder && Array.isArray(holder.state.reviews)
+          ? (holder.state.reviews as ReviewTask[])
+          : null;
+
+      // reviews を取り出せない構造。reviewTasks には触れず、メインだけ書く。
+      // コレクションを更新できないので、フラグを落として埋め込みへ退避させる。
+      if (!reviews) {
+        console.error(
+          "[A-2-3] 受信データから state.reviews を取り出せないため reviewTasks を更新できません。フラグを落として埋め込みモードへ退避します"
+        );
+        migratedAtRef.current = null;
+        await setDoc(mainRef, mainPayload);
+        console.info("[A-2-3] put: 0 updated, 0 deleted (fallback to embedded)");
+        return { ok: true, storage: "firebase" };
+      }
+
+      // ── baseline との差分を出す
+      const baseline = baselineReviews.current;
+      const baseById = new Map<string, { json: string; seq: number }>();
+      baseline?.forEach((row, seq) => {
+        const id = idOf(row);
+        if (id) baseById.set(id, { json: stableJson(stripSeq(row)), seq });
       });
+
+      const writes: { id: string; body: ReviewTask }[] = [];
+      const seenIds = new Set<string>();
+      reviews.forEach((review, index) => {
+        const rawId = (review as { id?: unknown }).id;
+        const reason = invalidDocIdReason(rawId);
+        if (reason) {
+          // ここで doc() が投げると保存全体が落ちるので、その1件だけ見送る。
+          // ただしコレクションはこのタスクを欠いた状態になる。フラグを残すと
+          // 読み込み側がその状態を正としてしまい、画面から消えて見える。
+          console.error(
+            `[A-2-3] id が使えないため reviewTasks へ書き込めません: ${JSON.stringify(rawId)} (${reason})`
+          );
+          collectionTrusted = false;
+          return;
+        }
+        const id = rawId as string;
+        seenIds.add(id);
+        const body = stripSeq(review);
+        const prev = baseById.get(id);
+        // 内容が同じでも配列内の位置が変われば _seq が変わるので更新対象。
+        if (!prev || prev.json !== stableJson(body) || prev.seq !== index) {
+          writes.push({
+            id,
+            body: firestoreSafeData({ ...body, _seq: index }) as ReviewTask
+          });
+        }
+      });
+
+      // 削除は baseline にあって今回来なかったものだけ。
+      // baseline が無い（GET で確定できていない）ときは1件も消さない。
+      // baseline に無いドキュメントには触れない（他アプリ由来のタスクを守る）。
+      const deletes: string[] = [];
+      if (baselineLoaded.current && baseline) {
+        baseById.forEach((_v, id) => {
+          if (!seenIds.has(id)) deletes.push(id);
+        });
+      }
+
+      // 全件をコレクションへ反映できるときだけフラグを維持する。
+      // 落とした場合は次回の読み込みが埋め込みモードへ戻る。
+      if (collectionTrusted) {
+        mainPayload.reviewsMigratedAt = migratedAt;
+      } else {
+        migratedAtRef.current = null;
+      }
+
+      const col = reviewTasksCol(user.uid);
+
+      if (writes.length + deletes.length + 1 <= OPS_PER_BATCH) {
+        // 通常経路。reviewTasks とメインを1バッチでアトミックに。
+        const batch = writeBatch(getDb());
+        writes.forEach((w) => batch.set(doc(col, w.id), w.body));
+        deletes.forEach((id) => batch.delete(doc(col, id)));
+        batch.set(mainRef, mainPayload);
+        await batch.commit();
+      } else {
+        // 上限超え。reviewTasks を先に分割コミットし、メインは最後に単独で書く。
+        const ops: Array<{ id: string; body?: ReviewTask }> = [
+          ...writes.map((w) => ({ id: w.id, body: w.body })),
+          ...deletes.map((id) => ({ id }))
+        ];
+        for (let i = 0; i < ops.length; i += OPS_PER_BATCH) {
+          const batch = writeBatch(getDb());
+          ops.slice(i, i + OPS_PER_BATCH).forEach((op) => {
+            const ref = doc(col, op.id);
+            if (op.body) batch.set(ref, op.body);
+            else batch.delete(ref);
+          });
+          await batch.commit();
+        }
+        await setDoc(mainRef, mainPayload);
+      }
+
+      // commit が成功したときだけ baseline を差し替える。
+      // 参照を共有すると次回以降の差分が常に「変更なし」になり、削除が効かなくなる。
+      // このPUTで書いた内容が正になったので、GET が失敗していた場合でも
+      // 以後の削除判定はこの baseline を信頼してよい。
+      baselineReviews.current = structuredClone(reviews.map(stripSeq));
+      baselineLoaded.current = true;
+      console.info(
+        `[A-2-3] put: ${writes.length} updated, ${deletes.length} deleted ` +
+          (collectionTrusted ? "(migrated)" : "(fallback to embedded)")
+      );
       return { ok: true, storage: "firebase" };
     };
 
@@ -384,6 +559,10 @@ export function AppShell({ srcDoc, preview = false }: AppShellProps) {
       delete window.COMPASS_CLOUD_GET;
       delete window.COMPASS_CLOUD_PUT;
       delete window.COMPASS_MIGRATE_REVIEWS;
+      // ユーザー切り替え時に前のアカウントの baseline やフラグを持ち越さない。
+      baselineReviews.current = null;
+      baselineLoaded.current = false;
+      migratedAtRef.current = null;
     };
   }, [preview, user]);
 

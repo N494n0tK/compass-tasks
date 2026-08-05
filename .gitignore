@@ -47,6 +47,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude Code local settings (machine固有の絶対パスを含む)
+/.claude/
+
 # Local QA captures generated during verification
 /qa-iphone-se-production*.png
 
