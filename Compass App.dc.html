@@ -1469,6 +1469,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         <div style="background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:12px 18px;width:130px"><div style="font-size:10px;color:var(--tx3)">今日やる復習</div><div style="font:700 20px 'Space Grotesk';color:var(--pink)">{{ revTodayCount }}<span style="font-size:12px;color:var(--tx2)">件</span></div></div>
         <div style="background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:12px 18px;width:130px"><div style="font-size:10px;color:var(--tx3)">遅れている復習</div><div style="font:700 20px 'Space Grotesk';color:{{ revLateC }}">{{ revLateCount }}<span style="font-size:12px;color:var(--tx2)">件</span></div></div>
         <div style="background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:12px 18px;width:150px"><div style="font-size:10px;color:var(--tx3)">今週の消化率 · {{ weekRateMeta }}</div><div style="font:700 20px 'Space Grotesk';color:var(--grn)">{{ weekRateLabel }}<span style="font-size:12px">{{ weekRateSuffix }}</span></div></div>
+        <sc-if value="{{ revBulkShow }}" hint-placeholder-val="{{ false }}"><button onClick="{{ revBulkAdd }}" style="display:flex;align-items:center;gap:7px;padding:9px 16px;border:none;border-radius:99px;background:var(--grn);color:var(--onAcc);font:700 11.5px 'Noto Sans JP';cursor:pointer;white-space:nowrap;flex:none;box-shadow:var(--gGrn)">今日の復習をまとめてToDoへ<span style="font:700 10.5px 'Space Grotesk';background:color-mix(in srgb,var(--onAcc) 22%,transparent);border-radius:99px;padding:1px 7px">{{ revBulkCount }}</span></button></sc-if>
         <div style="margin-left:auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:10.5px;color:var(--tx3)">並び替え</span>
@@ -3262,15 +3263,32 @@ class Component extends DCLogic {
         onDone: (e) => { e.stopPropagation(); openAsk(r.id); }
       };
     });
+    // 今日までに来ている未完了・未追加の復習(行の「＋ 今日へ」と同じ条件)をまとめて今日のToDoへ。
+    // 絞り込みや並び替えに関係なく対象は同じなので、期限順/教科ごとのどちらでもボタンは出る。
+    const revBulkTargets = S.reviews.filter(r => !r.added && !r.done && r.due <= T);
+    const revBulkAdd = () => {
+      const ids = this.state.reviews.filter(r => !r.added && !r.done && r.due <= T).map(r => r.id);
+      if (!ids.length) return;
+      this.setState(s => ({
+        reviews: s.reviews.map(x => ids.indexOf(x.id) >= 0 ? Object.assign({}, x, { added: true }) : x),
+        order: s.order.concat(ids.filter(id => s.order.indexOf(id) < 0))
+      }));
+      this.showToast(ids.length + '件の復習を今日のToDoに追加しました');
+    };
 
     // ── review detail panel
     const rSel = S.reviews.find(r => r.id === S.revSel) || null;
     const rdSt = rSel ? statusOf(rSel) : null;
+    // ±1日は「その復習自身の次回復習日」を起点に相対シフトする。
+    // (以前は13日カレンダー DIDX を経由していたため、期限切れ/13日以上先の復習が一気に今日へ飛んでいた)
+    // 下限は「今日」。ただしすでに期限切れのものはその日より前へは下げない。
     const shiftDue = (delta) => {
       if (!rSel) return;
-      const i = this.DIDX[rSel.due];
-      const ni = i == null ? 0 : Math.max(0, Math.min(12, i + delta));
-      const iso = this.DAYS[ni].iso;
+      const base = /^\d{4}-\d{2}-\d{2}$/.test(rSel.due || '') ? rSel.due : T;
+      const floor = base < T ? base : T;
+      const shifted = this.isoShift(base, delta);
+      const iso = shifted < floor ? floor : shifted;
+      if (iso === rSel.due) { this.showToast('次回復習日はこれ以上前にできません'); return; }
       this.mutReview(rSel.id, x => (x.due = iso, x));
       this.showToast('次回復習日を ' + this.dayLabel(iso) + ' に変更しました');
     };
@@ -4119,6 +4137,7 @@ class Component extends DCLogic {
       addTodoSub: addTodoSub,
       addPlanMini: addPlanMini,
       revRows: revRows, revSubjChips: revSubjChips, revSortChips: revSortChips,
+      revBulkShow: revBulkTargets.length > 0, revBulkCount: revBulkTargets.length, revBulkAdd: revBulkAdd,
       askOpen: !!askR,
       closeAsk: () => this.setState({ revAsk: null }),
       askTitle: askR ? askR.title : '', askStage: askR ? askR.stage : '',
