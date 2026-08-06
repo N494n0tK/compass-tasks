@@ -103,14 +103,19 @@ src/
    タイムアウトフォールバックを追加して再現しない)。
 3. gmail.com 制限・ログアウト UI は現 AppShell と同一。
 
-## 8. 移行・ロールアウト
+## 8. 移行・ロールアウト（完了 2026-08-06）
 
-1. ブランチ `feat/nextjs-rewrite`(feat/app-enhancements から分岐)。
-2. 実装中はレガシーを `/?legacy=1` で並存(page.tsx で出し分け)→ 並走比較検証。
-3. パリティ検証(§9)が通ったら default を新実装に切替、レガシー HTML/support.js/iframe 系は
-   削除コミットで退役(復元はタグで可能に)。
+1. ~~ブランチ `feat/nextjs-rewrite`(feat/app-enhancements から分岐)。~~ 完了
+2. ~~実装中はレガシーを `/?legacy=1` で並存(page.tsx で出し分け)→ 並走比較検証。~~ 完了
+3. ~~パリティ検証(§9)が通ったら default を新実装に切替、レガシー HTML/support.js/iframe 系は
+   削除コミットで退役(復元はタグで可能に)。~~ 完了 — 検証結果 589 PASS / FAIL 0(修正後)。
+   **退役済み**: `Compass App.dc.html` / `support.js` / `src/app/AppShell.tsx` / `?legacy=1` 経路。
+   復元はタグ `legacy-retired-20260806` から。
 4. Firestore データには一切の migration を行わない(形状不変が原則。reviewsMigratedAt の
    有無どちらでも動くこと = A-2-1〜A-2-3 と同じ両対応)。
+
+なお本書と `app-spec.md` / `css-notes.md` が参照する `HTML:行番号` は退役したファイルの
+行番号であり、経緯の記録として残している(タグから取得可能)。
 
 ## 9. 検証戦略
 

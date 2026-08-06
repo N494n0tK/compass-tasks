@@ -13,9 +13,9 @@
    ============================================================================ */
 
 /* ==========================================================================
-   [A] 移行期のホスト UI
-   iframe 廃止までの間だけ必要。アプリ本体(.compass-shell 配下)へ影響が
-   漏れないよう、リセット以外はすべて .auth-screen / .legacy-shell に閉じる。
+   [A] 認証画面(サインイン / 利用不可 / 読み込み中)
+   アプリ本体(.compass-shell 配下)へ影響が漏れないよう、リセット以外は
+   すべて .auth-screen に閉じる。
    ========================================================================== */
 
 /* 認証画面専用トークン。アプリは --bg0..--tx3 系を .compass-theme で定義するため衝突しない */
@@ -50,21 +50,6 @@ body {
 .auth-screen button {
   font-family: inherit;
   cursor: pointer;
-}
-
-.legacy-shell {
-  height: 100vh;
-  height: 100dvh;
-  margin: 0;
-  overflow: hidden;
-  width: 100vw;
-}
-
-.legacy-frame {
-  border: 0;
-  display: block;
-  height: 100%;
-  width: 100%;
 }
 
 /* ---- 認証画面 ---- */
