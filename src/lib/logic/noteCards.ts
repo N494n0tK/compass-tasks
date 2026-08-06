@@ -22,7 +22,6 @@
 
 import { cardNoOf, type Note } from '../model/notes';
 import type { ISODate, Review } from '../model/types';
-import { isoShift } from './dates';
 
 /** `noteSeriesId` が作る id の形。`invalidDocIdReason` にも通る（`/` も `__` も含まない） */
 const NOTE_SERIES_RE = /^nb-(n[0-9a-z]+)-(c[0-9a-z]+)$/;
@@ -81,9 +80,13 @@ export interface NoteReviewGenResult {
  * 同じ JSON を何度取り込んでも増えない（N-022）。完了済みの行しか残っていない場合も
  * 「その系列は消化済み」とみなして作らない。
  *
+ * 初回は **`stage:'当日'` / `due:今日` / `added:true`**。授業が終わってノートを貼ったら、
+ * その日のうちに「今日のToDo」へ出て復習できる（ワークフロー手順 4）。
+ * 以後は `nextReviewOf` が 翌日 → 3日後 → 1週間後 → 2週間後 → 定着 と送る。
+ *
  * @param note     取り込み直後 / 編集直後のノート
  * @param existing `state.reviews`
- * @param today    今日（`due` は翌日になる）
+ * @param today    今日（`due` も今日）
  */
 export function generateNoteReviews(
   note: Note,
@@ -93,7 +96,6 @@ export function generateNoteReviews(
   const known = new Set(existing.map((r) => r.seriesId || r.id));
   const created: Review[] = [];
   let skipped = 0;
-  const due = isoShift(today, 1);
 
   note.cards.forEach((card) => {
     const seriesId = noteSeriesId(note.id, card.cardId);
@@ -108,19 +110,65 @@ export function generateNoteReviews(
       reviewNo: 1,
       title: noteReviewTitle(note, card.cardId),
       subj: note.subject,
-      stage: '翌日',
+      stage: '当日',
       last: today,
-      due,
+      due: today,
       min: NOTE_REVIEW_MIN,
       src: NOTE_REVIEW_SRC,
       timetablePeriod: null,
       timetableDate: null,
-      added: false,
+      // 授業当日にそのまま消化できるよう、最初から今日の ToDo に積む
+      added: true,
       done: false,
     });
   });
 
   return { created, skipped };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 今日ぶんの束ね（ノート 1 冊 = ToDo 1 枚）
+// ─────────────────────────────────────────────────────────────
+
+/** 今日やるカード 1 問ぶん */
+export interface DueCard {
+  reviewId: string;
+  cardId: string;
+  /** 何問目か（1 始まり）。カードがノートから消えていると `null` */
+  cardNo: number | null;
+  review: Review;
+}
+
+/**
+ * あるノートについて「今日ぶんの復習カード」を集める。
+ *
+ * - `due <= today` の未完了行
+ * - **今日完了した行も残す**（ToDo の 1 枚が消えず、進捗として見えるように）。
+ *   `due < today` の完了行（前回までの履歴）は含めない。`itemOf` の
+ *   `r.added && !(r.done && r.due < today)` と同じ考え方。
+ */
+export function dueCardsOfNote(
+  reviews: readonly Review[],
+  note: Pick<Note, 'id' | 'cards'>,
+  today: ISODate,
+): DueCard[] {
+  const order = new Map(note.cards.map((c, i) => [c.cardId, i]));
+  const out: DueCard[] = [];
+  reviews.forEach((r) => {
+    const ref = noteRefOf(r.seriesId);
+    if (!ref || ref.noteId !== note.id) return;
+    if (r.due > today) return;
+    if (r.done && r.due < today) return;
+    const idx = order.get(ref.cardId);
+    out.push({
+      reviewId: r.id,
+      cardId: ref.cardId,
+      cardNo: idx === undefined ? null : idx + 1,
+      review: r,
+    });
+  });
+  // ノート内の問番号どおりに並べる（ノートから消えたカードは末尾）
+  return out.sort((a, b) => (a.cardNo ?? 99) - (b.cardNo ?? 99));
 }
 
 /** トースト文言。0 件のときは `null`（何も出さない） */

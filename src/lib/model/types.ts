@@ -124,8 +124,12 @@ export interface Extra extends SubTaskFields {
   timetableDate: ISODate | null;
 }
 
-/** 間隔反復のステージ（HTML:3129-3131） */
-export type ReviewStage = '翌日' | '3日後' | '1週間後' | '2週間後' | '定着 🎉';
+/**
+ * 間隔反復のステージ（HTML:3129-3131）。
+ * `'当日'` だけレガシーに無い追加で、**ノート取り込みで作られる初回の復習**が名乗る
+ * （授業当日に 1 回やる。docs/notebook/spec.md §4.1）。既存の 5 段はそのまま。
+ */
+export type ReviewStage = '当日' | '翌日' | '3日後' | '1週間後' | '2週間後' | '定着 🎉';
 
 /**
  * 実データには `stageDays` に無い未知の stage 文字列（データ破損 / 将来の legacy）が
@@ -421,8 +425,12 @@ export type RevSort = 'due' | 'subj';
 /** データ画面の期間切替（保存しない, HTML:2071 `dataRange:'all'`） */
 export type DataRange = 'all' | 'week' | 'month';
 
-/** ノート画面のビュー切替（v3 の `state.view` 相当。ノート / 問題抽出） */
-export type NotebookMode = 'note' | 'extract';
+/**
+ * ノート画面のビュー切替。
+ * `note` = ノート全体 / `extract` = 全ノート横断の問題抽出 /
+ * `drill` = **その授業の今日ぶんの問題だけを解く面**（今日の ToDo から飛んでくる）
+ */
+export type NotebookMode = 'note' | 'extract' | 'drill';
 
 /** Add 画面の自動細分化モード（`addGeneratorChips`, HTML:3656-3659） */
 export type AddGenerator = 'manual' | 'duo' | 'chart';
@@ -563,6 +571,8 @@ export interface EphemeralState {
   nbRevealed: Record<string, boolean>;
   /** サイドバーの教科アコーディオン */
   nbTreeOpen: Record<string, boolean>;
+  /** ドリル中に「ノートの全体（解説・演習・疑問）」を開いているか */
+  nbFullNote: boolean;
   /** 理解度モーダルでカードの解答を表示しているか */
   revAskReveal: boolean;
 }

@@ -14,7 +14,7 @@
 
 import type { AppState, Plans, ISODate, SizeKey } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
-import { mutExtra, mutReview, mutSeg } from './ShellActions';
+import { mutExtra, mutReview, mutSeg, openNoteDrill } from './ShellActions';
 import type { TodayItem } from './ShellTodayItems';
 
 /**
@@ -56,11 +56,18 @@ export function openAsk(store: CompassStore, id: string): void {
  * `toggleItem(it)`（HTML:2917-2922）。レガシーはカリー化（`(it) => () => {…}`）されているが、
  * ここは呼び出し側で `onClick={() => toggleItem(store, it)}` と書く形にした。
  *
+ * - **ノート由来の復習（1 冊 1 枚に束ねたもの）… ドリル画面へ**（v0.10 追加）
  * - seg / extra … `done` を反転
  * - rev かつ未完了 … 理解度モーダルへ（**まだ done にしない**）
  * - rev かつ完了済 … モーダルなしで未完了へ戻す
  */
 export function toggleItem(store: CompassStore, it: TodayItem): void {
+  // ノートの復習は 1 問ずつモーダルを開くのではなく、その授業の問題だけを並べた
+  // ドリル面でまとめて解く（docs/notebook/spec.md §8）
+  if (it.noteId && !it.done) {
+    openNoteDrill(store, it.noteId);
+    return;
+  }
   if (it.kind === 'seg') mutSeg(store, it.id, (x) => ((x.done = !x.done), x));
   else if (it.kind === 'extra') mutExtra(store, it.id, (x) => ((x.done = !x.done), x));
   else if (!it.done) openAsk(store, it.id);

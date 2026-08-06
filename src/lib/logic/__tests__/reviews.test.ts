@@ -79,6 +79,48 @@ describe('定数テーブル（HTML:3130-3132）', () => {
     expect(GRADE_REQUIRED_MESSAGE).toBe('理解度を選んでください');
     expect(SHIFT_DUE_BLOCKED_MESSAGE).toBe('次回復習日はこれ以上前にできません');
   });
+
+  /**
+   * v0.10 で `'当日'` を足した（ノート取り込みの初回）。
+   * **既存の 4 段は上のテストで固定済み**。ここでは追加分が既存を壊していないことを見る。
+   */
+  it('v0.10: 当日 → 翌日 のはしごが増えただけで、既存の段は不変', () => {
+    expect(STAGE_NEXT['当日']).toBe('翌日');
+    // `'当日'` は stageDays を持たない（0 を入れると `!nsDays` の系列終了判定を壊すため）。
+    // ns として現れる経路が無いので実害は無い
+    expect(STAGE_DAYS['当日']).toBeUndefined();
+    // 既存データにしか使われない表なので `'当日'` は載せない
+    expect(LEGACY_REVIEW_NO['当日']).toBeUndefined();
+  });
+});
+
+describe('nextReviewOf — 当日ステージ（v0.10 / ノート取り込みの初回）', () => {
+  const sameDay = mkReview({ stage: '当日', due: T, last: T, min: 5 });
+
+  it('ばっちり / まあまあ / 不安 のいずれでも翌日へ送られる', () => {
+    (['high', 'mid', 'low'] as ReviewGrade[]).forEach((grade) => {
+      const t = nextReviewOf(sameDay, grade, 'XS', T, { newId: NEW_ID });
+      expect(t.next).not.toBeNull();
+      expect(t.next?.stage).toBe('翌日');
+      expect(t.next?.due).toBe('2026-08-06'); // T + 1
+      expect(t.next?.reviewNo).toBe(2);
+    });
+  });
+
+  it('据え置き（まあまあ）でも「今日もう一度」にはしない', () => {
+    const t = nextReviewOf(sameDay, 'mid', 'XS', T, { newId: NEW_ID });
+    expect(t.next?.due).not.toBe(T);
+  });
+
+  it('当日ぶんは遅れ扱いにならない（due === 今日なので ToDo から外れない）', () => {
+    expect(nextReviewOf(sameDay, 'high', 'XS', T).mutations.removeFromTodo).toBe(false);
+  });
+
+  it('既存の「翌日」始まりは従来どおり 3日後 へ進む（回帰）', () => {
+    const legacy = mkReview({ stage: '翌日', due: T });
+    expect(nextReviewOf(legacy, 'high', 'S', T, { newId: NEW_ID }).next?.stage).toBe('3日後');
+    expect(nextReviewOf(legacy, 'mid', 'S', T, { newId: NEW_ID }).next?.stage).toBe('翌日');
+  });
 });
 
 describe('reviewNoOf（HTML:3133-3136）', () => {

@@ -29,7 +29,7 @@ import { daysUntil, dayLabel } from '../../lib/logic/dates';
 import { toH } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Seg, SubTaskFields } from '../../lib/model/types';
-import { mutExtra, mutSeg } from '../parts/ShellActions';
+import { mutExtra, mutSeg, openNoteDrill } from '../parts/ShellActions';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
 import { SIZE_MIN, gl, orderedPlanIds, sizeChips, toggleItem } from '../parts/TodoActions';
@@ -447,6 +447,27 @@ export function Todo() {
                     {it.min + '分 · ' + it.src}
                   </div>
                 </div>
+                {/* ノート由来の復習は、その授業の問題だけを並べたドリル面で解く（spec §8） */}
+                {it.noteId ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openNoteDrill(store, it.noteId as string);
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      border: '1px solid var(--ink)',
+                      borderRadius: '8px',
+                      background: 'var(--inkBg)',
+                      color: 'var(--ink)',
+                      font: "700 10.5px 'Noto Sans JP'",
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    ノートで復習
+                  </button>
+                ) : null}
                 <span
                   style={{
                     font: "700 10px 'Noto Sans JP'",

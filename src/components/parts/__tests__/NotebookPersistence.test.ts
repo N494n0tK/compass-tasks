@@ -138,7 +138,10 @@ describe('commitNote', () => {
     expect(res.created).toBe(2);
     const reviews = store.getState().reviews;
     expect(reviews.map((r) => r.seriesId)).toEqual(['nb-nabc-c0', 'nb-nabc-c1']);
-    expect(reviews[0].due).toBe(TOMORROW);
+    // 授業当日に消化できるよう、期限は今日でそのまま今日の ToDo に積まれる
+    expect(reviews[0].due).toBe(T);
+    expect(reviews[0].stage).toBe('当日');
+    expect(reviews[0].added).toBe(true);
   });
 
   it('2 回呼んでも増えない（N-022）', () => {

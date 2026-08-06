@@ -16,18 +16,11 @@
 
 import { noteRefOf } from '../../lib/logic/noteCards';
 import { subjectColorFor } from '../../lib/logic/subjects';
-import {
-  GRADE_REQUIRED_MESSAGE,
-  applyReviewCompletion,
-  askSizeOf,
-  nextReviewOf,
-  orderAfterCompletion,
-  selIdAfterCompletion,
-} from '../../lib/logic/reviews';
+import { GRADE_REQUIRED_MESSAGE, askSizeOf } from '../../lib/logic/reviews';
 import type { ReviewGrade, SizeKey } from '../../lib/model/types';
 import { NoteMath } from './NoteMath';
 import { ShellOverlay } from './ShellOverlay';
-import { SIZE_MIN } from './ReviewShared';
+import { SIZE_MIN, completeReview } from './ReviewShared';
 import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -79,17 +72,9 @@ export function ReviewAskModal() {
       store.showToast(GRADE_REQUIRED_MESSAGE);
       return;
     }
-    const transition = nextReviewOf(askR, S.revAskGrade, askSizeCur, ctx);
-    const m = transition.mutations;
-    store.setState((s) => ({
-      reviews: applyReviewCompletion(s.reviews, transition),
-      studyLog: s.studyLog.concat([m.studyLog]),
-      order: orderAfterCompletion(s.order, m),
-      selId: selIdAfterCompletion(s.selId, m),
-      revAsk: null,
-      revAskReveal: false,
-    }));
-    store.showToast(transition.message);
+    const message = completeReview(store, askR, S.revAskGrade, askSizeCur, ctx);
+    store.setState({ revAsk: null, revAskReveal: false });
+    store.showToast(message);
   };
 
   return (

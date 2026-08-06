@@ -16,6 +16,7 @@
 
 import { useMemo } from 'react';
 import type { Note } from '../../lib/model/notes';
+import { NoteDrill } from '../parts/NoteDrill';
 import { NoteExtract } from '../parts/NoteExtract';
 import { NoteImportModal } from '../parts/NoteImportModal';
 import { NoteView } from '../parts/NoteView';
@@ -63,6 +64,8 @@ export function Notebook() {
       <div style={{ flex: 1, minWidth: 0, overflow: 'auto', paddingRight: '2px' }}>
         {S.nbMode === 'extract' ? (
           <NoteExtract />
+        ) : S.nbMode === 'drill' && selected ? (
+          <NoteDrill key={selected.id} note={selected} />
         ) : selected ? (
           <NoteView key={selected.id} note={selected} />
         ) : (

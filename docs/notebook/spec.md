@@ -17,8 +17,8 @@ Compass の既存復習エンジンへ接続する。ユーザーが到達した
 | 1 | 授業を録音し、ノートを写真に撮る | 自分 |
 | 2 | 文字起こし → プロンプトA → プロンプトB → JSON | 外部AI |
 | 3 | JSON を Compass に貼る。検証が通れば保存 | 自分（貼るだけ） |
-| 4 | カード単位で復習タスクが自動生成される | Compass |
-| 5 | 「今日の復習」に出る。想起問題に答える | 自分 |
+| 4 | 貼ったその日の ToDo に、そのノートの復習が 1 枚積まれる | Compass |
+| 5 | 「ノートで復習」→ その授業の問題だけのドリルで想起問題に答える | 自分 |
 | 6 | 完了すると次の間隔へ送られる | Compass |
 | 7 | 予習が時間割から自動で積まれる | Compass |
 
@@ -139,19 +139,40 @@ noteRefOf(seriesId) → { noteId, cardId } | null    // /^nb-(n[0-9a-z]+)-(c[0-9
 
 カードごとに、同じ `seriesId` を持つ行が **1件も無いときだけ** 1件作る（再取り込みで増えない）。
 
+**授業が終わってノートを貼ったら、その日のうちに復習する。** だから初回は `due` が今日で、
+最初から今日の ToDo に積まれる（`added: true`）。段階は `'当日'` から始まる。
+
 | フィールド | 値 |
 |---|---|
 | `id` / `seriesId` | `noteSeriesId(note.id, card.cardId)`（初回は一致。手動追加と同型） |
 | `reviewNo` | `1` |
 | `title` | `note.unit + ' 問' + (index + 1)` |
 | `subj` | `note.subject` |
-| `stage` / `last` / `due` | `'翌日'` / `today` / `isoShift(today, 1)` |
+| `stage` / `last` / `due` | `'当日'` / `today` / `today` |
 | `min` | `5`（XS） |
 | `src` | `'ノートから生成'` |
 | `timetablePeriod` / `timetableDate` | `null` / `null` |
-| `added` / `done` | `false` / `false` |
+| `added` / `done` | **`true`** / `false` |
 
-### 4.2 同期・カスケード
+はしごは **当日 → 翌日 → 3日後 → 1週間後 → 2週間後 → 定着** の 5 段。
+`'当日'` は `lib/logic/reviews.ts` の `STAGE_NEXT` に 1 行足しただけで、既存の 4 段は不変
+（手動追加・時間割からの復習は従来どおり `'翌日'` 始まり）。`'当日'` だけは
+**まあまあ でも翌日へ送る**（据え置き = 「今日もう一度」は今日の ToDo と噛み合わないため）。
+
+### 4.2 今日の ToDo では 1 冊 1 枚（`ShellTodayItems.collapseNoteReviews`）
+
+想起問題ごとに独立した系列を持つ設計はそのままに、**今日の ToDo の見た目だけ**ノート単位に束ねる。
+
+- タイトル … ノートの単元名（`note.unit`）
+- 分数 … 束ねた行の合計、完了 … **全問終わって初めて完了**
+- `src` … `'ノートの復習 · 2/3問'`（残り / 全体）
+- カードをクリック or 「ノートで復習」 → **ドリル面**（§8）へ。1 問ずつ理解度モーダルは開かない
+- `state.notes` にノートが無い（未読込・削除済み）行は束ねず、従来どおり 1 問 1 枚
+
+束ねるのは `buildTodayItems` の 1 か所だけなので、トップバーのカウンタ・コックピット・
+ToDo・集中モードがすべて同じ見え方になる。seg / extra / 手動の復習には一切触れない。
+
+### 4.3 同期・カスケード
 
 - `syncNoteReviews(note, reviews)` — カードを維持したままノートを編集したとき、**未完了行のみ** `title` / `subj` を更新
 - `cascadeNoteRemoval(reviews, order, selId, noteId, cardIds?)` — **未完了行のみ削除**、`order` から除外、`selId` を null 化。
@@ -277,6 +298,7 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 | `screens/Notebook.tsx` | サイドバー ＋ ノートビュー / 問題抽出ビューの切替 |
 | `parts/NotebookSidebar.tsx` | 教科ツリー、月カレンダー、取り込みボタン、予習自動生成の設定 |
 | `parts/NoteView.tsx` | 想起 / 解説 / 演習 / 疑問・連絡。カードごとの復習ステータス。編集モード |
+| `parts/NoteDrill.tsx` | **その授業の今日ぶんの問題だけ**を解く面。答えを見る → 理解度 → 次の間隔。下に「ノート全体を見る」 |
 | `parts/NoteExtract.tsx` | 全ノート横断の問題抽出ドリル |
 | `parts/NoteImportModal.tsx` | プロンプトA/Bコピー → JSON貼付 → 検証 → 保存＋復習生成 |
 | `parts/NoteMath.tsx` | v3 の `mhtml()` 移植（escape → KaTeX） |
@@ -291,8 +313,13 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 | `light` | v3 の紙ノート風（明るい紙） |
 | `neon`（保存値 `dark`） | v2 のフラット活字風をダーク配色で |
 
-復習体験は `ReviewAskModal` を**拡張**する（フォーク禁止）。`noteRefOf(askR.seriesId)` でカードを引き、
-問題文と「答えを見る」パネルを理解度ボタンの上に足すだけ。ノートが見つからないときは従来表示。
+復習の入口は 2 つあるが、間隔の計算はどちらも `ReviewShared.completeReview`
+→ `lib/logic/reviews.ts` の 1 本道（フォーク禁止）:
+
+1. **ドリル面**（既定）… 今日の ToDo のノートカード →「ノートで復習」。その授業の問題を続けて解く
+2. **理解度モーダル**（従来）… 復習画面の行から 1 問だけ消化するとき。
+   `noteRefOf(askR.seriesId)` でカードを引き、問題文と「答えを見る」を理解度ボタンの上に足す。
+   ノートが見つからないときは従来表示のまま（フォールバック）
 
 ---
 
@@ -325,7 +352,7 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 
 - **N-021** 取り込み時にカード数と同じ件数の復習が作られる
 - **N-022** 同じノートを2回取り込んでも復習カードは増えない（冪等）
-- **N-023** 生成された復習は `stage:'翌日'` / `due` が今日の翌日
+- **N-023** 生成された復習は `stage:'当日'` / `due` が今日 / `added:true`（貼ったその日にやる）
 - **N-024** 生成された復習の `id === seriesId === 'nb-<noteId>-<cardId>'`
 - **N-025** `noteRefOf` が生成した `seriesId` を `{noteId, cardId}` に戻せる
 - **N-026** `noteRefOf` は手動追加の id（`u…`）に対して null を返す
@@ -337,6 +364,23 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 - **N-032** ノート削除で `selId` が対象なら null になる
 - **N-033** カード単位の削除では、そのカードの系列だけが消える
 - **N-034** `syncNoteReviews` は未完了行の `title`/`subj` だけ更新し、完了行に触れない
+- **N-035** `dueCardsOfNote` は期限が来ている未完了カードを問番号順に集める
+- **N-036** 今日完了した行は残り、前回までの完了履歴（`due < 今日`）は含めない
+- **N-037** 先の予定（`due > 今日`）は含めず、遅れている未完了は含める
+- **N-038** 他ノート・手動追加の復習は混ざらない
+
+### N-07x 今日の ToDo での束ね
+
+- **N-071** 想起問題が何問でも、今日の ToDo に出るのはノート 1 冊につき 1 枚
+- **N-072** その 1 枚のタイトルはノートの単元名、分数は合計、説明は `ノートの復習 · N/M問`
+- **N-073** 全問終わって初めて完了になる（1 問終わっただけでは消えない）
+- **N-074** ノートが違えば別の枚数になる
+- **N-075** 手動の復習・単発タスク・計画ミニタスクは束ねない（レガシーどおり 1 件 1 枚）
+- **N-076** ノートが未読込 / 削除済みなら束ねず、従来どおり 1 問 1 枚で出る
+- **N-077** カードをクリック / 「ノートで復習」でドリル面へ飛ぶ（理解度モーダルは開かない）
+- **N-078** ドリルで問題を出し、「答えを見る」で方針・解答・解説が開く
+- **N-079** ドリルで理解度を選ぶと、その問だけ次の間隔へ送られる
+- **N-080** ドリル下部の「ノート全体を見る」で定義・解説・演習・疑問が開く
 
 ### N-2xx 予習の自動生成
 
@@ -413,14 +457,20 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 ## 13. 自己監査
 
 <!-- AUDIT:BEGIN -->
-実施日 2026-08-07 / ブランチ `feat/notebook-integration` / 全 70 項目 **PASS**。
+実施日 2026-08-07 / ブランチ `feat/notebook-integration` / 全 80 項目 **PASS**。
+
+> **要件追加ぶんの追試（同日）**: 「当日の ToDo に 1 枚出す」「そこからノートの問題だけの面へ飛ぶ」
+> の 3 点（N-023 改訂 / N-035〜N-038 / N-071〜N-080）を反映し、ブラウザで通しを再実行した。
+> ノートを貼る → 今日の ToDo に「数列 ─ 漸化式と一般項 · ノートの復習 · 3/3問」が **1 枚だけ**出る
+> →「ノートで復習」→ ドリルで 3 問（答えを見る → 理解度）→ 全問終わって ToDo が完了表示・進捗 20%
+> → 各問は「次回 明日」。console エラー 0。
 
 自動ゲート:
 
 | コマンド | 結果 |
 |---|---|
 | `npx tsc --noEmit` | エラー 0 |
-| `npm test` | 12 ファイル / 402 テスト PASS（着手前のベースラインは 305 件） |
+| `npm test` | 13 ファイル / 424 テスト PASS（着手前のベースラインは 305 件） |
 
 既存テストのうち 2 件だけ、キー数が設計どおり増えたため主張を書き換えた（弱めてはいない）:
 
@@ -437,7 +487,10 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 |---|---|---|
 | N-001〜N-020（取り込み・検証） | `src/lib/logic/__tests__/noteImport.test.ts`（`docs/notebook/fixtures/*.json` を実ファイルとして読む） | PASS |
 | N-021〜N-034（カード→復習） | `src/lib/logic/__tests__/noteCards.test.ts` / `src/components/parts/__tests__/NotebookPersistence.test.ts` | PASS |
+| N-035〜N-038（今日ぶんの束ね） | `src/lib/logic/__tests__/noteCards.test.ts` | PASS |
 | N-041〜N-053（予習の自動生成） | `src/lib/logic/__tests__/prepAutogen.test.ts` | PASS |
+| N-071〜N-076（ToDo での束ね） | `src/components/parts/__tests__/ShellTodayItems.test.ts` | PASS |
+| N-077〜N-080（ドリル面） | ブラウザ: ToDo 1 枚 → ドリル 3 問 → 全問完了 → ノート全体を展開 | PASS |
 | N-061 ナビ・キー7 | ブラウザ: ナビに「ノート」、フッタの表示が `1–7 画面` | PASS |
 | N-062 プロンプトのコピー | ブラウザ: 「プロンプトBをコピーしました」トースト | PASS |
 | N-063 不正JSONのエラー表示 | ブラウザ: `unit` / `recall[0].a` / `recall[1].q` の 3 件が赤リストに出て保存されない | PASS |

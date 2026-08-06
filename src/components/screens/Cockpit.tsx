@@ -25,7 +25,7 @@ import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
 import { orderedPlanIds, toH, todayLoadPct } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Review } from '../../lib/model/types';
-import { addToOrder, mutExtra, mutReview, mutSeg } from '../parts/ShellActions';
+import { addToOrder, mutExtra, mutReview, mutSeg, openNoteDrill } from '../parts/ShellActions';
 import { makeSearchMatcher } from '../parts/ShellSearch';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
@@ -58,8 +58,9 @@ export function Cockpit() {
   const openAsk = (id: string) =>
     store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revAskReveal: false, revSel: null });
 
-  /** `toggleItem(it)`（HTML:2916-2921） */
+  /** `toggleItem(it)`（HTML:2916-2921）+ ノートの復習はドリルへ（v0.10, spec §8） */
   const toggleItem = (it: TodayItem) => () => {
+    if (it.noteId && !it.done) return openNoteDrill(store, it.noteId);
     if (it.kind === 'seg') mutSeg(store, it.id, (x) => ((x.done = !x.done), x));
     else if (it.kind === 'extra') mutExtra(store, it.id, (x) => ((x.done = !x.done), x));
     else if (!it.done) openAsk(it.id);

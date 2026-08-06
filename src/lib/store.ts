@@ -280,6 +280,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbImportTarget: null,
     nbRevealed: {},
     nbTreeOpen: {},
+    nbFullNote: false,
     revAskReveal: false,
     prepAutoGen: { ...DEFAULT_PREP_AUTOGEN },
     prepGenLog: {},

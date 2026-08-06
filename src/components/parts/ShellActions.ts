@@ -35,3 +35,19 @@ export function mutReview(store: CompassStore, id: string, fn: (x: Review) => Re
 export function addToOrder(store: CompassStore, id: string): void {
   store.setState((s) => (s.order.indexOf(id) >= 0 ? null : { order: s.order.concat([id]) }));
 }
+
+/**
+ * ノート画面のドリル（その授業の問題だけを解く面）へ飛ぶ。
+ * 今日の ToDo / コックピットのノート復習カードから呼ぶ（docs/notebook/spec.md §8）。
+ */
+export function openNoteDrill(store: CompassStore, noteId: string): void {
+  store.setState({
+    view: 'notebook',
+    nbMode: 'drill',
+    nbSelNoteId: noteId,
+    nbEdit: false,
+    nbFullNote: false,
+    revSel: null,
+    focusOpen: false,
+  });
+}

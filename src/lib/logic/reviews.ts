@@ -9,6 +9,11 @@
  *  - HTML:2502（`mutReview`）、2602-2604（`addToOrder` の重複ガード）
  *  - spec §6.1 / §6.2 / §6.4「一括ToDo追加」/ §6.5「次回復習日を変更」
  *
+ * v0.10（ノート統合, docs/notebook/spec.md §4.1）の追加:
+ *  - stage `'当日'` を追加し、はしごを **当日 → 翌日 → 3日後 → 1週間後 → 2週間後 → 定着** に。
+ *    ノート取り込みで作られる初回だけが `'当日'` を名乗る。既存の生成経路
+ *    （手動追加 / 時間割から追加）は従来どおり `'翌日'` 始まりで**挙動は不変**。
+ *
  * v0.9 の修正（A3 / Q8, Q9）は**修正後の挙動**を移植する:
  *  - `'定着 🎉'`（および `stageDays` に無い未知の stage）は high だけでなく **mid でも系列終了**
  *  - `shiftDue` は 13 日カレンダー（DIDX）を経由せず **due 自身を起点に ±1 日**、下限は
@@ -39,8 +44,15 @@ import { type DateContext, dateContextFor, dayLabel, fmtMD, isoShift } from './d
  */
 type StageTable<V> = { readonly [stage: string]: V | undefined };
 
-/** `stageNext`（HTML:3130）— 「ばっちり」で進む次の stage。`'定着 🎉'` の次は無い */
+/**
+ * `stageNext`（HTML:3130）— 「ばっちり」で進む次の stage。`'定着 🎉'` の次は無い。
+ *
+ * `'当日'` はレガシーに無い追加（ノート取り込みの初回, docs/notebook/spec.md §4.1）。
+ * はしごが **当日 → 翌日 → 3日後 → 1週間後 → 2週間後 → 定着** の 5 段になる。
+ * 既存の 4 エントリは 1 文字も変えていない。
+ */
 export const STAGE_NEXT: StageTable<ReviewStage> = {
+  当日: '翌日',
   翌日: '3日後',
   '3日後': '1週間後',
   '1週間後': '2週間後',
@@ -50,6 +62,11 @@ export const STAGE_NEXT: StageTable<ReviewStage> = {
 /**
  * `stageDays`（HTML:3131）— stage → 今日からのオフセット日数。
  * **`'定着 🎉'` はキーを持たない**（= これが「系列終了」のシグナルそのもの）。
+ *
+ * > `'当日'` も**あえて持たせない**。この表の値は「次回 stage のオフセット」としてしか
+ * > 読まれず（`STAGE_DAYS[ns]`）、`'当日'` が `ns` になる経路は存在しないため
+ * > （high / mid / low いずれも `'翌日'` へ抜ける。{@link nextReviewOf} 参照）。
+ * > `当日: 0` を足すと `!nsDays` の系列終了判定が 0 を掴んで壊れる。
  */
 export const STAGE_DAYS: StageTable<number> = {
   翌日: 1,
@@ -223,9 +240,15 @@ export function nextReviewOf(
 
   const nmin = SIZE_MIN[size];
   const removeFromTodo = review.due < T;
-  // ns: high は次の stage、mid は据え置き、low は '翌日'。未知 stage の high は undefined になる
+  // ns: high は次の stage、mid は据え置き、low は '翌日'。未知 stage の high は undefined になる。
+  //
+  // 例外は `'当日'`（ノート取り込みの初回, docs/notebook/spec.md §4.1）だけ。
+  // 据え置き = 「今日もう一度」になってしまい、今日の ToDo の並びと噛み合わないので
+  // mid でも翌日へ送る（当日の 3 択はすべて翌日行き。初回はふるい落とさない）。
+  const holdStage: ReviewStageValue | undefined =
+    review.stage === '当日' ? STAGE_NEXT['当日'] : review.stage;
   const ns: ReviewStageValue | undefined =
-    grade === 'high' ? STAGE_NEXT[review.stage] : grade === 'mid' ? review.stage : '翌日';
+    grade === 'high' ? STAGE_NEXT[review.stage] : grade === 'mid' ? holdStage : '翌日';
   const nsDays = ns == null ? undefined : STAGE_DAYS[ns];
 
   let next: Review | null = null;

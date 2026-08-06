@@ -14,6 +14,8 @@
  * `renderVals` の内側で組み立てられていたこの派生は components 側に置いている。
  */
 
+import { noteRefOf } from '../../lib/logic/noteCards';
+import type { Note } from '../../lib/model/notes';
 import type {
   AppState,
   Extra,
@@ -48,6 +50,19 @@ export interface TodayItem {
   timetableDate: ISODate | null;
   /** seg のみ（`ref: sg`） */
   ref?: Seg;
+  // ── ノート由来の復習を 1 冊 1 枚に束ねたとき（docs/notebook/spec.md §4.2）
+  /** 束ねた元のノート。これが入っている項目は「ノートで復習」ドリルへ飛ぶ */
+  noteId?: string;
+  /** 束ねた復習行（ノート内の問番号順）。`id` はこの先頭行の id */
+  noteGroup?: NoteGroupMember[];
+}
+
+/** 束ねられた復習 1 行ぶん */
+export interface NoteGroupMember {
+  reviewId: string;
+  /** 表示用の短いラベル（`問1` など） */
+  label: string;
+  done: boolean;
 }
 
 /** `todayItems` の組み立てが読む state の部分形 */
@@ -56,6 +71,8 @@ export interface TodayItemsInput {
   extras: readonly Extra[];
   reviews: readonly Review[];
   order: readonly string[];
+  /** ノート（省略可）。渡すとノート由来の復習が 1 冊 1 枚に束ねられる */
+  notes?: readonly Note[];
 }
 
 /**
@@ -148,12 +165,80 @@ export function buildTodayItems(
   state.reviews.forEach((r) => {
     if (r.added && !(r.done && r.due < today) && todayIds.indexOf(r.id) < 0) todayIds.push(r.id);
   });
-  const seqItems = todayIds
-    .map((id) => itemOf(state, plans, today, id))
-    .filter((it): it is TodayItem => !!it);
+  const seqItems = collapseNoteReviews(
+    todayIds.map((id) => itemOf(state, plans, today, id)).filter((it): it is TodayItem => !!it),
+    state,
+  );
   const planItems = seqItems.filter((i) => i.kind === 'seg');
   const otherItems = seqItems.filter((i) => i.kind !== 'seg');
   return planItems.concat(otherItems);
+}
+
+/**
+ * ノート由来の復習を**1 冊 1 枚**に束ねる（docs/notebook/spec.md §4.2）。
+ *
+ * 想起問題ごとに独立した系列を持つ設計（＝苦手な問だけ早く戻ってくる）は変えないまま、
+ * 今日の ToDo の見た目だけを 1 枚にする。最初に現れた行の位置を保ち、そこへ後続を畳む。
+ *
+ * - タイトル … ノートの単元名（`state.notes` が無いときは先頭行のタイトルのまま）
+ * - 分数     … 束ねた行の合計
+ * - 完了     … **全問終わって初めて完了**（1 問終わるごとには消えない）
+ * - `noteId` … 入っている項目は「ノートで復習」ドリルへ飛ぶ（`toggleItem` の分岐）
+ *
+ * ノートが `state.notes` に無い（未読込・削除済み）行は束ねない = 従来どおり 1 問 1 枚。
+ */
+function collapseNoteReviews(items: TodayItem[], state: TodayItemsInput): TodayItem[] {
+  const notes = state.notes;
+  if (!notes || !notes.length) return items;
+  const byId = new Map(notes.map((n) => [n.id, n]));
+
+  /** noteId → 束ねた結果の項目（`items` に 1 つだけ残る） */
+  const groups = new Map<string, TodayItem>();
+  const out: TodayItem[] = [];
+
+  items.forEach((it) => {
+    if (it.kind !== 'rev') {
+      out.push(it);
+      return;
+    }
+    const review = state.reviews.find((r) => r.id === it.id);
+    const ref = review ? noteRefOf(review.seriesId) : null;
+    const note = ref ? byId.get(ref.noteId) : undefined;
+    if (!ref || !note) {
+      out.push(it);
+      return;
+    }
+    const cardNo = note.cards.findIndex((c) => c.cardId === ref.cardId) + 1;
+    const member: NoteGroupMember = {
+      reviewId: it.id,
+      label: cardNo > 0 ? '問' + cardNo : it.title,
+      done: it.done,
+    };
+    const head = groups.get(note.id);
+    if (head) {
+      head.noteGroup = (head.noteGroup || []).concat([member]);
+      head.min += it.min;
+      head.done = head.done && it.done;
+      return;
+    }
+    const grouped: TodayItem = {
+      ...it,
+      title: note.unit || it.title,
+      noteId: note.id,
+      noteGroup: [member],
+    };
+    groups.set(note.id, grouped);
+    out.push(grouped);
+  });
+
+  // 束ね終わってから、問番号順に並べ直して件数入りの説明文を作る
+  groups.forEach((it) => {
+    const members = (it.noteGroup || []).slice().sort((a, b) => a.label.localeCompare(b.label));
+    it.noteGroup = members;
+    const rest = members.filter((m) => !m.done).length;
+    it.src = 'ノートの復習 · ' + (rest ? rest + '/' + members.length + '問' : members.length + '問 完了');
+  });
+  return out;
 }
 
 /**

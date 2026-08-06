@@ -6,6 +6,7 @@ import { nextReviewOf } from '../reviews';
 import {
   NOTE_REVIEW_SRC,
   cascadeNoteRemoval,
+  dueCardsOfNote,
   generateMessage,
   generateNoteReviews,
   isNoteReview,
@@ -115,18 +116,27 @@ describe('generateNoteReviews（N-021〜N-023 / N-028 / N-029）', () => {
     expect(generateNoteReviews(note(), done, T).created).toHaveLength(0);
   });
 
-  it('N-023 stage は翌日、due は今日の翌日', () => {
+  it('N-023 stage は当日、due は今日、最初から今日のToDoに積まれる', () => {
     const [r] = generateNoteReviews(note(), [], T).created;
-    expect(r.stage).toBe('翌日');
+    expect(r.stage).toBe('当日');
     expect(r.last).toBe(T);
-    expect(r.due).toBe(TOMORROW);
+    expect(r.due).toBe(T);
+    expect(r.added).toBe(true);
     expect(r.reviewNo).toBe(1);
     expect(r.min).toBe(5);
     expect(r.src).toBe(NOTE_REVIEW_SRC);
-    expect(r.added).toBe(false);
     expect(r.done).toBe(false);
     expect(r.timetablePeriod).toBeNull();
     expect(r.timetableDate).toBeNull();
+  });
+
+  it('N-023 当日を消化すると翌日へ送られる（理解度によらず）', () => {
+    const [r] = generateNoteReviews(note(), [], T).created;
+    (['high', 'mid', 'low'] as const).forEach((g) => {
+      const next = nextReviewOf(r, g, 'XS', T, { newId: () => 'g' }).next;
+      expect(next?.stage).toBe('翌日');
+      expect(next?.due).toBe(TOMORROW);
+    });
   });
 
   it('N-024 初回は id === seriesId', () => {
@@ -164,8 +174,8 @@ describe('N-027 リンクの不変条件（nextReviewOf を通しても解決す
   it('段階を進めても seriesId からノート・カードを引ける', () => {
     const [first] = generateNoteReviews(note(), [], T).created;
     let cur = first;
-    // 翌日 → 3日後 → 1週間後 → 2週間後（次は「定着」で系列終了）
-    for (let i = 0; i < 3; i += 1) {
+    // 当日 → 翌日 → 3日後 → 1週間後 → 2週間後（次は「定着」で系列終了）
+    for (let i = 0; i < 4; i += 1) {
       const t = nextReviewOf(cur, 'high', 'S', T, { newId: () => 'gen' + i });
       expect(t.next).not.toBeNull();
       cur = t.next as Review;
@@ -204,6 +214,54 @@ describe('syncNoteReviews（N-034）', () => {
   it('変化が無ければ同じ配列参照を返す', () => {
     const reviews = generateNoteReviews(note(), [], T).created;
     expect(syncNoteReviews(note(), reviews)).toBe(reviews);
+  });
+});
+
+describe('dueCardsOfNote（今日ぶんの束ね / N-035〜N-038）', () => {
+  it('N-035 期限が来ている未完了カードを問番号順に集める', () => {
+    const rs = generateNoteReviews(note(), [], T).created;
+    const shuffled = [rs[2], rs[0], rs[1]];
+    expect(dueCardsOfNote(shuffled, note(), T).map((d) => d.cardNo)).toEqual([1, 2, 3]);
+  });
+
+  it('N-036 今日完了した行は残る（ToDo の1枚が消えないように）', () => {
+    const rs = generateNoteReviews(note(), [], T).created;
+    const withDone = [{ ...rs[0], done: true }, rs[1], rs[2]];
+    const due = dueCardsOfNote(withDone, note(), T);
+    expect(due).toHaveLength(3);
+    expect(due[0].review.done).toBe(true);
+  });
+
+  it('N-036 前回までの完了履歴（due < 今日）は含めない', () => {
+    const rs = generateNoteReviews(note(), [], T).created;
+    const history = { ...rs[0], done: true, due: '2026-08-01' };
+    expect(dueCardsOfNote([history, rs[1]], note(), T).map((d) => d.cardNo)).toEqual([2]);
+  });
+
+  it('N-037 まだ先の予定（due > 今日）は含めない', () => {
+    const rs = generateNoteReviews(note(), [], T).created;
+    const future = { ...rs[1], due: '2026-08-20' };
+    expect(dueCardsOfNote([rs[0], future, rs[2]], note(), T).map((d) => d.cardNo)).toEqual([1, 3]);
+  });
+
+  it('N-037 遅れている（due < 今日）未完了は含める', () => {
+    const rs = generateNoteReviews(note(), [], T).created;
+    const late = { ...rs[0], due: '2026-08-01' };
+    expect(dueCardsOfNote([late], note(), T)).toHaveLength(1);
+  });
+
+  it('N-038 他ノート・手動追加の復習は混ざらない', () => {
+    const mine = generateNoteReviews(note(), [], T).created;
+    const other = generateNoteReviews(note({ id: 'nzzz' }), [], T).created;
+    expect(dueCardsOfNote(mine.concat(other, [review()]), note(), T)).toHaveLength(3);
+  });
+
+  it('ノートから消えたカードの行は末尾に回る', () => {
+    const rs = generateNoteReviews(note(), [], T).created;
+    const shrunk = note({ cards: [card({ cardId: 'c1' })] });
+    const due = dueCardsOfNote(rs, shrunk, T);
+    expect(due.map((d) => d.cardId)).toEqual(['c1', 'c0', 'c2']);
+    expect(due[1].cardNo).toBeNull();
   });
 });
 
