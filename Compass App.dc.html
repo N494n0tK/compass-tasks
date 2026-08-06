@@ -1319,6 +1319,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         </div>
         <div style="font-size:11px;color:var(--tx3)">テスト名はTestsで作った計画から選べます · 同じテスト名で記録すると推移がつながります</div>
       </div>
+      <div style="grid-column:1/-1;background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);padding:16px;display:flex;flex-direction:column;gap:12px;height:fit-content">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="width:8px;height:8px;border-radius:99px;background:var(--tx3);box-shadow:none"></span><span style="font:700 14px 'Noto Sans JP';color:var(--tx0)">エクスポート</span><span style="margin-left:auto;font-size:11px;color:var(--tx3)">全期間・全件</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onClick="{{ exportJson }}" style="padding:9px 16px;border:1px solid var(--line2);border-radius:9px;background:var(--bg2);color:var(--tx1);font:700 12px 'Noto Sans JP';cursor:pointer;white-space:nowrap" style-hover="border-color:var(--acc);color:var(--acc)">JSONをダウンロード</button>
+          <button onClick="{{ exportCsv }}" style="padding:9px 16px;border:1px solid var(--line2);border-radius:9px;background:var(--bg2);color:var(--tx1);font:700 12px 'Noto Sans JP';cursor:pointer;white-space:nowrap" style-hover="border-color:var(--acc);color:var(--acc)">CSVをダウンロード</button>
+        </div>
+        <div style="font-size:11px;color:var(--tx3)">機種変更やバックアップに。読み込みは未対応です</div>
+      </div>
     </div>
     </sc-if>
 
@@ -2475,6 +2483,20 @@ class Component extends DCLogic {
     this.setState({ toast: msg });
     this._tt = setTimeout(() => this.setState({ toast: null }), 2400);
   }
+  // ファイル書き出し。Blob を a[download] でクリックさせるだけ(サーバ不要)。
+  downloadText(filename, mime, text) {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: mime }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      return true;
+    } catch (e) { return false; }
+  }
   mutSeg(id, fn) { this.setState(s => ({ segs: s.segs.map(x => x.id === id ? fn({ ...x }) : x) })); }
   mutExtra(id, fn) { this.setState(s => ({ extras: s.extras.map(x => x.id === id ? fn({ ...x }) : x) })); }
   mutReview(id, fn) { this.setState(s => ({ reviews: s.reviews.map(x => x.id === id ? fn({ ...x }) : x) })); }
@@ -3481,6 +3503,34 @@ class Component extends DCLogic {
       this.showToast('「' + n + '」' + scv + '点を記録しました');
     };
 
+    // ── エクスポート(バックアップ用の書き出し。読み込みは未実装)
+    // JSON = exportData() そのまま(保存ペイロードと同じ形) / CSV = 円グラフと同じ集計元(studyEntries) + テスト結果
+    const expStamp = T.replace(/-/g, '');
+    const csvCell = (v) => {
+      const s = (v == null) ? '' : String(v);
+      return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const csvRow = (cells) => cells.map(csvCell).join(',');
+    // 日付なし(未配分のまま完了した単発タスクなど)は末尾へ寄せる
+    const csvByDay = (a, b) => {
+      const x = a.day || '9999-99-99', y = b.day || '9999-99-99';
+      return x < y ? -1 : (x > y ? 1 : 0);
+    };
+    const exportJson = () => {
+      const ok = this.downloadText('compass-backup-' + expStamp + '.json', 'application/json', JSON.stringify(this.exportData(), null, 2));
+      this.showToast(ok ? 'JSONを書き出しました' : '書き出しに失敗しました');
+    };
+    const exportCsv = () => {
+      const lines = ['学習ログ', csvRow(['date', 'subject', 'minutes'])];
+      studyEntries.slice().sort(csvByDay).forEach(e => lines.push(csvRow([e.day, e.subj, e.min])));
+      lines.push('');
+      lines.push('テスト結果', csvRow(['date', 'test', 'subject', 'score']));
+      scoreSorted.forEach(sc => lines.push(csvRow([sc.day, sc.name, sc.subj, sc.score])));
+      // Excel が UTF-8 と判定できるように BOM を先頭に付ける
+      const ok = this.downloadText('compass-study-' + expStamp + '.csv', 'text/csv;charset=utf-8', '\uFEFF' + lines.join('\r\n') + '\r\n');
+      this.showToast(ok ? 'CSVを書き出しました' : '書き出しに失敗しました');
+    };
+
     // ── add screen
     const addTypes = [ {id:'single',label:'今日のタスク'}, {id:'review',label:'復習'}, {id:'prep',label:'予習'}, {id:'test',label:'テスト'} ];
     const dayHeads = { single:'予定日', review:'復習日', prep:'期限日', test:'テスト日' };
@@ -4263,6 +4313,7 @@ class Component extends DCLogic {
       heatCells: heatCells, heatMonths: heatMonths, heatDows: heatDows, heatLegend: heatLegend,
       heatVB: '0 0 ' + (HEAT_PAD + HEAT_WEEKS * HEAT_PITCH - (HEAT_PITCH - HEAT_CELL)) + ' ' + (HEAT_TOP + 7 * HEAT_PITCH - (HEAT_PITCH - HEAT_CELL)),
       scoreGroups: scoreGroups, scoreGroupsHas: scoreGroups.length > 0, scoreGroupsNone: scoreGroups.length === 0,
+      exportJson: exportJson, exportCsv: exportCsv,
       scOpen: scOpen,
       closeSc: () => this.setState({ scoreSel: null }),
       scName: S.scoreSel || '',
