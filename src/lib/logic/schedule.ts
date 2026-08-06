@@ -23,6 +23,7 @@
 import type { DateContext, DayInfo } from './dates';
 import { buildDays, isoAt } from './dates';
 import type {
+  AppState,
   Extra,
   ISODate,
   ISODateOrEmpty,
@@ -337,6 +338,43 @@ export function redistTargetSegs(
  */
 export function planOverdueCount(planSegs: readonly Seg[], today: ISODate): number {
   return planSegs.filter((s) => !s.done && s.day < today).length;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 4b. 表示対象の計画とその並び（HTML:2729-2735）
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * `activePlanIds`（HTML:2730-2733）— 期限切れ **かつ** ミニタスクが 1 件以上あって
+ * その全部が完了している計画を落とす。ミニタスク 0 件の計画は期限切れでも残る。
+ *
+ * Tests / Cockpit / ToDo / Data がすべて同じ集合を使う（ずれると計画の表示が食い違う）。
+ */
+export function activePlanIds(
+  segs: readonly Seg[],
+  plans: Plans,
+  today: ISODate,
+): string[] {
+  return Object.keys(plans).filter((pid) => {
+    const planSegs = segs.filter((s) => s.plan === pid);
+    return !(plans[pid].due < today && planSegs.length > 0 && planSegs.every((s) => s.done));
+  });
+}
+
+/**
+ * `planIds`（HTML:2734-2735）— `planOrder` に載っている順を先頭に、
+ * 残りを `Object.keys(PLANS)` の順で後ろへ。`planOrder` の未知 ID は捨てる。
+ */
+export function orderedPlanIds(
+  state: Pick<AppState, 'segs' | 'planOrder'>,
+  plans: Plans,
+  today: ISODate,
+): string[] {
+  const active = activePlanIds(state.segs, plans, today);
+  const savedPlanOrder = Array.isArray(state.planOrder)
+    ? state.planOrder.filter((pid) => active.indexOf(pid) >= 0)
+    : [];
+  return savedPlanOrder.concat(active.filter((pid) => savedPlanOrder.indexOf(pid) < 0));
 }
 
 // ═══════════════════════════════════════════════════════════════

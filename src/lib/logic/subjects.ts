@@ -238,3 +238,19 @@ export function subjectAppearanceOrder(input: SubjectAppearanceInput): string[] 
 
   return out;
 }
+
+/**
+ * `subjOrdered` / `addSubjOptions`（HTML:3538-3541 / C-435）—
+ * 最近使った教科（`recentSubjs` のうち `SUBJ` に存在するもの）を先頭に、
+ * 残りを `SUBJ` のキー挿入順で後ろへ。Add 画面の教科チップ・datalist と
+ * データ画面の教科 datalist が同じ並びを使う。
+ *
+ * @param subjNames `Object.keys(SUBJ)` 相当（`useSubjColors()` の表のキー順）
+ */
+export function orderedSubjectNames(
+  subjNames: readonly string[],
+  recentSubjs: readonly string[],
+): string[] {
+  const recent = recentSubjs.filter((n) => subjNames.indexOf(n) >= 0);
+  return recent.concat(subjNames.filter((n) => recent.indexOf(n) < 0));
+}

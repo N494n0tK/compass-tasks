@@ -7,6 +7,7 @@ import {
   SUBJ_PALETTE,
   assignSubjectColors,
   createSubjectColors,
+  orderedSubjectNames,
   subjectAppearanceOrder,
   subjectColorFor,
   withSubjectColors,
@@ -340,5 +341,35 @@ describe('legacy parity — the whole appearance order → palette assignment', 
       プログラミング: PINK, // 21 % 6
       読書: GRN, // 22 % 6
     });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// orderedSubjectNames（HTML:3538-3541 / C-435）
+// ═══════════════════════════════════════════════════════════════
+
+describe('orderedSubjectNames', () => {
+  const NAMES = ['数学', '英語', '国語', '理科'];
+
+  it('recentSubjs の順を先頭に、残りは元の順で後ろへ', () => {
+    expect(orderedSubjectNames(NAMES, ['理科', '英語'])).toEqual([
+      '理科',
+      '英語',
+      '数学',
+      '国語',
+    ]);
+  });
+
+  it('SUBJ に無い recentSubjs は無視する', () => {
+    expect(orderedSubjectNames(NAMES, ['未登録', '国語'])).toEqual([
+      '国語',
+      '数学',
+      '英語',
+      '理科',
+    ]);
+  });
+
+  it('recentSubjs が空なら元の順のまま', () => {
+    expect(orderedSubjectNames(NAMES, [])).toEqual(NAMES);
   });
 });

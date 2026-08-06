@@ -6,6 +6,7 @@ import {
   MAX_LOAD_MIN,
   MAX_LOAD_STEP,
   MAX_TIMELINE_DAYS,
+  activePlanIds,
   applyRedist,
   computeInitialPlacement,
   computePreview,
@@ -15,6 +16,7 @@ import {
   loadsMap,
   maxLoadLabel,
   maxOf,
+  orderedPlanIds,
   overdueSegs,
   planOverdueCount,
   planTimelineDays,
@@ -714,5 +716,44 @@ describe('負荷の表示値', () => {
     expect(todayLoadPct(0, 0, 240)).toBe('0%');
     // 四捨五入
     expect(todayLoadPct(100, 0, 240)).toBe('42%');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// activePlanIds / orderedPlanIds（HTML:2729-2735）
+// ═══════════════════════════════════════════════════════════════
+
+describe('activePlanIds / orderedPlanIds', () => {
+  const P: Plans = {
+    a: { name: 'A', type: 'test', due: '2026-08-12', subj: '数学', range: '', timetablePeriod: null, timetableDate: null },
+    b: { name: 'B', type: 'prep', due: '2026-08-01', subj: '英語', range: '', timetablePeriod: null, timetableDate: null },
+    c: { name: 'C', type: 'test', due: '2026-08-01', subj: '理科', range: '', timetablePeriod: null, timetableDate: null },
+    d: { name: 'D', type: 'test', due: '2026-08-01', subj: '社会', range: '', timetablePeriod: null, timetableDate: null },
+  };
+  const sg = (id: string, plan: string, done: boolean): Seg => ({
+    id, plan, title: id, size: 'M', min: 20, day: '2026-08-01', done,
+  });
+  // b: 期限切れ + 全完了 → 落ちる / c: 期限切れだが未完了あり → 残る / d: 期限切れだがミニ0件 → 残る
+  const SEGS: Seg[] = [sg('a1', 'a', false), sg('b1', 'b', true), sg('c1', 'c', true), sg('c2', 'c', false)];
+
+  it('期限切れかつ全ミニタスク完了の計画だけを落とす', () => {
+    expect(activePlanIds(SEGS, P, T)).toEqual(['a', 'c', 'd']);
+  });
+
+  it('ミニタスク 0 件の期限切れ計画は残る', () => {
+    expect(activePlanIds(SEGS, P, T)).toContain('d');
+  });
+
+  it('planOrder の順を先頭に、未収録は Object.keys 順で後ろへ', () => {
+    expect(orderedPlanIds({ segs: SEGS, planOrder: ['d', 'c'] }, P, T)).toEqual(['d', 'c', 'a']);
+  });
+
+  it('planOrder の未知 ID と落ちた計画は捨てる', () => {
+    expect(orderedPlanIds({ segs: SEGS, planOrder: ['zzz', 'b', 'c'] }, P, T)).toEqual(['c', 'a', 'd']);
+  });
+
+  it('planOrder が配列でなければ Object.keys 順', () => {
+    const bad = { segs: SEGS, planOrder: null as unknown as string[] };
+    expect(orderedPlanIds(bad, P, T)).toEqual(['a', 'c', 'd']);
   });
 });
