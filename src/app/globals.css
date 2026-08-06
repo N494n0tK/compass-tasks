@@ -252,8 +252,9 @@ body {
   *::after {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
-    backdrop-filter: none !important;
+    /* -webkit- を先に書く: 逆順だと lightningcss が標準プロパティを落とす */
     -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     animation-delay: -99s !important;
     animation-duration: 0.001s !important;
     animation-iteration-count: 1 !important;
@@ -448,7 +449,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .compass-brand__chevron{margin-left:auto;color:var(--tx3);font-size:12px;transition:transform .16s ease,color .16s ease}
 .compass-brand:hover .compass-brand__chevron{transform:translate(2px,-1px);color:var(--acc)}
 .mobile-app-launcher{display:none;width:36px;height:36px;flex:none;align-items:center;justify-content:center;padding:0;border:1px solid var(--line2);border-radius:10px;background:var(--bg2);cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.12)}
-.app-switcher-backdrop{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:24px;background:rgba(3,12,24,.72);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:fadeIn .16s ease}
+.app-switcher-backdrop{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:24px;background:rgba(3,12,24,.72);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);animation:fadeIn .16s ease}
 .app-switcher-panel{width:min(680px,94vw);max-height:min(720px,90vh);overflow:auto;padding:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--bg1) 96%,#0f3551),var(--bg1));border:1px solid var(--line2);border-radius:22px;box-shadow:0 34px 110px rgba(0,0,0,.58);animation:popIn .2s ease}
 .app-switcher-current{width:min(360px,100%);margin:22px auto 28px;padding:22px;display:flex;align-items:center;gap:16px;border:1px solid color-mix(in srgb,var(--acc) 48%,var(--line2));border-radius:18px;background:radial-gradient(circle at 18% 12%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 58%),var(--bg2);color:var(--tx0);cursor:pointer;box-shadow:0 18px 48px rgba(0,0,0,.22),var(--gAcc);text-align:left;transition:transform .16s ease,border-color .16s ease}
 .app-switcher-current:hover{transform:translateY(-2px);border-color:var(--acc)}
@@ -474,7 +475,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .nav-dot{display:none!important}
 .compass-nav-footer{gap:9px!important}
 .compass-main{background:linear-gradient(180deg,rgba(255,255,255,.008),transparent 24%)}
-.compass-topbar{min-height:68px;padding:11px 20px!important;background:color-mix(in srgb,var(--bg0) 82%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:var(--line2)!important;z-index:12}
+.compass-topbar{min-height:68px;padding:11px 20px!important;background:color-mix(in srgb,var(--bg0) 82%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-color:var(--line2)!important;z-index:12}
 .app-view-title{order:1;min-width:190px}
 .app-view-title>div:first-child{font-size:16px!important;letter-spacing:.01em}
 .app-search{position:relative;order:2;margin-left:auto;display:flex;align-items:center;gap:9px;min-width:min(34vw,440px);padding:0 12px;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;color:var(--tx2);box-shadow:inset 0 1px 0 rgba(255,255,255,.025);transition:border-color .16s ease,box-shadow .16s ease}
@@ -525,7 +526,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   html,body{width:100%;height:100%;overflow-x:hidden;overscroll-behavior-x:none}
   button,[role="button"],input,select{touch-action:manipulation}
   .compass-shell{display:block!important;height:100vh!important;height:100dvh!important;padding-bottom:var(--mobile-nav-h)}
-  .compass-nav{position:fixed!important;left:0;right:0;bottom:0;z-index:100;width:100%!important;height:var(--mobile-nav-h);padding:6px max(6px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-right))!important;display:flex!important;flex-direction:row!important;gap:2px!important;border:0!important;border-top:1px solid var(--line2)!important;background:color-mix(in srgb,var(--bg2) 93%,transparent)!important;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+  .compass-nav{position:fixed!important;left:0;right:0;bottom:0;z-index:100;width:100%!important;height:var(--mobile-nav-h);padding:6px max(6px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-right))!important;display:flex!important;flex-direction:row!important;gap:2px!important;border:0!important;border-top:1px solid var(--line2)!important;background:color-mix(in srgb,var(--bg2) 93%,transparent)!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
   /* 死にルール(spec Q17): 3番目の `.compass-nav>[style*="position:absolute"]` は
      React が style を `position: absolute`(スペース付き)で直列化するため一致せず、
      モバイルでもナビのリサイズハンドルは残る。→ セレクタごと移植しない */
@@ -638,8 +639,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .compass-theme-mode[data-theme="note"] .compass-topbar{
   background:rgba(16,15,12,.94);
   border-color:rgba(242,237,225,.16)!important;
-  backdrop-filter:none;
   -webkit-backdrop-filter:none;
+  backdrop-filter:none;
 }
 .compass-theme-mode[data-theme="note"] .app-view-title{
   background:transparent;
@@ -714,8 +715,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 }
 .compass-theme-mode[data-theme="note"] .app-switcher-backdrop{
   background:rgba(8,8,7,.82);
-  backdrop-filter:none;
   -webkit-backdrop-filter:none;
+  backdrop-filter:none;
 }
 .compass-theme-mode[data-theme="note"] .app-switcher-current,
 .compass-theme-mode[data-theme="note"] .app-switcher-tile{
@@ -801,8 +802,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .compass-theme-mode[data-theme="note"] .compass-nav{
     background:rgba(21,19,16,.985)!important;
     border-top-color:rgba(242,237,225,.18)!important;
-    backdrop-filter:none;
     -webkit-backdrop-filter:none;
+    backdrop-filter:none;
   }
 }
 @media(prefers-reduced-motion:reduce){.app-nav-item,.cockpit-task,.cockpit-review,.cockpit-plan,.cockpit-primary-action{transition:none!important}}
