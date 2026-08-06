@@ -1,0 +1,237 @@
+'use client';
+
+/**
+ * Compass — 理解度モーダル（Phase 2B / TASK S4）
+ *
+ * 移植元: HTML:1817-1852（テンプレート）、3139-3145（`askR` / `askGrades` / `askSizeCur`）、
+ * 3146-3185（`confirmAsk`）、4282-4300（`renderVals`）。spec §6.3 / §6.2。
+ *
+ * **`.compass-shell` の外**（`.compass-theme-mode` 直下）に出す必要があるので
+ * `ShellOverlay` で包んである。`state.revAsk` が null のときは何も描かない。
+ *
+ * ⚠ 開く経路は Review 表の「完了」だけではない（Cockpit カード / ToDo の `toggleItem` /
+ * 復習詳細の「✓ 復習完了にする」/ 集中モードの `completeFocusTask`）。画面は 1 つしか
+ * マウントされないので、最終的には `CompassApp` に **1 個だけ** 置くのが正しい（下の注記）。
+ */
+
+import { subjectColorFor } from '../../lib/logic/subjects';
+import {
+  GRADE_REQUIRED_MESSAGE,
+  applyReviewCompletion,
+  askSizeOf,
+  nextReviewOf,
+  orderAfterCompletion,
+  selIdAfterCompletion,
+} from '../../lib/logic/reviews';
+import type { ReviewGrade, SizeKey } from '../../lib/model/types';
+import { ShellOverlay } from './ShellOverlay';
+import { SIZE_MIN } from './ReviewShared';
+import { useSubjColors } from './ShellSubjects';
+import { dateCtx, store, useAppStore } from '../useStore';
+
+/** `askGrades`（HTML:3140-3144）。並び順・文言・色トークンまで 1:1 */
+const ASK_GRADES: readonly {
+  id: ReviewGrade;
+  icon: string;
+  label: string;
+  desc: string;
+  c: string;
+  bg: string;
+}[] = [
+  { id: 'high', icon: '◎', label: 'ばっちり', desc: '次の間隔へ進む', c: 'var(--grn)', bg: 'var(--grnBg)' },
+  { id: 'mid', icon: '○', label: 'まあまあ', desc: '同じ間隔でもう一度', c: 'var(--acc)', bg: 'var(--accBg)' },
+  { id: 'low', icon: '△', label: '不安…', desc: '明日 追加の復習', c: 'var(--pink)', bg: 'var(--pinkBg)' },
+];
+
+const SIZE_KEYS: readonly SizeKey[] = ['XS', 'S', 'M', 'L'];
+
+export function ReviewAskModal() {
+  const { state: S, plans } = useAppStore();
+  const subjColors = useSubjColors(S, plans);
+  const ctx = dateCtx;
+
+  // `askR = S.reviews.find(r => r.id === S.revAsk) || null`（HTML:3139）
+  const askR = S.reviews.find((r) => r.id === S.revAsk) || null;
+  // `askOpen: !!askR`（HTML:4282）
+  if (!askR) return null;
+
+  const askSubj = subjectColorFor(subjColors, askR.subj);
+  // `askSizeCur = S.revAskSize || (askR ? sizeOfMin(askR.min) : 'S')`（HTML:3145）
+  const askSizeCur = askSizeOf(S.revAskSize, askR);
+
+  const closeAsk = () => store.setState({ revAsk: null });
+
+  /** `confirmAsk()`（HTML:3146-3185）— 完了 → studyLog 記録 → 次回復習の生成 */
+  const confirmAsk = () => {
+    if (!S.revAskGrade) {
+      store.showToast(GRADE_REQUIRED_MESSAGE);
+      return;
+    }
+    const transition = nextReviewOf(askR, S.revAskGrade, askSizeCur, ctx);
+    const m = transition.mutations;
+    store.setState((s) => ({
+      reviews: applyReviewCompletion(s.reviews, transition),
+      studyLog: s.studyLog.concat([m.studyLog]),
+      order: orderAfterCompletion(s.order, m),
+      selId: selIdAfterCompletion(s.selId, m),
+      revAsk: null,
+    }));
+    store.showToast(transition.message);
+  };
+
+  return (
+    <ShellOverlay>
+      <div
+        onClick={closeAsk}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(5,9,20,.66)',
+          backdropFilter: 'blur(3px)',
+          zIndex: 55,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fadeIn .15s ease',
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: '460px',
+            maxWidth: '92vw',
+            background: 'var(--bg1)',
+            border: '1px solid var(--line2)',
+            borderRadius: '16px',
+            padding: '22px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            animation: 'popIn .18s ease',
+            boxShadow: '0 24px 80px rgba(0,0,0,.5)',
+          }}
+        >
+          <div>
+            <div style={{ font: "700 15px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+              復習おつかれさま！理解度はどうでしたか？
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                marginTop: '8px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span
+                style={{
+                  font: "700 10px 'Noto Sans JP'",
+                  color: askSubj.c,
+                  background: askSubj.bg,
+                  borderRadius: '99px',
+                  padding: '2px 9px',
+                }}
+              >
+                {askR.subj}
+              </span>
+              <span style={{ font: "500 13px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+                {askR.title}
+              </span>
+              <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{askR.stage}の復習</span>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            {ASK_GRADES.map((g) => {
+              // 選択時 c:'var(--onAcc)' / bg:g.c、bd は常に g.c（HTML:4286-4292）
+              const on = S.revAskGrade === g.id;
+              const c = on ? 'var(--onAcc)' : g.c;
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => store.setState({ revAskGrade: g.id })}
+                  style={{
+                    border: '1px solid ' + g.c,
+                    borderRadius: '12px',
+                    background: on ? g.c : g.bg,
+                    padding: '12px 8px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ font: "700 22px 'Noto Sans JP'", color: c, lineHeight: 1 }}>
+                    {g.icon}
+                  </div>
+                  <div style={{ font: "700 12px 'Noto Sans JP'", color: c, marginTop: '5px' }}>
+                    {g.label}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--tx3)', marginTop: '3px' }}>
+                    {g.desc}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '7px' }}>
+              次回復習の予想時間
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {SIZE_KEYS.map((z) => {
+                const on = askSizeCur === z;
+                return (
+                  <span
+                    key={z}
+                    onClick={() => store.setState({ revAskSize: z })}
+                    style={{
+                      font: "700 11.5px 'Space Grotesk'",
+                      color: on ? 'var(--onAcc)' : 'var(--tx2)',
+                      background: on ? 'var(--acc)' : 'var(--bg2)',
+                      border: '1px solid ' + (on ? 'var(--acc)' : 'var(--line2)'),
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {z + '·' + SIZE_MIN[z] + '分'}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={closeAsk}
+              style={{
+                padding: '10px 18px',
+                border: '1px solid var(--line2)',
+                borderRadius: '10px',
+                background: 'none',
+                color: 'var(--tx2)',
+                font: "500 13px 'Noto Sans JP'",
+                cursor: 'pointer',
+              }}
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={confirmAsk}
+              style={{
+                padding: '10px 22px',
+                border: 'none',
+                borderRadius: '10px',
+                background: 'var(--grad)',
+                color: 'var(--onAcc)',
+                font: "700 13px 'Noto Sans JP'",
+                cursor: 'pointer',
+                boxShadow: 'var(--gAcc)',
+              }}
+            >
+              ✓ 復習を完了する
+            </button>
+          </div>
+        </div>
+      </div>
+    </ShellOverlay>
+  );
+}
