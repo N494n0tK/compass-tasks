@@ -1,0 +1,17 @@
+{
+  "schema": "compass-note@1",
+  "date": "2026-08-06",
+  "subject": "理科",
+  "unit": "",
+  "recall": [
+    { "q": "オームの法則を式で書け", "a": "" },
+    { "q": "", "a": "電力 P = VI" }
+  ],
+  "blocks": [
+    { "t": "ex", "qi": 7, "guide": "", "solution": "V = IR", "caution": "" },
+    { "t": "memo", "body": "未知の種別" }
+  ],
+  "exercise": { "q": "", "a": "" },
+  "doubt": "",
+  "notice": ""
+}
