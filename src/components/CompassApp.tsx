@@ -42,9 +42,11 @@ import { ShellTopbar } from './parts/ShellTopbar';
 import { buildTodayItems } from './parts/ShellTodayItems';
 import { TestsEditorDrawer } from './parts/TestsEditorDrawer';
 import { TodoFocusOverlay } from './parts/TodoFocusOverlay';
+import { NotebookController, setNotebookController } from './parts/NotebookPersistence';
 import { AddTask } from './screens/AddTask';
 import { Cockpit } from './screens/Cockpit';
 import { DataScreen } from './screens/DataScreen';
+import { Notebook } from './screens/Notebook';
 import { Review } from './screens/Review';
 import { Tests } from './screens/Tests';
 import { Todo } from './screens/Todo';
@@ -74,6 +76,9 @@ function renderScreen(view: ViewId) {
       return <AddTask />;
     case 'review':
       return <Review />;
+    // レガシーに無い追加画面（docs/notebook/spec.md §8）
+    case 'notebook':
+      return <Notebook />;
   }
 }
 
@@ -109,10 +114,16 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     // `this._dataRepaired` はインスタンスフィールドなのでクラウド読込まで残る（HTML:2308）
     if (localPatch.repaired) saver.markRepaired();
 
+    // 授業ノート（docs/notebook/spec.md §6）。`compass-ui-data` とは別系統の保存なので
+    // スプラッシュのゲートには参加させない（ノートの遅延で起動を止めない）。
+    const notebook = new NotebookController(store, persistence, uid);
+    setNotebookController(notebook);
+
     const ready = () => {
       saver.markReady();
       store.resetUndoBaseline();
       void saver.loadCloudState();
+      void notebook.boot();
     };
     if (Object.keys(initial).length || localPatch.plans) {
       store.update({ plans: localPatch.plans, state: initial }, ready);
@@ -123,6 +134,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     return () => {
       unsubscribe();
       saver.dispose();
+      notebook.dispose();
+      setNotebookController(null);
       gate.cancel();
       persistence.reset();
       saverRef.current = null;
@@ -160,14 +173,14 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         focusSearch();
         return;
       }
-      // 修飾キーなしのショートカット: 1–6で画面切替 / 「/」で検索 / n・f で追加・集中
+      // 修飾キーなしのショートカット: 1–7で画面切替 / 「/」で検索 / n・f で追加・集中
       if (!editingText && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (key === '/') {
           e.preventDefault();
           focusSearch();
           return;
         }
-        if (key >= '1' && key <= '6') {
+        if (key >= '1' && key <= '7') {
           const order = normalizeNavOrder(store.getState().navOrder);
           const view = order[Number(key) - 1];
           if (view) {

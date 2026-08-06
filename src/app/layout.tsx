@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { FontStylesheet } from "./FontStylesheet";
+// ノート画面の数式描画（docs/notebook/spec.md §8）。フォントは katex パッケージに同梱され、
+// Next がバンドルするので外部 CDN への接続は増えない。
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

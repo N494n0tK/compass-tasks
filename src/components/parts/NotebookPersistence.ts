@@ -143,16 +143,35 @@ export class NotebookController {
   /**
    * 起動時。まずローカルミラーで即描画し、そのあとクラウドの内容で置き換える。
    * スプラッシュのゲート（`SplashGate`）には**参加しない**（ノートの遅延で起動を止めない）。
+   *
+   * ⚠ **クラウドが 0 件でもローカルを消さない**。
+   *  - preview / Firebase 未設定では `loadNotes()` が常に `[]` を返すスタブなので、
+   *    素直に置き換えるとリロードのたびにノートが消える。
+   *  - 実 Firebase でも「まだ 1 度も同期できていない端末」は同じ状況になりうる。
+   * 端末側に内容があるときはそれを正とし、クラウドへ追いつかせる。
    */
   async boot(): Promise<void> {
     const local = readLocalNotes();
     if (local.length) this.store.setState({ notes: local });
+
+    // 保存無効の実装（preview / Firebase 未設定）ではローカルが唯一の正
+    if (this.persistence.kind === 'local') {
+      this.store.setState({ notes: local, notesLoaded: true });
+      return;
+    }
+
     try {
       const rows = await this.persistence.loadNotes(this.uid);
       if (this.disposed) return;
-      const notes = sanitizeNotes(rows);
-      this.store.setState({ notes, notesLoaded: true });
-      writeLocalNotes(notes);
+      const cloud = sanitizeNotes(rows);
+      if (!cloud.length && local.length) {
+        // クラウドが空 = 未同期。ローカルを残したうえで押し上げる
+        this.store.setState({ notes: local, notesLoaded: true });
+        local.forEach((n) => void this.push(n));
+        return;
+      }
+      this.store.setState({ notes: cloud, notesLoaded: true });
+      writeLocalNotes(cloud);
     } catch (e) {
       if (this.disposed) return;
       console.warn('[notebook] ノートの読み込みに失敗', e);
