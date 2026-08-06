@@ -1,9 +1,24 @@
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
+/* ============================================================================
+   Compass — globals.css
+   レガシー(`Compass App.dc.html` L14-783 + support.js 注入分)のスタイルを
+   Next.js 版へ 1:1 移植したもの。詳細な移植メモは docs/rewrite/css-notes.md。
 
-/* Ink & Paper — アプリ本体(Compass App.dc.html)と同じトークンを使う */
+   構成:
+     [A] 移行期のホスト UI(認証画面 / レガシー iframe シェル)
+     [B] dc-runtime ベースラインの引き継ぎ(印刷 + ルート高さ)
+     [C] レガシーアプリ本体 CSS(HTML:17-782 を 1:1 移植)
+     [D] style-hover / style-focus 相当のユーティリティ(support.js の擬似クラス生成の代替)
+
+   フォント: layout.tsx に Google Fonts の <link> が必要(css-notes.md §5 参照)。
+   ============================================================================ */
+
+/* ==========================================================================
+   [A] 移行期のホスト UI
+   iframe 廃止までの間だけ必要。アプリ本体(.compass-shell 配下)へ影響が
+   漏れないよう、リセット以外はすべて .auth-screen / .legacy-shell に閉じる。
+   ========================================================================== */
+
+/* 認証画面専用トークン。アプリは --bg0..--tx3 系を .compass-theme で定義するため衝突しない */
 :root {
   --bg: #100f0c;
   --panel: #1a1814;
@@ -15,7 +30,6 @@
   --accent-2: #bda7e6;
   --danger: #dd9184;
   --ok: #96c49c;
-  --rule: rgba(242, 237, 225, 0.06);
   --font-hand: "Klee One", "Noto Sans JP", serif;
 }
 
@@ -24,25 +38,18 @@ body {
   margin: 0;
   min-height: 100%;
   background-color: var(--bg);
-  background-image: repeating-linear-gradient(
-    180deg,
-    transparent 0,
-    transparent 31px,
-    var(--rule) 31px,
-    var(--rule) 32px
-  );
   color: var(--text);
   font-family: "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
+.auth-screen * {
+  -webkit-tap-highlight-color: transparent;
 }
 
-input {
+.auth-screen button {
   font-family: inherit;
+  cursor: pointer;
 }
 
 .legacy-shell {
@@ -177,8 +184,7 @@ input {
   font-size: 12px;
 }
 
-.auth-loading,
-.screen-loading {
+.auth-loading {
   color: var(--text-dim);
   font-size: 14px;
   padding: 40px 20px;
@@ -216,674 +222,873 @@ input {
   }
 }
 
-/* ---- アプリ全体 ---- */
-
-.app {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.app-main {
-  flex: 1;
-  margin: 0 auto;
-  max-width: 560px;
-  padding: 20px 16px calc(84px + env(safe-area-inset-bottom));
-  width: 100%;
-}
-
-.screen-header {
-  margin-bottom: 16px;
-}
-
-.screen-header h1 {
-  font-size: 22px;
-  margin: 0 0 6px;
-}
-
-.screen-sub {
-  color: var(--text-dim);
-  font-size: 13px;
-  margin: 0;
-}
-
-/* ---- 下部タブバー ---- */
-
-.tab-bar {
-  backdrop-filter: blur(14px);
-  background: rgba(10, 16, 30, 0.92);
-  border-top: 1px solid var(--border);
-  bottom: 0;
-  display: flex;
-  left: 0;
-  padding-bottom: env(safe-area-inset-bottom);
-  position: fixed;
-  right: 0;
-  z-index: 30;
-}
-
-.tab-item {
-  align-items: center;
-  background: none;
-  border: 0;
-  color: var(--text-dim);
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  font-size: 11px;
-  font-weight: 600;
-  gap: 3px;
-  min-height: 60px;
-  justify-content: center;
-}
-
-.tab-item.active {
-  color: var(--accent);
-}
-
-.tab-icon {
-  font-size: 20px;
-}
-
-/* ---- 復習タスクカード ---- */
-
-.task-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  margin-bottom: 12px;
-  padding: 14px;
-}
-
-.task-head {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.task-subject {
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.task-overdue {
-  background: rgba(240, 100, 124, 0.16);
-  border-radius: 999px;
-  color: var(--danger);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-}
-
-.task-meta {
-  color: var(--text-dim);
-  font-size: 12px;
-  margin: 4px 0 0;
-}
-
-.task-note {
-  background: var(--panel-2);
-  border-radius: 8px;
-  font-size: 13px;
-  margin: 10px 0 0;
-  padding: 8px 10px;
-}
-
-.task-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.rate-button {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel-2);
-  color: var(--text);
-  flex: 1;
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 46px;
-}
-
-.rate-easy {
-  border-color: rgba(74, 222, 128, 0.4);
-  color: var(--ok);
-}
-
-.rate-normal {
-  border-color: rgba(79, 216, 232, 0.4);
-  color: var(--accent);
-}
-
-.rate-forgot {
-  border-color: rgba(240, 100, 124, 0.4);
-  color: var(--danger);
-}
-
-.queue-note,
-.hint-note,
-.empty-note {
-  color: var(--text-dim);
-  font-size: 12px;
-  line-height: 1.6;
-  margin: 12px 0;
-  text-align: center;
-}
-
-.upcoming {
-  border-top: 1px solid var(--border);
-  margin-top: 18px;
-  padding-top: 12px;
-}
-
-.upcoming summary {
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 0;
-}
-
-.upcoming-row {
-  display: flex;
-  font-size: 13px;
-  justify-content: space-between;
-  padding: 8px 4px;
-}
-
-.upcoming-date {
-  color: var(--text-dim);
-}
-
-/* ---- 夜の確認画面 ---- */
-
-.date-nav {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.date-arrow {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: 13px;
-  min-height: 44px;
-  min-width: 44px;
-}
-
-.date-input {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  flex: 1;
-  font-size: 15px;
-  min-height: 44px;
-  padding: 0 12px;
-  color-scheme: dark;
-}
-
-.badge-confirmed {
-  background: rgba(74, 222, 128, 0.14);
-  border-radius: 999px;
-  color: var(--ok);
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 700;
-  margin: 10px 0 0;
-  padding: 4px 12px;
-}
-
-.period-row {
-  align-items: flex-start;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 12px;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.period-row.period-skipped {
-  opacity: 0.5;
-}
-
-.period-check {
-  align-items: center;
-  display: flex;
-  min-height: 46px;
-}
-
-.period-check input {
-  accent-color: var(--accent);
-  height: 22px;
-  width: 22px;
-}
-
-.period-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.period-subject {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 700;
-  min-height: 46px;
-  padding: 0 14px;
-  text-align: left;
-  width: 100%;
-}
-
-.held-label {
-  color: var(--danger);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.period-note {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: 14px;
-  min-height: 40px;
-  padding: 0 12px;
-  width: 100%;
-}
-
-.period-note::placeholder {
-  color: rgba(159, 176, 200, 0.55);
-}
-
-.add-period {
-  background: transparent;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  color: var(--text-dim);
-  font-size: 14px;
-  font-weight: 600;
-  min-height: 48px;
-  width: 100%;
-}
-
-.confirm-button {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  border: 0;
-  border-radius: 12px;
-  color: white;
-  font-size: 16px;
-  font-weight: 800;
-  margin-top: 16px;
-  min-height: 52px;
-  width: 100%;
-}
-
-.confirm-button:disabled {
-  opacity: 0.6;
-}
-
-.confirm-done {
-  color: var(--ok);
-  font-size: 13px;
-  font-weight: 600;
-  margin-top: 12px;
-  text-align: center;
-}
-
-/* ---- 科目ピッカー(ボトムシート) ---- */
-
-.sheet-backdrop,
-.dialog-backdrop {
-  align-items: flex-end;
-  background: rgba(4, 8, 16, 0.6);
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  position: fixed;
-  z-index: 50;
-}
-
-.dialog-backdrop {
-  align-items: center;
-  padding: 24px;
-}
-
-.sheet {
-  background: var(--panel);
-  border-radius: 20px 20px 0 0;
-  border-top: 1px solid var(--border);
-  max-height: 80vh;
-  max-width: 560px;
-  overflow-y: auto;
-  padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
-  width: 100%;
-}
-
-.sheet-handle {
-  background: var(--border);
-  border-radius: 2px;
-  height: 4px;
-  margin: 6px auto 12px;
-  width: 40px;
-}
-
-.sheet-title {
-  font-size: 16px;
-  margin: 0 0 12px;
-}
-
-.sheet-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sheet-item {
-  align-items: center;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  display: flex;
-  font-size: 15px;
-  font-weight: 600;
-  justify-content: space-between;
-  min-height: 48px;
-  padding: 0 14px;
-}
-
-.sheet-item.selected {
-  border-color: var(--accent);
-}
-
-.priority-chip {
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-}
-
-.priority-high {
-  background: rgba(240, 100, 124, 0.16);
-  color: var(--danger);
-}
-
-.priority-mid {
-  background: rgba(79, 216, 232, 0.14);
-  color: var(--accent);
-}
-
-.priority-low {
-  background: rgba(148, 163, 184, 0.16);
-  color: var(--text-dim);
-}
-
-.sheet-custom {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.sheet-custom input {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  flex: 1;
-  font-size: 15px;
-  min-height: 46px;
-  padding: 0 12px;
-}
-
-.sheet-custom button {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 46px;
-  padding: 0 16px;
-}
-
-.sheet-custom button:disabled {
-  opacity: 0.4;
-}
-
-.sheet-delete {
-  background: transparent;
-  border: 1px solid rgba(240, 100, 124, 0.4);
-  border-radius: 10px;
-  color: var(--danger);
-  font-size: 14px;
-  font-weight: 700;
-  margin-top: 12px;
-  min-height: 46px;
-  width: 100%;
-}
-
-.sheet-cancel {
-  background: transparent;
-  border: 0;
-  color: var(--text-dim);
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 6px;
-  min-height: 44px;
-  width: 100%;
-}
-
-/* ---- ダイアログ ---- */
-
-.dialog {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  max-width: 400px;
-  padding: 20px;
-  width: 100%;
-}
-
-.dialog h2 {
-  font-size: 17px;
-  margin: 0 0 8px;
-}
-
-.dialog p {
-  color: var(--text-dim);
-  font-size: 14px;
-  line-height: 1.7;
-  margin: 0 0 16px;
-}
-
-.dialog-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.button-primary {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  border: 0;
-  border-radius: 10px;
-  color: white;
-  flex: 1;
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 46px;
-}
-
-.button-secondary {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-  min-height: 46px;
-}
-
-/* ---- 時間割テンプレート ---- */
-
-.weekday-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.weekday-tab {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text-dim);
-  flex: 1;
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 44px;
-}
-
-.weekday-tab.active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.template-row {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.template-index {
-  color: var(--text-dim);
-  font-size: 13px;
-  font-weight: 600;
-  min-width: 34px;
-}
-
-.template-remove {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text-dim);
-  font-size: 14px;
-  min-height: 44px;
-  min-width: 44px;
-}
-
-/* ---- 設定 ---- */
-
-.settings-section {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  margin-bottom: 16px;
-  padding: 16px;
-}
-
-.settings-section h2 {
-  font-size: 15px;
-  margin: 0 0 8px;
-}
-
-.settings-help {
-  color: var(--text-dim);
-  font-size: 12px;
-  line-height: 1.6;
-  margin: 0 0 12px;
-}
-
-.subject-row {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-  padding: 6px 0;
-}
-
-.subject-name {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.priority-toggle {
-  display: flex;
-  gap: 4px;
-}
-
-.priority-option {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 700;
-  min-height: 40px;
-  min-width: 40px;
-}
-
-.priority-option.on {
-  border-color: currentColor;
-}
-
-.priority-option.on.priority-high {
-  background: rgba(240, 100, 124, 0.16);
-  color: var(--danger);
-}
-
-.priority-option.on.priority-mid {
-  background: rgba(79, 216, 232, 0.14);
-  color: var(--accent);
-}
-
-.priority-option.on.priority-low {
-  background: rgba(148, 163, 184, 0.2);
-  color: var(--text);
-}
-
-.settings-row {
-  align-items: center;
-  display: flex;
-  font-size: 14px;
-  gap: 12px;
-  justify-content: space-between;
-  min-height: 48px;
-}
-
-.settings-row input[type="number"] {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: 15px;
-  min-height: 44px;
-  padding: 0 12px;
-  text-align: center;
-  width: 80px;
-}
-
-.settings-row input[type="checkbox"] {
-  accent-color: var(--accent);
-  height: 24px;
-  width: 24px;
-}
-
-.signout {
-  margin-top: 8px;
-  width: 100%;
-}
+/* ==========================================================================
+   [B] dc-runtime ベースラインの引き継ぎ
+   support.js の BASE_CSS(SUP:86-131)/ FULL_PAGE_CSS(SUP:132)のうち、
+   ランタイム内部クラス(.sc-placeholder / .sc-interp / .sc-logic-error /
+   @keyframes sc-shine / html.sc-dc-streaming)と x-dc / #__dc-atomics は
+   ランタイム廃止で対象要素が存在しないため移植しない(css-notes.md §4)。
+   印刷ベースラインとルートの height だけは実効値なので移植する。
+   `#dc-root, #dc-root > .sc-host` → `.compass-root`(アプリ最上位ラッパー)。
+   ========================================================================== */
+
+.compass-root {
+  height: 100%;
+}
+
+@media print {
+  @page {
+    margin: 0.5cm;
+  }
+  figure,
+  table {
+    break-inside: avoid;
+  }
+  .compass-root {
+    height: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation-delay: -99s !important;
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    animation-fill-mode: both !important;
+    animation-play-state: running !important;
+    transition-duration: 0s !important;
+  }
+}
+
+/* ==========================================================================
+   [C] レガシーアプリ本体 CSS
+   出典: Compass App.dc.html L17-782(helmet 内 <style>)を 1:1 移植。
+   適用した設計判断は 4 点だけ(css-notes.md §1-§3):
+     1. data-theme を note|neon|light に正規化(旧 dark→note / neon は素の基底)
+     2. spec Q17 の死にルール 4 件を不採用
+     3. Q18 の 68px/70px 不一致を 70px に統一
+     4. C-508 の >span:nth-child(n) を明示クラスへ置換
+   ========================================================================== */
+
+html,body{margin:0;padding:0;height:100%}
+*{box-sizing:border-box}
+@keyframes slideIn{from{transform:translateX(-16px);opacity:0}to{transform:none;opacity:1}}
+@keyframes popIn{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes toastIn{from{transform:translate(-50%,12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+@keyframes fadeUp{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+@keyframes slideInR{from{transform:translateX(18px);opacity:0}to{transform:none;opacity:1}}
+/* ══ splash: 「製図 → 計器起動」2.75秒 ══
+   罫線の紙に製図ガイドが引かれ、リムが描かれ、ベゼルの目盛りが回って止まり、
+   レーダーが一周し、針が振り切れてから北に収まる。最後に本物のアイコンへ差し替わる。 */
+@keyframes spReadyOut{0%{opacity:1;visibility:visible}72%{opacity:0;visibility:visible}99%{opacity:0;visibility:visible}100%{opacity:0;visibility:hidden}}
+@keyframes spStageOut{from{transform:none;filter:blur(0)}to{transform:scale(1.09);filter:blur(7px)}}
+@keyframes spMarkSet{0%,74%{opacity:0;transform:scale(.985)}84%{opacity:1;transform:scale(1.016)}92%,100%{opacity:1;transform:scale(1)}}
+@keyframes spBuildOut{0%,76%{opacity:1}88%,100%{opacity:0}}
+@keyframes spBloom{0%{transform:scale(.2);opacity:0}20%{opacity:.9}72%{transform:scale(1.06);opacity:.4}100%{transform:scale(1.16);opacity:0}}
+@keyframes spGuideH{0%{transform:scaleX(0);opacity:0}22%{opacity:1}62%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+@keyframes spGuideV{0%{transform:scaleY(0);opacity:0}22%{opacity:1}62%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);opacity:0}}
+@keyframes spGuideRing{0%{transform:rotate(-26deg) scale(.88);opacity:0}28%{opacity:1}64%{transform:rotate(0deg) scale(1);opacity:1}100%{transform:rotate(9deg) scale(1.05);opacity:0}}
+@keyframes spRimDraw{0%{stroke-dashoffset:1194;opacity:0}9%{opacity:1}100%{stroke-dashoffset:0;opacity:1}}
+@keyframes spTicks{0%{transform:rotate(-42deg) scale(.96);opacity:0}34%{opacity:1}100%{transform:rotate(0deg) scale(1);opacity:1}}
+@keyframes spFaceSet{0%{transform:scale(.48);opacity:0}64%{transform:scale(1.04);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes spRingDraw{0%{stroke-dashoffset:var(--ring-len);opacity:0}14%{opacity:1}100%{stroke-dashoffset:0;opacity:1}}
+@keyframes spCardIn{0%{transform:translateY(7px) scale(.62);opacity:0}62%{transform:none;opacity:1}100%{transform:none;opacity:.9}}
+@keyframes spSweep{0%{transform:rotate(-92deg);opacity:0}11%{opacity:1}84%{opacity:.92}100%{transform:rotate(268deg);opacity:0}}
+@keyframes spNeedleSet{0%{transform:rotate(-428deg) scale(.58);opacity:0}13%{opacity:1}52%{transform:rotate(26deg) scale(1.06)}67%{transform:rotate(-12deg) scale(1)}79%{transform:rotate(5.5deg)}90%{transform:rotate(-2deg)}100%{transform:rotate(0deg) scale(1)}}
+@keyframes spPinIn{0%{transform:scale(0);opacity:0}70%{transform:scale(1.14);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes spPinPulse{0%{transform:scale(.9);opacity:0}18%{opacity:.7}100%{transform:scale(3.5);opacity:0}}
+@keyframes spLetterIn{0%{transform:translateY(9px) rotate(-6deg);opacity:0;filter:blur(3px)}100%{transform:none;opacity:1;filter:blur(0)}}
+@keyframes spTodoWipe{0%{clip-path:inset(-16% 100% -38% 0);opacity:0;transform:translateY(6px)}14%{opacity:1}100%{clip-path:inset(-16% -4% -38% 0);opacity:1;transform:none}}
+@keyframes spTodoLine{0%{transform:scaleX(0);opacity:0}22%{opacity:1}100%{transform:scaleX(1);opacity:1}}
+
+.compass-splash{
+  position:fixed;inset:0;z-index:9999;display:grid;place-items:center;pointer-events:none;
+  background:
+    radial-gradient(circle at 42% 35%,rgba(54,205,235,.24),transparent 29%),
+    radial-gradient(circle at 60% 62%,rgba(255,209,102,.16),transparent 30%),
+    linear-gradient(135deg,#061827 0%,#0a2540 56%,#071525 100%);
+  /* 計器の色。テーマごとに差し替える */
+  --sp-guide:rgba(150,230,255,.3);
+  --sp-graphite:#0a2c46;
+  --sp-ink:#5eebff;
+  --sp-tick:rgba(200,245,255,.62);
+  --sp-face:#0b3a55;
+  --sp-face-line:rgba(185,245,255,.5);
+  --sp-accent:#eafbff;
+  --sp-warm:#ffb066;
+  --sp-ring:rgba(221,251,255,.3);
+  --sp-ring-mid:#70e6ee;
+  --sp-ring-in:#ffd166;
+  --sp-pin:#071d31;
+  --sp-pin-ring:#f4fcff;
+  --sp-text:#f0fbff;
+}
+.compass-splash.compass-splash--ready{animation:spReadyOut .46s cubic-bezier(.4,0,.2,1) forwards}
+.compass-splash.compass-splash--ready .compass-splash__stage{animation:spStageOut .46s cubic-bezier(.4,0,.2,1) forwards}
+.compass-splash__stage{width:min(292px,56vw);aspect-ratio:1;position:relative;display:grid;place-items:center}
+.compass-splash__glow{position:absolute;inset:9%;border-radius:50%;filter:blur(30px);opacity:.3;
+  background:conic-gradient(from 205deg,rgba(94,235,255,.9),rgba(59,156,255,.84),rgba(67,230,177,.82),rgba(255,209,102,.84),rgba(94,235,255,.9));
+  animation:spBloom 2.1s ease-out both}
+.compass-splash__mark,.compass-splash__build{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;overflow:visible;filter:drop-shadow(0 18px 34px rgba(2,14,30,.42))}
+.compass-splash__mark{z-index:2;animation:spMarkSet 2.35s cubic-bezier(.2,.8,.2,1) both}
+.compass-splash__build{z-index:1;animation:spBuildOut 2.35s ease both}
+
+/* 製図ガイド */
+.sp-guide{stroke:var(--sp-guide);stroke-width:1.6;stroke-dasharray:9 11;transform-origin:256px 256px}
+.sp-guide--h{animation:spGuideH 1.55s cubic-bezier(.2,.85,.2,1) .04s both}
+.sp-guide--v{animation:spGuideV 1.55s cubic-bezier(.2,.85,.2,1) .12s both}
+.sp-guide-ring{fill:none;stroke:var(--sp-guide);stroke-width:1.4;stroke-dasharray:3 15;transform-origin:256px 256px;
+  animation:spGuideRing 1.6s cubic-bezier(.2,.85,.2,1) .1s both}
+
+/* ベゼルの目盛り(点線を回して止める) */
+.sp-ticks{fill:none;stroke:var(--sp-tick);stroke-width:13;stroke-dasharray:3.6 33.4;transform-origin:256px 256px;
+  animation:spTicks .82s cubic-bezier(.14,.86,.18,1) .4s both}
+
+/* リム: 下地の太い線に、細いインクを重ねて描く */
+.sp-rim{fill:none;stroke-linecap:round;stroke-dasharray:1194;stroke-dashoffset:1194}
+.sp-rim--under{stroke:var(--sp-graphite);stroke-width:34;opacity:.9;animation:spRimDraw .8s cubic-bezier(.2,.82,.18,1) .16s both}
+.sp-rim--ink{stroke:var(--sp-ink);stroke-width:23;animation:spRimDraw .86s cubic-bezier(.2,.82,.18,1) .24s both}
+
+/* 文字盤 */
+.sp-face{fill:var(--sp-face);stroke:var(--sp-face-line);stroke-width:4;transform-box:fill-box;transform-origin:center;
+  animation:spFaceSet .62s cubic-bezier(.18,.88,.24,1.16) .62s both}
+.sp-ring{fill:none;stroke:var(--sp-ring);stroke-width:3;stroke-dasharray:var(--ring-len);stroke-dashoffset:var(--ring-len);
+  animation:spRingDraw .6s cubic-bezier(.2,.82,.18,1) var(--ring-delay) both}
+.sp-ring--mid{stroke:var(--sp-ring-mid);stroke-width:7;opacity:.85}
+.sp-ring--in{stroke:var(--sp-ring-in);stroke-width:7}
+
+/* 方位 */
+.sp-card{fill:var(--sp-face-line);font:700 23px 'Space Grotesk',system-ui,sans-serif;letter-spacing:.04em;
+  text-anchor:middle;dominant-baseline:central;transform-box:fill-box;transform-origin:center;
+  animation:spCardIn .42s cubic-bezier(.2,.9,.2,1.2) calc(.98s + var(--ci) * 60ms) both}
+
+/* レーダーの一周 */
+.sp-sweep{transform-origin:256px 256px;animation:spSweep .88s cubic-bezier(.36,0,.3,1) .95s both}
+.sp-sweep-wedge{fill:url(#spSweepGrad)}
+.sp-sweep-a{stop-color:var(--sp-ink);stop-opacity:.34}
+.sp-sweep-b{stop-color:var(--sp-ink);stop-opacity:0}
+.sp-sweep-edge{stroke:var(--sp-ink);stroke-width:2.4;opacity:.85}
+
+/* 針 */
+.sp-needle{transform-origin:256px 256px;animation:spNeedleSet 1.16s cubic-bezier(.16,.86,.14,1.1) .72s both}
+.sp-needle-n{fill:var(--sp-accent);stroke:var(--sp-pin-ring);stroke-width:8;stroke-linejoin:round}
+.sp-needle-s{fill:var(--sp-warm);stroke:color-mix(in srgb,var(--sp-warm) 42%,var(--sp-pin));stroke-width:6;stroke-linejoin:round}
+.sp-pin{transform-box:fill-box;transform-origin:center;animation:spPinIn .4s cubic-bezier(.2,.9,.2,1.3) 1.18s both}
+.sp-pin-body{fill:var(--sp-pin);stroke:var(--sp-pin-ring);stroke-width:9}
+.sp-pin-dot{fill:var(--sp-ink)}
+.sp-pin-pulse{fill:none;stroke:var(--sp-ink);stroke-width:3;transform-box:fill-box;transform-origin:center;
+  animation:spPinPulse .62s cubic-bezier(.2,.7,.2,1) 1.3s both}
+
+/* 完成マーク: 組み上がったあとの本体。テーマトークンで描くので
+   ビルド用SVGから切り替わっても輪郭も色もつながる。
+   置き終わったあとも針がわずかに北を探し続ける。 */
+.mk-ticks{fill:none;stroke:var(--sp-tick);stroke-width:13;stroke-dasharray:3.6 33.4;
+  transform-origin:256px 256px;animation:mkBezel 90s linear 2.1s infinite}
+.mk-rim{fill:none}
+.mk-rim--under{stroke:var(--sp-graphite);stroke-width:34;opacity:.9}
+.mk-rim--ink{stroke:var(--sp-ink);stroke-width:23}
+.mk-face{fill:url(#mkFace);stroke:var(--sp-face-line);stroke-width:4}
+.mk-face-a{stop-color:var(--sp-face)}
+.mk-face-b{stop-color:var(--sp-pin)}
+.mk-ring{fill:none;stroke:var(--sp-ring);stroke-width:3}
+.mk-ring--mid{stroke:var(--sp-ring-mid);stroke-width:7;opacity:.85}
+.mk-ring--in{stroke:var(--sp-ring-in);stroke-width:7}
+.mk-card{fill:var(--sp-face-line);font:700 23px 'Space Grotesk',system-ui,sans-serif;
+  text-anchor:middle;dominant-baseline:central}
+.mk-needle{transform-origin:256px 256px;animation:mkDrift 7s ease-in-out 2.15s infinite}
+.mk-needle-n{fill:var(--sp-accent);stroke:var(--sp-pin-ring);stroke-width:8;stroke-linejoin:round}
+.mk-needle-s{fill:var(--sp-warm);stroke:color-mix(in srgb,var(--sp-warm) 42%,var(--sp-pin));stroke-width:6;stroke-linejoin:round}
+.mk-pin-body{fill:var(--sp-pin);stroke:var(--sp-pin-ring);stroke-width:9}
+.mk-pin-dot{fill:var(--sp-ink);transform-box:fill-box;transform-origin:center;
+  animation:mkBreathe 3.4s ease-in-out 2.15s infinite}
+@keyframes mkDrift{0%,100%{transform:rotate(0deg)}22%{transform:rotate(1.7deg)}58%{transform:rotate(-1.3deg)}80%{transform:rotate(.5deg)}}
+@keyframes mkBezel{to{transform:rotate(360deg)}}
+@keyframes mkBreathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.22);opacity:.72}}
+
+/* ロゴタイプ */
+.compass-splash__word{position:absolute;bottom:-12px;display:flex;gap:.1em;
+  font:700 15px 'Space Grotesk',system-ui,sans-serif;letter-spacing:.12em;color:var(--sp-text)}
+.compass-splash__word span{display:inline-block;animation:spLetterIn .42s cubic-bezier(.2,.85,.2,1.1) calc(1.98s + var(--li) * 34ms) both}
+.compass-splash__todo{position:absolute;bottom:-58px;
+  font:700 clamp(28px,7vw,44px) 'Space Grotesk',system-ui,sans-serif;line-height:1;letter-spacing:.06em;
+  background:linear-gradient(90deg,#5eebff 0%,#f0fbff 30%,#43e6b1 66%,#ffd166 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:spTodoWipe .52s cubic-bezier(.25,.85,.2,1) 2.06s both}
+.compass-splash__todo::after{content:"";position:absolute;left:4%;right:4%;bottom:-9px;height:2px;border-radius:99px;
+  background:linear-gradient(90deg,transparent,#5eebff,#43e6b1,#ffd166,transparent);transform-origin:left center;
+  animation:spTodoLine .46s cubic-bezier(.2,.8,.2,1) 2.24s both}
+
+@media (prefers-reduced-motion:reduce){
+  .compass-splash *{animation:none!important;clip-path:none!important;opacity:1!important}
+  .compass-splash__build,.compass-splash__glow,.sp-guide,.sp-guide-ring,.sp-sweep,.sp-pin-pulse{display:none!important}
+  .compass-splash.compass-splash--ready{animation:spReadyOut .2s ease forwards}
+}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(128,150,190,.25);border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ===== Compass 2026 interface system ===== */
+:root{color-scheme:dark}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button,input,select,textarea{font:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+/* 死にルール(spec Q17): ::selection の color-mix は --acc / --tx0 がルート要素で
+   未定義なため無効値になり、ブラウザ既定の選択色が出る。→ 移植しない
+   HTML:180  ::selection{background:color-mix(in srgb,var(--acc) 30%,transparent);color:var(--tx0)} */
+.compass-shell{isolation:isolate;background:var(--bg0)!important}
+.compass-shell::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(circle at 48% -20%,rgba(65,216,243,.055),transparent 34%)}
+.compass-nav{width:clamp(196px,var(--nav-width,220px),252px)!important;padding:18px 12px 14px!important;gap:5px!important;background:color-mix(in srgb,var(--bg2) 94%,black)!important;box-shadow:8px 0 28px rgba(0,0,0,.14)}
+.compass-brand{width:100%;padding:3px 9px 18px!important;margin:0 0 4px;border:0;background:transparent;color:inherit;border-radius:11px;cursor:pointer;text-align:left;transition:background .16s ease,transform .16s ease}
+.compass-brand:hover{background:color-mix(in srgb,var(--acc) 7%,transparent);transform:translateY(-1px)}
+.compass-brand:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.compass-brand__chevron{margin-left:auto;color:var(--tx3);font-size:12px;transition:transform .16s ease,color .16s ease}
+.compass-brand:hover .compass-brand__chevron{transform:translate(2px,-1px);color:var(--acc)}
+.mobile-app-launcher{display:none;width:36px;height:36px;flex:none;align-items:center;justify-content:center;padding:0;border:1px solid var(--line2);border-radius:10px;background:var(--bg2);cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.12)}
+.app-switcher-backdrop{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:24px;background:rgba(3,12,24,.72);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:fadeIn .16s ease}
+.app-switcher-panel{width:min(680px,94vw);max-height:min(720px,90vh);overflow:auto;padding:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--bg1) 96%,#0f3551),var(--bg1));border:1px solid var(--line2);border-radius:22px;box-shadow:0 34px 110px rgba(0,0,0,.58);animation:popIn .2s ease}
+.app-switcher-current{width:min(360px,100%);margin:22px auto 28px;padding:22px;display:flex;align-items:center;gap:16px;border:1px solid color-mix(in srgb,var(--acc) 48%,var(--line2));border-radius:18px;background:radial-gradient(circle at 18% 12%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 58%),var(--bg2);color:var(--tx0);cursor:pointer;box-shadow:0 18px 48px rgba(0,0,0,.22),var(--gAcc);text-align:left;transition:transform .16s ease,border-color .16s ease}
+.app-switcher-current:hover{transform:translateY(-2px);border-color:var(--acc)}
+.app-switcher-current__icon{width:72px;height:72px;flex:none;display:grid;place-items:center;border-radius:18px;background:color-mix(in srgb,var(--acc) 9%,transparent)}
+.app-switcher-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.app-switcher-tile{min-width:0;min-height:138px;padding:15px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;border:1px solid var(--line);border-radius:15px;background:var(--bg2);color:var(--tx1);cursor:pointer;text-align:left;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+.app-switcher-tile:hover{transform:translateY(-2px);border-color:var(--app-accent);background:color-mix(in srgb,var(--app-accent) 7%,var(--bg2))}
+.app-switcher-tile__icon{width:44px;height:44px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--app-accent) 48%,var(--line2));border-radius:13px;background:color-mix(in srgb,var(--app-accent) 12%,var(--bg3));color:var(--app-accent);font:700 23px 'Space Grotesk'}
+.app-switcher-tile__status{margin-top:auto;padding:3px 8px;border-radius:99px;background:color-mix(in srgb,var(--app-accent) 10%,var(--bg3));color:var(--app-accent);font:700 9.5px 'Noto Sans JP'}
+.app-nav-item{position:relative;width:100%;min-height:43px;display:flex!important;align-items:center;gap:11px!important;padding:9px 11px!important;border-radius:9px!important;border:1px solid transparent!important;background:transparent;color:var(--tx2);text-align:left;cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
+.app-nav-item:hover{background:var(--bg3)!important;color:var(--tx0)!important;transform:translateX(2px)}
+.app-nav-item.is-dragging{opacity:.45;transform:scale(.98)}
+.app-nav-item.is-dragover{border-color:var(--acc)!important;box-shadow:inset 0 2px 0 var(--acc)}
+.app-nav-item.is-active{background:color-mix(in srgb,var(--acc) 11%,var(--bg3))!important;border-color:color-mix(in srgb,var(--acc) 24%,var(--line))!important;color:var(--acc)!important}
+.app-nav-item.is-active::after{content:"";position:absolute;left:-13px;top:9px;bottom:9px;width:3px;border-radius:0 4px 4px 0;background:var(--acc);box-shadow:0 0 10px color-mix(in srgb,var(--acc) 55%,transparent)}
+.app-nav-item::before{content:"";width:17px;height:17px;flex:none;background:currentColor;opacity:.92;mask:var(--nav-icon) center/contain no-repeat;-webkit-mask:var(--nav-icon) center/contain no-repeat}
+.app-nav-item[data-nav="cockpit"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="tests"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3v3M18 3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v13H3V7a2 2 0 0 1 2-2Z'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="todo"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='4' y='3' width='16' height='18' rx='2'/%3E%3Cpath d='m8 9 2 2 4-4M8 16h8'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="review"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M4 12a8 8 0 1 0 2-5.3L4 9'/%3E%3Cpath d='M4 4v5h5M12 8v5l3 2'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="add"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E%3Cpath d='M12 7v10M7 12h10'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="data"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M5 20v-7h4v7M10 20V8h4v12M15 20V4h4v16M3 20h18'/%3E%3C/svg%3E")}
+.nav-dot{display:none!important}
+.compass-nav-footer{gap:9px!important}
+.compass-main{background:linear-gradient(180deg,rgba(255,255,255,.008),transparent 24%)}
+.compass-topbar{min-height:68px;padding:11px 20px!important;background:color-mix(in srgb,var(--bg0) 82%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:var(--line2)!important;z-index:12}
+.app-view-title{order:1;min-width:190px}
+.app-view-title>div:first-child{font-size:16px!important;letter-spacing:.01em}
+.app-search{position:relative;order:2;margin-left:auto;display:flex;align-items:center;gap:9px;min-width:min(34vw,440px);padding:0 12px;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;color:var(--tx2);box-shadow:inset 0 1px 0 rgba(255,255,255,.025);transition:border-color .16s ease,box-shadow .16s ease}
+.app-search:hover,.app-search:focus-within{border-color:color-mix(in srgb,var(--acc) 64%,var(--line2));box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 9%,transparent)}
+.app-search-input{flex:1;min-width:0;height:38px;padding:0;border:0;outline:0;background:transparent;color:var(--tx0);font:500 13px 'Noto Sans JP'}
+.app-search-input::placeholder{color:var(--tx3)}
+.app-search-shortcut{flex:none;padding:2px 6px;border:1px solid var(--line);border-radius:5px;color:var(--tx3);font:600 10px 'Space Grotesk'}
+.app-search-clear{width:22px;height:22px;flex:none;padding:0;border:0;border-radius:6px;background:transparent;color:var(--tx3);cursor:pointer}.app-search-clear:hover{background:var(--bg3);color:var(--tx0)}
+.app-search-popover{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:80;max-height:min(620px,calc(100vh - 90px));padding:13px;background:var(--bg1);border:1px solid var(--line2);border-radius:12px;box-shadow:0 22px 60px rgba(3,9,20,.48);display:flex;flex-direction:column;gap:10px;animation:fadeUp .16s ease}
+.app-search-results{max-height:370px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.app-top-actions{order:3;margin-left:auto!important}
+.cockpit-grid{grid-template-columns:minmax(360px,1.18fr) minmax(290px,.9fr) minmax(330px,1fr)!important;gap:1px!important;padding:0!important;background:var(--line)!important;align-content:stretch!important;overflow:hidden!important}
+/* Q18: レガシーは 68px。トップバーの実効 min-height は 70px(HTML:628)なので 70px に統一 */
+.cockpit-panel{min-height:0!important;height:calc(100vh - 70px);overflow:auto;background:var(--bg0)!important;border:0!important;border-radius:0!important;padding:22px 18px 24px!important;gap:11px!important}
+.cockpit-panel--today{background:color-mix(in srgb,var(--bg1) 65%,var(--bg0))!important}
+.cockpit-panel-title{position:sticky;top:-22px;z-index:4;padding:15px 2px 12px!important;margin:-15px -2px 0;background:linear-gradient(180deg,var(--bg0) 72%,transparent)}
+.cockpit-panel--today .cockpit-panel-title{background:linear-gradient(180deg,color-mix(in srgb,var(--bg1) 65%,var(--bg0)) 72%,transparent)}
+.cockpit-task,.cockpit-review,.cockpit-plan{transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease}
+.cockpit-task:hover,.cockpit-review:hover,.cockpit-plan:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--acc) 28%,var(--line2))!important;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.cockpit-task{padding:12px 13px!important;border-left-width:3px!important;border-radius:9px!important}
+.cockpit-review{padding:12px 13px!important;border-radius:9px!important}
+.cockpit-plan{border-radius:10px!important;padding:13px!important}
+.cockpit-primary-action{border-radius:9px!important;background:var(--acc)!important;box-shadow:0 8px 24px color-mix(in srgb,var(--acc) 17%,transparent)!important;transition:transform .16s ease,filter .16s ease}
+.cockpit-primary-action:hover{transform:translateY(-1px);filter:brightness(1.07)}
+[data-screen-label="Tests"],[data-screen-label="ToDo"],[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{background:var(--bg0)}
+[data-screen-label] input,[data-screen-label] select{transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+[data-screen-label] input:hover,[data-screen-label] select:hover{border-color:color-mix(in srgb,var(--acc) 38%,var(--line2))!important}
+.plan-timeline-table{box-shadow:0 18px 50px rgba(0,0,0,.14)}
+.plan-timeline-row:hover .plan-sticky-cell{background:var(--bg3)!important}
+.todo-plan-card,.todo-other-card{transition:border-color .16s ease,background .16s ease,transform .16s ease}
+.todo-plan-card:hover,.todo-other-card:hover{transform:translateY(-1px)}
+.quota-line{cursor:ns-resize;user-select:none;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--acc) 38%,transparent))}
+.quota-line:active{filter:drop-shadow(0 0 13px color-mix(in srgb,var(--acc) 65%,transparent))}
+.focus-launch{transition:transform .16s ease,filter .16s ease}.focus-launch:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.timetable-week-strip button{transition:border-color .15s ease,background .15s ease,color .15s ease,transform .15s ease}
+.timetable-week-strip button:hover{transform:translateY(-1px);border-color:var(--acc)!important;color:var(--tx0)!important}
+.mobile-scroll-hint,.mini-day-mobile,.mini-mobile-actions{display:none}
+
+@media(max-width:1180px){
+  .cockpit-grid{grid-template-columns:minmax(350px,1.15fr) minmax(300px,.85fr)!important;overflow:auto!important}
+  .cockpit-panel{height:auto;min-height:520px!important}
+  .cockpit-panel--plans{grid-column:1/-1;display:grid!important;grid-template-columns:1fr 1fr;align-content:start}
+  .cockpit-panel--plans>.cockpit-panel-title,.cockpit-panel--plans>.cockpit-primary-action{grid-column:1/-1}
+  .app-search{min-width:260px}
+}
+@media(max-width:820px){
+  :root{--mobile-nav-h:calc(64px + env(safe-area-inset-bottom))}
+  html,body{width:100%;height:100%;overflow-x:hidden;overscroll-behavior-x:none}
+  button,[role="button"],input,select{touch-action:manipulation}
+  .compass-shell{display:block!important;height:100vh!important;height:100dvh!important;padding-bottom:var(--mobile-nav-h)}
+  .compass-nav{position:fixed!important;left:0;right:0;bottom:0;z-index:100;width:100%!important;height:var(--mobile-nav-h);padding:6px max(6px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-right))!important;display:flex!important;flex-direction:row!important;gap:2px!important;border:0!important;border-top:1px solid var(--line2)!important;background:color-mix(in srgb,var(--bg2) 93%,transparent)!important;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+  /* 死にルール(spec Q17): 3番目の `.compass-nav>[style*="position:absolute"]` は
+     React が style を `position: absolute`(スペース付き)で直列化するため一致せず、
+     モバイルでもナビのリサイズハンドルは残る。→ セレクタごと移植しない */
+  .compass-brand,.compass-nav-footer{display:none!important}
+  .mobile-app-launcher{display:flex}
+  .app-nav-item{min-width:0!important;min-height:52px!important;flex:1;flex-direction:column!important;justify-content:center;gap:4px!important;padding:4px 2px!important;border:0!important;font-size:9px!important;text-align:center}
+  .app-nav-item::before{width:18px;height:18px}
+  .app-nav-item::after{display:none}
+  .app-nav-item span{font-size:9px!important;flex:none!important}
+  .compass-main{height:calc(100vh - var(--mobile-nav-h));height:calc(100dvh - var(--mobile-nav-h));width:100%;min-width:0;overflow:hidden}
+  .compass-topbar{min-height:60px;padding:10px 13px!important;gap:8px!important}
+  .app-view-title{min-width:0;flex:1}.app-view-title>div:last-child{display:none}
+  .compass-topbar{flex-wrap:wrap}
+  .app-search{order:4;min-width:0!important;width:100%;margin-left:0!important;flex-basis:100%}
+  .app-search-shortcut{display:none}
+  .app-search-popover{left:0;right:0;max-height:calc(100dvh - 128px)}
+  /* 死にルール(spec Q17): `.app-top-actions sc-if{display:none!important}` は
+     <sc-if> が DOM に出ないため一度も一致しない。→ 移植しない */
+  .app-top-actions{margin-left:0!important}.app-top-actions>span{font-size:11px!important}
+  .cockpit-grid{display:block!important;overflow:auto!important;background:var(--bg0)!important}
+  .cockpit-panel{height:auto;min-height:0!important;border-bottom:1px solid var(--line)!important;padding:18px 14px 22px!important}
+  .cockpit-panel--plans{display:flex!important}
+  [data-screen-label="Tests"],[data-screen-label="ToDo"],[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{padding:14px!important;width:100%;min-width:0;overflow-x:hidden!important}
+  [data-screen-label="ToDo"],[data-screen-label="Data"]{display:flex!important;flex-direction:column!important;grid-template-columns:none!important}
+  [data-screen-label="ToDo"]>div,[data-screen-label="Data"]>div{width:100%;min-width:0}
+  [data-screen-label="Add"]>div{width:100%!important;grid-template-columns:minmax(0,1fr)!important}
+  [data-screen-label="Add"]>div>div{min-width:0}
+  .todo-summary{flex-wrap:wrap}.todo-summary .focus-launch{width:100%;min-height:44px}.todo-summary>div:nth-child(2){min-width:150px}
+  .plan-controls{gap:8px!important}.plan-controls>div{min-height:54px}.plan-legend{flex-basis:100%!important;justify-content:flex-start!important;gap:8px 12px!important;flex-wrap:wrap}
+  .plan-overdue{align-items:flex-start!important;flex-wrap:wrap}.plan-overdue>button{width:100%;margin-left:0!important;min-height:42px}
+  .mobile-scroll-hint{display:block!important;margin:-2px 2px 8px;color:var(--tx3);font:600 10.5px 'Noto Sans JP';text-align:right}
+  .plan-timeline-table{max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:thin;overscroll-behavior-x:contain}
+  .plan-timeline-head,.plan-timeline-row{grid-template-columns:156px repeat(var(--timeline-days),92px)!important;min-width:var(--timeline-mobile-min-width)!important}
+  .plan-sticky-cell{padding:11px 10px!important}
+  .plan-sticky-cell>div:nth-child(2){gap:4px!important;flex-wrap:wrap}
+  .review-table{overflow:visible!important;background:transparent!important;border:0!important}
+  .review-table-inner{min-width:0!important}
+  .review-table-head{display:none!important}
+  .review-table-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;grid-template-areas:"subject title actions" "round next actions" "last stage status";gap:8px 9px!important;margin-bottom:8px;padding:11px 10px!important;border-top:1px solid var(--line)!important;border-right:1px solid var(--line)!important;border-bottom:1px solid var(--line)!important;border-radius:11px;background:var(--bg1)!important}
+  /* C-508: レガシーは `>span:nth-child(1..8)`。{{ }} が <span class="sc-interp"> に
+     包まれる前提の並び順依存だったので、セルへ明示クラスを振る形に置換した。
+     セル 8 個には .rt-cell と .rt-cell-<名前> の両方を必ず付けること(css-notes.md §3)。
+     並び順・grid-area・見た目はレガシーと同一。 */
+  .review-table-row>.rt-cell-subj{grid-area:subject}.review-table-row>.rt-cell-title{grid-area:title}.review-table-row>.rt-cell-last{grid-area:last}.review-table-row>.rt-cell-next{grid-area:next}.review-table-row>.rt-cell-round{grid-area:round}.review-table-row>.rt-cell-stage{grid-area:stage}.review-table-row>.rt-cell-status{grid-area:status}.review-table-row>.rt-cell-actions{grid-area:actions;flex-direction:column;align-items:flex-end!important;justify-content:flex-start!important}
+  .review-table-row>.rt-cell[data-label]::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--tx3);font:500 8.5px 'Noto Sans JP'}
+  .review-divider{margin:10px 0 8px;border-radius:10px}.review-table-foot{padding:10px 4px!important;line-height:1.7}
+  .timetable-week-strip{width:100%!important;min-width:0!important;margin-left:0!important;grid-template-columns:28px repeat(5,minmax(0,1fr)) 28px!important}
+  /* C-508: 同上。`.score-group-row>span:nth-child(1..6)` をセルの明示クラスへ置換 */
+  .score-group-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 8px!important}.score-group-row>.sg-cell-subj{grid-column:1;grid-row:1/3}.score-group-row>.sg-cell-name{grid-column:2;grid-row:1}.score-group-row>.sg-cell-meta{grid-column:2;grid-row:2}.score-group-row>.sg-cell-delta{grid-column:3;grid-row:2}.score-group-row>.sg-cell-score{grid-column:3;grid-row:1}.score-group-row>.sg-cell-arrow{display:none}
+  .mini-editor-row{flex-wrap:wrap}.mini-drag-handle,.mini-day-label{display:none!important}.mini-title{order:2;flex:1!important}.mini-size{order:3}.mini-delete{order:4}.mini-day-mobile{display:block!important;order:5;flex:1 1 150px;min-width:0;min-height:36px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg1);color:var(--tx1);font:600 11px 'Space Grotesk';color-scheme:dark}.mini-mobile-actions{display:flex!important;order:6;gap:5px}.mini-mobile-actions button{width:38px;min-height:36px;border:1px solid var(--line2);border-radius:8px;background:var(--bg3);color:var(--tx1);font-weight:700}
+  .app-switcher-backdrop{padding:12px}.app-switcher-panel{max-height:90dvh;padding:18px;border-radius:18px}.app-switcher-current{margin:18px auto 22px;padding:16px}.app-switcher-current__icon{width:58px;height:58px}.app-switcher-grid{grid-template-columns:1fr}.app-switcher-tile{min-height:98px;display:grid;grid-template-columns:44px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center}.app-switcher-tile__icon{grid-row:1/3}.app-switcher-tile__status{grid-column:3;grid-row:1/3;margin-top:0}
+}
+
+/* ===== Dark notebook skin: structure and behavior stay unchanged ===== */
+.compass-theme-mode[data-theme="note"]{
+  --paper:#100f0c;
+  --paper-raised:#1a1814;
+  --paper-soft:#151310;
+  --paper-mark:#26231c;
+  --pencil:#f2ede1;
+  --pencil-soft:#cdc6b9;
+  --graphite:#918b81;
+  --graphite-faint:#867f76;
+  --rule:rgba(242,237,225,.075);
+}
+.compass-theme-mode[data-theme="note"] .compass-shell{
+  background-color:var(--paper)!important;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--rule) 31px,var(--rule) 32px)!important;
+}
+/* 死にルール(spec Q17): note の綴じ線(中央 1px の縦線)は後段
+   `.compass-shell::before{background:...!important}`(HTML:556-559)に負けて
+   一度も表示されない。→ 移植しない
+   HTML:326-328 [data-theme="dark"] .compass-shell::before{background:linear-gradient(90deg,…rgba(238,233,222,.022)…)} */
+.compass-theme-mode[data-theme="note"] .compass-nav{
+  background:rgba(21,19,16,.97)!important;
+  border-right-color:rgba(238,233,222,.16)!important;
+  box-shadow:none!important;
+}
+.compass-theme-mode[data-theme="note"] .compass-brand,
+.compass-theme-mode[data-theme="note"] .app-nav-item,
+.compass-theme-mode[data-theme="note"] button{
+  text-shadow:none;
+}
+.compass-theme-mode[data-theme="note"] .compass-brand:hover{
+  background:rgba(238,233,222,.05);
+}
+.compass-theme-mode[data-theme="note"] .compass-brand>div:first-child{
+  filter:none!important;
+}
+.compass-theme-mode[data-theme="note"] .app-nav-item{
+  border-radius:11px!important;
+}
+.compass-theme-mode[data-theme="note"] .app-nav-item:hover{
+  background:rgba(238,233,222,.06)!important;
+}
+.compass-theme-mode[data-theme="note"] .app-nav-item.is-active{
+  background:rgba(238,233,222,.08)!important;
+  border-color:rgba(238,233,222,.2)!important;
+  color:var(--pencil)!important;
+}
+.compass-theme-mode[data-theme="note"] .app-nav-item.is-active::after{
+  width:2px;
+  border-radius:0;
+  background:var(--pencil);
+  box-shadow:none;
+}
+.compass-theme-mode[data-theme="note"] .compass-main{
+  background:transparent;
+}
+.compass-theme-mode[data-theme="note"] .compass-topbar{
+  background:rgba(16,15,12,.94);
+  border-color:rgba(242,237,225,.16)!important;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.compass-theme-mode[data-theme="note"] .app-view-title{
+  background:transparent;
+  background-image:none!important;
+}
+.compass-theme-mode[data-theme="note"] .app-view-title>div:first-child,
+.compass-theme-mode[data-theme="note"] .cockpit-panel-title>div:first-child,
+.compass-theme-mode[data-theme="note"] [data-screen-label] h1,
+.compass-theme-mode[data-theme="note"] [data-screen-label] h2{
+  font-family:'Klee One','Noto Sans JP',sans-serif!important;
+  font-weight:600!important;
+  letter-spacing:.035em!important;
+}
+.compass-theme-mode[data-theme="note"] .app-search,
+.compass-theme-mode[data-theme="note"] input,
+.compass-theme-mode[data-theme="note"] select,
+.compass-theme-mode[data-theme="note"] textarea{
+  background:rgba(18,17,14,.84)!important;
+  border-color:rgba(238,233,222,.19)!important;
+  box-shadow:none!important;
+}
+.compass-theme-mode[data-theme="note"] .app-search:hover,
+.compass-theme-mode[data-theme="note"] .app-search:focus-within,
+.compass-theme-mode[data-theme="note"] input:hover,
+.compass-theme-mode[data-theme="note"] select:hover{
+  border-color:rgba(238,233,222,.42)!important;
+  box-shadow:none!important;
+}
+.compass-theme-mode[data-theme="note"] .timetable-slot{
+  background-color:color-mix(in srgb,var(--slot-pencil) 5%,var(--bg2))!important;
+  background-image:
+    repeating-linear-gradient(8deg,transparent 0,transparent 3px,color-mix(in srgb,var(--slot-pencil) 11%,transparent) 3px,color-mix(in srgb,var(--slot-pencil) 11%,transparent) 4px,transparent 4px,transparent 7px),
+    repeating-linear-gradient(-5deg,transparent 0,transparent 8px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 8px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 9px)!important;
+  border-color:color-mix(in srgb,var(--slot-pencil) 58%,var(--line))!important;
+  border-radius:12px!important;
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb,var(--slot-pencil) 72%,var(--pencil)),
+    inset 0 1px 0 rgba(238,233,222,.055)!important;
+  transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease;
+}
+.compass-theme-mode[data-theme="note"] .timetable-slot:hover{
+  background-color:color-mix(in srgb,var(--slot-pencil) 8%,var(--bg2))!important;
+  border-color:color-mix(in srgb,var(--slot-pencil) 72%,var(--pencil))!important;
+}
+.compass-theme-mode[data-theme="note"] .timetable-slot.is-active{
+  border-color:var(--pencil)!important;
+  box-shadow:
+    inset 4px 0 0 color-mix(in srgb,var(--slot-pencil) 74%,var(--pencil)),
+    0 0 0 1px rgba(238,233,222,.28)!important;
+}
+.compass-theme-mode[data-theme="note"] .timetable-slot.is-added{
+  background-color:color-mix(in srgb,var(--grn) 5%,color-mix(in srgb,var(--slot-pencil) 5%,var(--bg2)))!important;
+}
+.compass-theme-mode[data-theme="note"] .timetable-slot__subject{
+  background-color:color-mix(in srgb,var(--slot-pencil) 4%,var(--bg2))!important;
+  background-image:repeating-linear-gradient(4deg,transparent 0,transparent 5px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 5px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 6px)!important;
+  border-color:color-mix(in srgb,var(--slot-pencil) 66%,var(--pencil))!important;
+  border-radius:9px!important;
+  box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--slot-pencil) 48%,transparent)!important;
+}
+.compass-theme-mode[data-theme="note"] .timetable-slot__subject:focus{
+  border-color:var(--pencil)!important;
+  box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--slot-pencil) 72%,var(--pencil))!important;
+}
+.compass-theme-mode[data-theme="note"] .app-search-popover,
+.compass-theme-mode[data-theme="note"] .app-switcher-panel{
+  background:var(--paper-raised)!important;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(238,233,222,.045) 31px,rgba(238,233,222,.045) 32px)!important;
+  border-color:rgba(238,233,222,.2)!important;
+  border-radius:16px;
+  box-shadow:0 18px 46px rgba(0,0,0,.46);
+}
+.compass-theme-mode[data-theme="note"] .app-switcher-backdrop{
+  background:rgba(8,8,7,.82);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.compass-theme-mode[data-theme="note"] .app-switcher-current,
+.compass-theme-mode[data-theme="note"] .app-switcher-tile{
+  background:rgba(24,23,19,.94);
+  border-color:rgba(238,233,222,.17);
+  border-radius:13px;
+}
+.compass-theme-mode[data-theme="note"] .app-switcher-current:hover,
+.compass-theme-mode[data-theme="note"] .app-switcher-tile:hover{
+  transform:none;
+  border-color:rgba(238,233,222,.38);
+  background:var(--paper-mark);
+}
+.compass-theme-mode[data-theme="note"] .cockpit-grid{
+  background:rgba(238,233,222,.12)!important;
+}
+.compass-theme-mode[data-theme="note"] .cockpit-panel,
+.compass-theme-mode[data-theme="note"] [data-screen-label="Tests"],
+.compass-theme-mode[data-theme="note"] [data-screen-label="ToDo"],
+.compass-theme-mode[data-theme="note"] [data-screen-label="Review"],
+.compass-theme-mode[data-theme="note"] [data-screen-label="Data"],
+.compass-theme-mode[data-theme="note"] [data-screen-label="Add"]{
+  background-color:rgba(16,15,12,.965)!important;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(238,233,222,.045) 31px,rgba(238,233,222,.045) 32px)!important;
+}
+.compass-theme-mode[data-theme="note"] .cockpit-panel--today{
+  background-color:rgba(21,19,16,.985)!important;
+}
+.compass-theme-mode[data-theme="note"] .cockpit-panel-title,
+.compass-theme-mode[data-theme="note"] .cockpit-panel--today .cockpit-panel-title{
+  background:linear-gradient(180deg,var(--paper) 75%,transparent)!important;
+}
+.compass-theme-mode[data-theme="note"] .cockpit-primary-action,
+.compass-theme-mode[data-theme="note"] .focus-launch{
+  border-radius:11px!important;
+}
+.compass-theme-mode[data-theme="note"] .quota-line,
+.compass-theme-mode[data-theme="note"] .quota-line:active{
+  filter:none;
+}
+.compass-theme-mode[data-theme="note"] .compass-splash{
+  background-color:#100f0c;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(242,237,225,.06) 31px,rgba(242,237,225,.06) 32px);
+  /* 焼けた黒紙に、鉛筆と色鉛筆で描かれた計器 */
+  --sp-guide:rgba(242,237,225,.17);
+  --sp-graphite:rgba(242,237,225,.13);
+  --sp-ink:#f2ede1;
+  --sp-tick:rgba(242,237,225,.48);
+  --sp-face:#17150f;
+  --sp-face-line:rgba(242,237,225,.42);
+  --sp-accent:#f2ede1;
+  --sp-warm:#ddb277;
+  --sp-ring:rgba(242,237,225,.22);
+  --sp-ring-mid:#96c49c;
+  --sp-ring-in:#ddb277;
+  --sp-pin:#100f0c;
+  --sp-pin-ring:#f2ede1;
+  --sp-text:#f2ede1;
+}
+.compass-theme-mode[data-theme="note"] .compass-splash__glow{display:none}
+.compass-theme-mode[data-theme="note"] .compass-splash__mark,
+.compass-theme-mode[data-theme="note"] .compass-splash__build{
+  filter:drop-shadow(0 14px 24px rgba(0,0,0,.48));
+}
+.compass-theme-mode[data-theme="note"] .compass-splash__word,
+.compass-theme-mode[data-theme="note"] .compass-splash__todo{
+  color:var(--sp-text);
+  background:none;
+  -webkit-background-clip:border-box;
+  background-clip:border-box;
+  text-shadow:none;
+  font-family:'Klee One','Noto Sans JP',sans-serif;
+}
+.compass-theme-mode[data-theme="note"] .compass-splash__todo::after{
+  background:#cdc6b9;
+  box-shadow:none;
+}
+.compass-theme-mode[data-theme="note"] ::-webkit-scrollbar-thumb{
+  background:rgba(238,233,222,.22);
+  border-radius:99px;
+}
+@media(max-width:820px){
+  .compass-theme-mode[data-theme="note"] .compass-nav{
+    background:rgba(21,19,16,.985)!important;
+    border-top-color:rgba(242,237,225,.18)!important;
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+  }
+}
+@media(prefers-reduced-motion:reduce){.app-nav-item,.cockpit-task,.cockpit-review,.cockpit-plan,.cockpit-primary-action{transition:none!important}}
+
+/* ══════════════════════════════════════════════════════════════════
+   Compass "Ink & Paper" v0.8 — 画面ごとの署名カラー + 手書き見出し
+   ・--view : いま開いている画面の色。ナビ・見出し・主要ボタン・進捗が連動する
+   ・見出しは Klee One(手書き)、数値は Space Grotesk の等幅数字
+   ══════════════════════════════════════════════════════════════════ */
+.compass-theme{
+  --font-hand:'Klee One','Noto Sans JP',serif;
+  --font-num:'Space Grotesk','Noto Sans JP',sans-serif;
+  --ink-rad:13px;
+  --ink-rad-sm:10px;
+  --ink-lift:0 1px 0 rgba(0,0,0,.05),0 8px 22px -16px rgba(0,0,0,.55);
+  --ink-lift-hi:0 2px 0 rgba(0,0,0,.05),0 16px 34px -18px rgba(0,0,0,.6);
+}
+.compass-shell{font-variant-numeric:tabular-nums;letter-spacing:.005em}
+.compass-shell button:focus-visible,.compass-shell input:focus-visible,
+.compass-shell select:focus-visible,.compass-shell [tabindex]:focus-visible{
+  outline:2px solid var(--view)!important;outline-offset:2px
+}
+/* 画面の色がうっすら部屋の空気を変える */
+.compass-shell::before{
+  background:radial-gradient(circle at 50% -14%,color-mix(in srgb,var(--view) 7%,transparent),transparent 42%)!important;
+  transition:background .5s ease;
+}
+
+/* ── 見出しタイポグラフィ ───────────────────────────── */
+.panel-heading,.app-view-title__name,.compass-brand__name,.empty-note b{
+  font-family:var(--font-hand);font-weight:600;letter-spacing:.035em;
+}
+.panel-heading{font-size:16px;color:var(--tx0);line-height:1.3}
+.panel-heading__meta{margin-left:auto;font:600 12px var(--font-num);color:var(--tx2);white-space:nowrap}
+.panel-heading__link{margin-left:auto;font:500 11px 'Noto Sans JP';color:var(--tx3);cursor:pointer;white-space:nowrap;transition:color .16s ease}
+.panel-heading__link:hover{color:var(--view)}
+.panel-dot{width:9px;height:9px;flex:none;border-radius:99px;background:var(--dot,var(--view));box-shadow:0 0 0 3px color-mix(in srgb,var(--dot,var(--view)) 16%,transparent)}
+
+/* ── ブランド ────────────────────────────────────── */
+.compass-brand{gap:11px!important;padding:2px 6px 18px!important}
+.compass-brand__mark{
+  width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:13px;
+  border:1px solid color-mix(in srgb,var(--view) 26%,var(--line));
+  background:color-mix(in srgb,var(--view) 9%,transparent);
+  transition:border-color .3s ease,background .3s ease;
+}
+.compass-brand__mark img{width:26px;height:26px}
+.compass-brand__text{flex:1;min-width:0}
+.compass-brand__name{font-size:20px;color:var(--tx0);line-height:1.15}
+.compass-brand__tag{margin-top:1px;font:500 9px 'Noto Sans JP';letter-spacing:.13em;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compass-brand:hover .compass-brand__mark{border-color:var(--view);background:color-mix(in srgb,var(--view) 15%,transparent)}
+
+/* ── ナビ ─────────────────────────────────────── */
+.compass-nav{padding:20px 14px 16px!important;gap:3px!important}
+.app-nav-item{--nav-hue:var(--acc);min-height:46px;padding:10px 12px!important;border-radius:12px!important;gap:12px!important}
+.app-nav-item::before{width:19px;height:19px;opacity:.85}
+.app-nav-item__label{min-width:0;font:500 13.5px 'Noto Sans JP';letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app-nav-item__key{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  width:19px;height:19px;display:grid;place-items:center;border-radius:6px;pointer-events:none;
+  border:1px solid var(--line);color:var(--tx3);font:600 10px var(--font-num);opacity:0;
+  transition:opacity .16s ease,color .16s ease,border-color .16s ease;
+}
+.app-nav-item__badge{flex:none;padding:1px 7px;border-radius:99px;background:var(--pinkBg);color:var(--pink);font:700 10px var(--font-num)}
+.compass-nav:hover .app-nav-item__key{opacity:1}
+.compass-nav:hover .app-nav-item__badge{margin-right:22px}
+.app-nav-item:hover{background:color-mix(in srgb,var(--nav-hue) 9%,transparent)!important;transform:none!important}
+.app-nav-item:hover::before{opacity:1}
+.app-nav-item:hover .app-nav-item__label{color:var(--tx0)}
+.app-nav-item.is-active{
+  background:color-mix(in srgb,var(--nav-hue) 14%,transparent)!important;
+  border-color:color-mix(in srgb,var(--nav-hue) 28%,transparent)!important;
+  color:var(--nav-hue)!important;
+}
+.app-nav-item.is-active::before{opacity:1}
+.app-nav-item.is-active::after{
+  left:-15px;top:11px;bottom:11px;width:3px;border-radius:0 3px 3px 0;
+  background:var(--nav-hue);box-shadow:none!important;
+}
+.app-nav-item.is-active .app-nav-item__key{border-color:color-mix(in srgb,var(--nav-hue) 40%,transparent);color:var(--nav-hue)}
+
+/* ── ナビ下部 ─────────────────────────────────── */
+.theme-switch{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;background:var(--bg1);border:1px solid var(--line);border-radius:12px}
+.theme-switch>span{text-align:center;padding:7px 2px;border-radius:9px;cursor:pointer;font:700 10px 'Noto Sans JP';white-space:nowrap;transition:background .16s ease,color .16s ease}
+.theme-switch>span:hover{background:color-mix(in srgb,var(--view) 12%,transparent)}
+.nav-shortcuts{display:flex;flex-wrap:wrap;gap:3px 7px;justify-content:center;font:500 9.5px 'Noto Sans JP';color:var(--tx3)}
+.nav-shortcuts kbd{
+  display:inline-grid;place-items:center;min-width:15px;padding:1px 3px;margin:0 1px;
+  border:1px solid var(--line2);border-radius:4px;background:var(--bg2);
+  color:var(--tx2);font:600 9px var(--font-num);
+}
+.nav-cloud{text-align:center;font:600 10px 'Noto Sans JP';color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-version{text-align:center;font:500 9.5px var(--font-num);color:var(--tx3);letter-spacing:.14em}
+
+/* ── トップバー ───────────────────────────────── */
+.compass-topbar{position:relative;min-height:70px}
+.app-view-title{display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:13px;position:relative}
+.app-view-title::before{
+  content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:99px;
+  background:var(--view);transition:background .35s ease;
+}
+.app-view-title__name{font-size:18px!important;color:var(--tx0);line-height:1.2}
+.app-view-title__sub{font-size:11px;color:var(--tx3);line-height:1.4}
+.app-alert-pill{
+  display:flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid var(--pink);
+  border-radius:99px;background:var(--pinkBg);color:var(--pink);
+  font:700 11px 'Noto Sans JP';cursor:pointer;white-space:nowrap;
+  transition:transform .16s ease,filter .16s ease;
+}
+.app-alert-pill:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.app-day-meter{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.2}
+.app-day-meter__date{font:600 12.5px 'Noto Sans JP';color:var(--tx1);white-space:nowrap}
+.app-day-meter__count{font:700 13px var(--font-num);color:var(--view);white-space:nowrap}
+.app-day-meter__count i{margin:0 1px;font-style:normal;color:var(--tx3)}
+.app-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--line);overflow:hidden}
+.app-progress>span{display:block;height:100%;width:var(--done,0%);background:var(--view);transition:width .55s cubic-bezier(.2,.8,.2,1),background .35s ease}
+
+/* ── 画面遷移 / カード ─────────────────────────── */
+[data-screen-label="Cockpit"],[data-screen-label="Tests"],[data-screen-label="ToDo"],
+[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{
+  animation:inkIn .3s cubic-bezier(.2,.85,.2,1)!important;
+}
+@keyframes inkIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.load-bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+.load-bar__fill{height:100%;border-radius:99px;background:var(--view);transition:width .5s cubic-bezier(.2,.8,.2,1),background .35s ease}
+.cockpit-task,.cockpit-review,.cockpit-plan,.todo-plan-card,.todo-other-card{
+  border-radius:var(--ink-rad)!important;box-shadow:var(--ink-lift);
+}
+.cockpit-task:hover,.cockpit-review:hover,.cockpit-plan:hover,
+.todo-plan-card:hover,.todo-other-card:hover{
+  transform:translateY(-2px)!important;box-shadow:var(--ink-lift-hi)!important;
+}
+.cockpit-week-rate{border:1px solid var(--line);transition:border-color .16s ease,background .16s ease}
+.cockpit-week-rate:hover{border-color:color-mix(in srgb,var(--grn) 45%,var(--line2));background:var(--bg3)!important}
+.review-table-row{transition:background .14s ease}
+.plan-timeline-table{border-radius:16px!important}
+.empty-note{
+  display:flex;flex-direction:column;gap:6px;padding:20px 16px;text-align:center;
+  border:1px dashed var(--line2);border-radius:15px;
+  background:color-mix(in srgb,var(--view) 4%,transparent);
+}
+.empty-note b{font-size:13.5px;color:var(--tx1)}
+.empty-note span{font-size:11px;line-height:1.75;color:var(--tx3)}
+/* 集中モードボタン・進捗ドーナツも画面の色に合わせる */
+.focus-launch{
+  border-color:var(--view)!important;
+  background:color-mix(in srgb,var(--view) 13%,transparent)!important;
+  color:var(--view)!important;
+}
+.focus-launch:hover{background:color-mix(in srgb,var(--view) 20%,transparent)!important}
+.todo-summary linearGradient stop:first-child{stop-color:var(--view)}
+.todo-summary linearGradient stop:last-child{stop-color:color-mix(in srgb,var(--view) 55%,var(--vio))}
+/* var(--grad) を使う主要ボタンに共通のホバー */
+.compass-shell button[style*="var(--grad)"]{transition:transform .16s ease,filter .16s ease}
+.compass-shell button[style*="var(--grad)"]:hover{transform:translateY(-1px);filter:brightness(1.07)}
+
+/* ── ライトテーマも同じ「紙」に揃える ───────────── */
+.compass-theme-mode[data-theme="light"] .compass-shell{
+  background-color:var(--bg0)!important;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(80,68,48,.09) 31px,rgba(80,68,48,.09) 32px)!important;
+}
+.compass-theme-mode[data-theme="light"] .cockpit-panel,
+.compass-theme-mode[data-theme="light"] [data-screen-label="Tests"],
+.compass-theme-mode[data-theme="light"] [data-screen-label="ToDo"],
+.compass-theme-mode[data-theme="light"] [data-screen-label="Review"],
+.compass-theme-mode[data-theme="light"] [data-screen-label="Data"],
+.compass-theme-mode[data-theme="light"] [data-screen-label="Add"]{
+  background-color:var(--bg0)!important;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(80,68,48,.07) 31px,rgba(80,68,48,.07) 32px)!important;
+}
+.compass-theme-mode[data-theme="light"] .cockpit-grid{background:var(--line)!important}
+.compass-theme-mode[data-theme="light"] .compass-nav{background:color-mix(in srgb,var(--bg1) 92%,var(--bg3))!important;box-shadow:1px 0 0 var(--line)}
+.compass-theme-mode[data-theme="light"] .compass-topbar{background:color-mix(in srgb,var(--bg1) 88%,transparent)}
+.compass-theme-mode[data-theme="light"] .cockpit-panel-title,
+.compass-theme-mode[data-theme="light"] .cockpit-panel--today .cockpit-panel-title{
+  background:linear-gradient(180deg,var(--bg0) 76%,transparent)!important;
+}
+
+/* ライトテーマのスプラッシュも紙に */
+.compass-theme-mode[data-theme="light"] .compass-splash{
+  background-color:#f3f0e6;
+  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(80,68,48,.1) 31px,rgba(80,68,48,.1) 32px);
+  --sp-guide:rgba(60,52,38,.2);
+  --sp-graphite:rgba(60,52,38,.15);
+  --sp-ink:#332d24;
+  --sp-tick:rgba(60,52,38,.5);
+  --sp-face:#fffdf6;
+  --sp-face-line:rgba(60,52,38,.38);
+  --sp-accent:#332d24;
+  --sp-warm:#a56717;
+  --sp-ring:rgba(60,52,38,.22);
+  --sp-ring-mid:#2b7d52;
+  --sp-ring-in:#a56717;
+  --sp-pin:#fffdf6;
+  --sp-pin-ring:#332d24;
+  --sp-text:#2a251d;
+}
+.compass-theme-mode[data-theme="light"] .compass-splash__glow{display:none}
+.compass-theme-mode[data-theme="light"] .compass-splash__mark,
+.compass-theme-mode[data-theme="light"] .compass-splash__build{
+  filter:drop-shadow(0 12px 22px rgba(80,68,48,.22));
+}
+.compass-theme-mode[data-theme="light"] .compass-splash__word,
+.compass-theme-mode[data-theme="light"] .compass-splash__todo{
+  color:var(--sp-text);background:none;-webkit-background-clip:border-box;background-clip:border-box;
+  text-shadow:none;font-family:'Klee One','Noto Sans JP',serif;
+}
+.compass-theme-mode[data-theme="light"] .compass-splash__todo::after{background:#6b6458;box-shadow:none}
+
+/* ── モバイル ─────────────────────────────────── */
+@media(max-width:820px){
+  :root{--mobile-nav-h:calc(68px + env(safe-area-inset-bottom))}
+  /* FAB が最下部のカードに重ならないよう、少し余白を足す */
+  .compass-shell{padding-bottom:calc(var(--mobile-nav-h) + 20px)!important}
+  .compass-topbar{min-height:52px;padding:8px 13px 9px!important;gap:6px!important}
+  .app-view-title{flex:1;min-width:0;padding-left:10px}
+  .app-view-title__name{font-size:16px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 未完了の再配分はナビの⚠バッジと重複するので、狭い画面では隠す */
+  .app-alert-pill{display:none!important}
+  .app-day-meter__date{font-size:11px}
+  .app-day-meter__count{font-size:12px}
+  .app-search-input{height:34px}
+  .app-nav-item{border-radius:14px!important;gap:3px!important}
+  .app-nav-item__key{display:none}
+  .app-nav-item__label{font-size:9.5px!important;text-align:center}
+  .app-nav-item.is-active{background:color-mix(in srgb,var(--nav-hue) 16%,transparent)!important}
+  .app-nav-item__badge{position:absolute;top:2px;right:calc(50% - 20px);padding:0 5px;font-size:8.5px}
+  /* 「タスク追加」はモバイルでは浮かせた丸ボタンにする
+     ([data-theme] を挟んでノートテーマの角丸指定より詳細度を上げている) */
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]{
+    --nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+    flex:0 0 58px!important;max-width:58px;height:58px;min-height:58px!important;
+    align-self:center;position:relative;top:-15px;margin:0 6px;padding:0!important;
+    border-radius:50%!important;
+    background:var(--org)!important;color:var(--onAcc)!important;
+    border:1px solid color-mix(in srgb,var(--org) 72%,black)!important;
+    box-shadow:0 14px 28px -10px rgba(0,0,0,.66);
+    transition:transform .14s ease;
+  }
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]::before{width:28px;height:28px;opacity:1}
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"] .app-nav-item__label{display:none}
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"].is-active,
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]:hover{background:var(--org)!important;color:var(--onAcc)!important}
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]:active{transform:scale(.93)}
+  .empty-note{padding:16px 13px}
+}
+@media(prefers-reduced-motion:reduce){
+  [data-screen-label]{animation:none!important}
+  .compass-shell *,.compass-shell *::before,.compass-shell *::after{transition-duration:.01ms!important}
+}
+
+/* ==========================================================================
+   [D] style-hover / style-focus 相当のユーティリティ
+   レガシーでは support.js の createPseudoSheet(SUP:1357-1375)が
+   `style-hover` / `style-focus` 属性から `.scpN:hover{…}` を実行時に insertRule し、
+   そのシートは head の最後(spec §1.6 の #5)に置かれていた。
+   ここでは同じ宣言・同じ詳細度(1クラス + 擬似クラス / !important なし)・
+   同じカスケード位置(このファイルの末尾)で静的クラスとして再現する。
+   → note テーマの入力欄 !important(HTML:383-397)には従来どおり負ける。
+   HTML:1641 の style-hover は `{{ }}` を含み CSS として無効(spec Q17)なので移植しない。
+   使い所は docs/rewrite/css-notes.md §6 の対応表。
+   ========================================================================== */
+
+/* :hover — 削除系(カウントダウン削除 / Add のミニ行削除 / エディタのミニ削除 /
+   点数行削除 / Review 完全削除。HTML:897,1452,1621,1683,1728) */
+.hv-pink-text:hover{color:var(--pink);background:var(--pinkBg)}
+/* :hover — 枠線と文字をアクセント色に(「ToDo画面で実行する →」989 / エクスポート 1325,1326) */
+.hv-acc-outline:hover{border-color:var(--acc);color:var(--acc)}
+/* :hover — 行のハイライト(.plan-sticky-cell 1097 / .review-table-row 1540) */
+.hv-bg3:hover{background:var(--bg3)}
+/* :hover — 行のハイライト + 枠線(.score-group-row 1299) */
+.hv-bg3-line2:hover{background:var(--bg3);border-color:var(--line2)}
+/* :hover — 計画タイムラインのセグメント(HTML:1109) */
+.hv-bright:hover{filter:brightness(1.3)}
+/* :hover — 選択タスクの削除ボタン(HTML:1201) */
+.hv-pink-outline:hover{border-color:var(--pink);color:var(--pink);background:var(--pinkBg)}
+/* :hover — Review 行末の「⋯」(HTML:1552) */
+.hv-acc-border:hover{border-color:var(--acc);color:var(--tx0)}
+/* :hover — 「今日のToDoから外す」(HTML:1674) */
+.hv-pink-border:hover{border-color:var(--pink);color:var(--pink)}
+/* :hover — 「復習完了にする」(HTML:1676) */
+.hv-grn-border:hover{border-color:var(--grn);color:var(--grn)}
+
+/* :focus — 入力・選択の既定(16箇所) */
+.fc-acc:focus{border-color:var(--acc)}
+/* :focus — タスク名 1361 / 教科 1366 / 時間割の教科 input 1490 */
+.fc-acc-glow:focus{border-color:var(--acc);box-shadow:var(--gAcc)}
+/* :focus — ミニタスク名のインライン編集(HTML:1616) */
+.fc-acc-underline:focus{border-bottom:1px dashed var(--acc)}

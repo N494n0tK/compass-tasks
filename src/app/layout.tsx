@@ -27,11 +27,11 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
-        {/* ログイン画面もアプリ本体と同じ書体(手書き見出し + 本文)で揃える */}
+        {/* レガシー HTML:14-15 と同一のウェイト構成(css-notes.md §5) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+JP:wght@400;500;700;900&family=Space+Grotesk:wght@500;700&display=swap"
           rel="stylesheet"
         />
       </head>
