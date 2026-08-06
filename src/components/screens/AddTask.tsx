@@ -23,6 +23,9 @@ import { useMemo, type CSSProperties } from 'react';
 import { dayLabel, dowOf, fmtMD, isoShift, mondayOf, scheduleDateOf } from '../../lib/logic/dates';
 import { computeInitialPlacement, resolvePlanStart, type MiniDraft } from '../../lib/logic/schedule';
 import { orderedSubjectNames, subjectColorFor, type SubjColor } from '../../lib/logic/subjects';
+// `TIMETABLE` / `EMPTY_SLOTS` は予習の自動生成（logic/prepAutogen）と共有するため
+// lib/logic/timetable.ts へ移した。値はレガシーのまま（HTML:2044-2049）
+import { EMPTY_SLOTS, TIMETABLE } from '../../lib/logic/timetable';
 import type {
   AddDone,
   AddType,
@@ -52,18 +55,6 @@ import { dateCtx, store, useAppStore } from '../useStore';
 const SIZE_MIN: Readonly<Record<SizeKey, number>> = { XS: 5, S: 10, M: 20, L: 30 };
 
 const SIZE_KEYS: readonly SizeKey[] = ['XS', 'S', 'M', 'L'];
-
-/** `this.TIMETABLE`（HTML:2044-2049）。**コードにハードコードされ保存されない**（spec §4.9） */
-const TIMETABLE: Readonly<Partial<Record<Dow, readonly (string | null)[]>>> = {
-  月: ['言語', '英コ', '体育', '数学', '歴総', '論表', null],
-  火: ['化基', '英コ', '芸術', '芸術', '生基', '地総', '数学'],
-  水: ['数学', '数学', '体育', '言語', '英コ', '現国', null],
-  木: ['生基', '歴総', '化基', '論表', '数学', '言語', '保健'],
-  金: ['現国', '体育', '地総', '英コ', '数学', 'LHR', null],
-};
-
-/** 未定義の曜日に落ちたときの空コマ 7 個（HTML:3561 の `|| [null,…]`） */
-const EMPTY_SLOTS: readonly (string | null)[] = [null, null, null, null, null, null, null];
 
 /** `addTypes`（HTML:3535） */
 const ADD_TYPES: readonly { id: AddType; label: string }[] = [

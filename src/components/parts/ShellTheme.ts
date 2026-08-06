@@ -70,6 +70,9 @@ export const STATIC_THEME_TOKENS: Record<string, string> = {
   '--blueBg': '#1e2933',
   '--org': '#ddb277',
   '--orgBg': '#33281c',
+  // ノート画面の署名カラー（レガシーに無い追加。docs/notebook/spec.md §8）
+  '--ink': '#cbb693',
+  '--inkBg': '#2f2719',
   '--onAcc': '#141310',
   '--rad': '12px',
   '--grad': 'var(--view)',
@@ -135,6 +138,8 @@ const NEON_TOKENS: Record<string, string> = {
   '--blueBg': '#142c48',
   '--org': '#efa960',
   '--orgBg': '#3a2b1d',
+  '--ink': '#e879c7',
+  '--inkBg': '#3a1f34',
   '--onAcc': '#04131d',
   '--rad': RAD,
   '--grad': 'linear-gradient(90deg,#42d7f2,#58a6ff)',
@@ -177,6 +182,8 @@ const LIGHT_TOKENS: Record<string, string> = {
   '--blueBg': '#e1ecf7',
   '--org': '#a56717',
   '--orgBg': '#f6e9d4',
+  '--ink': '#7a5c2e',
+  '--inkBg': '#f0e7d3',
   '--onAcc': '#fffdf6',
   '--acc': PROP_ACCENT,
   '--grad': PROP_ACCENT,
@@ -220,6 +227,8 @@ const NOTE_TOKENS: Record<string, string> = {
   '--blueBg': '#1e2933',
   '--org': '#ddb277',
   '--orgBg': '#33281c',
+  '--ink': '#cbb693',
+  '--inkBg': '#2f2719',
   '--onAcc': '#141310',
   '--rad': '12px',
   '--grad': '#f2ede1',
@@ -247,6 +256,7 @@ export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
   review: 'grn',
   add: 'org',
   data: 'blue',
+  notebook: 'ink',
 };
 
 /**
@@ -284,6 +294,8 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'tests', label: '試験計画', dot: 'var(--vio)', g: 'var(--gVio)' },
   { id: 'todo', label: '今日のToDo', dot: 'var(--pink)', g: 'none' },
   { id: 'review', label: '復習', dot: 'var(--grn)', g: 'var(--gGrn)' },
+  // レガシーに無い追加画面。既定順では復習の隣（`navOrder` はドラッグで変えられる）
+  { id: 'notebook', label: 'ノート', dot: 'var(--ink)', g: 'none' },
   { id: 'add', label: 'タスク追加', dot: 'var(--org)', g: 'none' },
   { id: 'data', label: 'データ', dot: 'var(--blue)', g: 'none' },
 ];
@@ -299,6 +311,7 @@ export const TITLES: Readonly<Record<ViewId, readonly [string, string]>> = {
   todo: ['今日のToDo', '今日のタスクを実行する'],
   add: ['タスク追加', 'タスク・復習・予習・テストを自由に追加'],
   data: ['学習データ', '勉強時間とテスト結果をふり返る'],
+  notebook: ['ノート', '授業ノートを取り込み、想起カードで復習する'],
 };
 
 /**

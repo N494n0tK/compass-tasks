@@ -43,6 +43,7 @@
  *    `JSON.stringify` の文字列一致なので、キー順が変わると無駄な PUT が飛ぶ（spec §4.14）。
  */
 
+import { DEFAULT_PREP_AUTOGEN } from './logic/prepAutogen';
 import {
   PERSISTENT_KEYS,
   UNDO_KEYS,
@@ -264,6 +265,24 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     order: [],
     cloudStatus: 'loading',
     cloudUser,
+    // ── ノート画面と予習の自動生成（docs/notebook/spec.md）。レガシーに無い追加。
+    //    `notes` は一時 state（`PERSISTENT_KEYS` に入れない）。実体は Firestore の
+    //    `users/{uid}/notes/{noteId}` と localStorage `compass-notes`。
+    notes: [],
+    notesLoaded: false,
+    nbSelNoteId: null,
+    nbMode: 'note',
+    nbMonth: today.slice(0, 8) + '01',
+    nbSubjFilter: null,
+    nbEdit: false,
+    nbImportOpen: false,
+    nbImportText: '',
+    nbImportTarget: null,
+    nbRevealed: {},
+    nbTreeOpen: {},
+    revAskReveal: false,
+    prepAutoGen: { ...DEFAULT_PREP_AUTOGEN },
+    prepGenLog: {},
   };
 }
 
