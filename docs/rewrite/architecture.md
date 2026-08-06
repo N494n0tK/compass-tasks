@@ -117,6 +117,27 @@ src/
 なお本書と `app-spec.md` / `css-notes.md` が参照する `HTML:行番号` は退役したファイルの
 行番号であり、経緯の記録として残している(タグから取得可能)。
 
+## 8.1 レガシー移植後の追加機能 — 授業ノート（2026-08-07）
+
+`CompassNotebook/`（チャートノート v2/v3）を Next.js へ作り直し、Compass の復習エンジンへ
+接続した。仕様は [../notebook/spec.md](../notebook/spec.md)（受け入れ N-001〜N-070）。
+
+本書の原則との関係:
+
+- **保存データ形状は不変**（§5）を保つため、ノート本体は `compass-ui-data` に入れず
+  **`users/{uid}/notes/{noteId}` の別サブコレクション**へ置く。`state.notes` は一時 state で、
+  `PERSISTENT_KEYS` にも Undo にも保存トリガにも関与しない。ミラーは localStorage `compass-notes`。
+- 永続キーの追加は `prepAutoGen` / `prepGenLog` の 2 つだけで、**`PERSISTENT_KEYS` の末尾に追記**
+  （既存 23 キーの並びは 1 つも動かしていない。`store.test.ts` が prefix を固定している）。
+- 復習エンジン（`logic/reviews.ts`）と `dataPatch.ts` は**無改変**。ノートとカードの結び付きは
+  `seriesId === 'nb-<noteId>-<cardId>'` という命名規約だけに載せる（`nextReviewOf` が
+  `seriesId` を無条件に継承するため、段階が進んでもリンクが切れない）。
+- 追加モジュール: `lib/model/notes.ts`、`lib/logic/{noteImport,noteCards,prepAutogen,timetable}.ts`、
+  `components/screens/Notebook.tsx`、`components/parts/{NotebookSidebar,NoteView,NoteExtract,
+  NoteImportModal,NoteMath,NotePrompts,NotebookPersistence}`。
+  `TIMETABLE` は `screens/AddTask.tsx` から `lib/logic/timetable.ts` へ**値を変えずに**移した。
+- CSS は `globals.css` 末尾に新セクション `[E]`（[C] のレガシー逐語移植には触れない）。
+
 ## 9. 検証戦略
 
 - 受け入れ = spec §10 パリティチェックリスト(C-1..C-516 + v0.9 追加分)。

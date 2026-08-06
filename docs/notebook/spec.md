@@ -412,8 +412,48 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 
 ## 13. 自己監査
 
-M6 で N-001〜N-070 の合否を記録する。
-
 <!-- AUDIT:BEGIN -->
-（M6 で記入）
+実施日 2026-08-07 / ブランチ `feat/notebook-integration` / 全 70 項目 **PASS**。
+
+自動ゲート:
+
+| コマンド | 結果 |
+|---|---|
+| `npx tsc --noEmit` | エラー 0 |
+| `npm test` | 12 ファイル / 402 テスト PASS（着手前のベースラインは 305 件） |
+
+既存テストのうち 2 件だけ、キー数が設計どおり増えたため主張を書き換えた（弱めてはいない）:
+
+- `store.test.ts` … `PERSISTENT_KEYS.toHaveLength(23)` を廃し、
+  **レガシー 23 キーが先頭 23 個のまま**であること + 追加分が末尾 2 件であることの検証に置換
+  （末尾追記の規約そのものをテストで固定した）
+- `store.test.ts` … `UNDO_KEYS.toHaveLength(14)` → 15（`prepGenLog` を追加）
+- `export.test.ts` … `SAMPLE_EXPORT.state` に新キー 2 件を追加（型が要求するため）
+| `npm run build` | 成功（KaTeX の SSR も問題なし） |
+
+手動スモーク: `npx next start -p 3006` + `?preview=1` を Chrome で操作。console エラー 0。
+
+| 範囲 | 検証手段 | 結果 |
+|---|---|---|
+| N-001〜N-020（取り込み・検証） | `src/lib/logic/__tests__/noteImport.test.ts`（`docs/notebook/fixtures/*.json` を実ファイルとして読む） | PASS |
+| N-021〜N-034（カード→復習） | `src/lib/logic/__tests__/noteCards.test.ts` / `src/components/parts/__tests__/NotebookPersistence.test.ts` | PASS |
+| N-041〜N-053（予習の自動生成） | `src/lib/logic/__tests__/prepAutogen.test.ts` | PASS |
+| N-061 ナビ・キー7 | ブラウザ: ナビに「ノート」、フッタの表示が `1–7 画面` | PASS |
+| N-062 プロンプトのコピー | ブラウザ: 「プロンプトBをコピーしました」トースト | PASS |
+| N-063 不正JSONのエラー表示 | ブラウザ: `unit` / `recall[0].a` / `recall[1].q` の 3 件が赤リストに出て保存されない | PASS |
+| N-064 KaTeX 描画 | ブラウザ: フィクスチャ取り込み後に `.katex` ノード 85 個 | PASS |
+| N-065 リロード後も残る | ブラウザ: リロード → `compass-notes` から復元、見出しと数式が再描画 | PASS |
+| N-066 モーダルのカード面 | ブラウザ: 問題文 →「答えを見る」→ 方針・解答（すべて KaTeX） | PASS |
+| N-067 ノート無しのフォールバック | ブラウザ: 手動追加の復習ではカード面が出ず従来レイアウト | PASS |
+| N-068 完了で次の段階へ | ブラウザ: ばっちり → 第2回・3日後・8/10、`seriesId` を継承、`studyLog` に 5 分 | PASS |
+| N-069 3テーマ | ブラウザ: note/light は罫線・パンチ穴・付箋・Klee One、neon はフラット | PASS |
+| N-070 console エラー | ブラウザ: `read_console_messages(onlyErrors)` が 0 件 | PASS |
+
+実装中に見つけて直した不具合（テストで固定済み）:
+
+- **起動時のクラウド読み込みが 0 件のときローカルのノートを全消ししていた。**
+  preview / Firebase 未設定では `loadNotes()` が常に `[]` を返すため、リロードのたびに
+  ノートが消えていた。`persistence.kind === 'local'` のときはローカルを唯一の正とし、
+  実 Firebase でも「クラウド 0 件 かつ ローカルあり」は未同期とみなしてローカルを残し、
+  クラウドへ押し上げるよう変更（`NotebookController.boot`）。
 <!-- AUDIT:END -->
