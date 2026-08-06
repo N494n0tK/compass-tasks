@@ -14,6 +14,7 @@
  * マウントされないので、最終的には `CompassApp` に **1 個だけ** 置くのが正しい（下の注記）。
  */
 
+import { noteRefOf } from '../../lib/logic/noteCards';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import {
   GRADE_REQUIRED_MESSAGE,
@@ -24,6 +25,7 @@ import {
   selIdAfterCompletion,
 } from '../../lib/logic/reviews';
 import type { ReviewGrade, SizeKey } from '../../lib/model/types';
+import { NoteMath } from './NoteMath';
 import { ShellOverlay } from './ShellOverlay';
 import { SIZE_MIN } from './ReviewShared';
 import { useSubjColors } from './ShellSubjects';
@@ -59,7 +61,17 @@ export function ReviewAskModal() {
   // `askSizeCur = S.revAskSize || (askR ? sizeOfMin(askR.min) : 'S')`（HTML:3145）
   const askSizeCur = askSizeOf(S.revAskSize, askR);
 
-  const closeAsk = () => store.setState({ revAsk: null });
+  /**
+   * ノート由来の復習なら、想起カードの問題文と解答を引く（docs/notebook/spec.md §8 / N-066）。
+   * `seriesId` の命名規約だけが手がかりで、ノートが消えている・まだ読み込めていない・
+   * `dataPatch` M3 に `seriesId` を書き換えられた場合は `null` になり、
+   * **モーダルは従来どおりの見た目で開く**（N-067）。理解度の処理経路は一切変わらない。
+   */
+  const noteRef = noteRefOf(askR.seriesId);
+  const note = noteRef ? S.notes.find((n) => n.id === noteRef.noteId) || null : null;
+  const card = note && noteRef ? note.cards.find((c) => c.cardId === noteRef.cardId) || null : null;
+
+  const closeAsk = () => store.setState({ revAsk: null, revAskReveal: false });
 
   /** `confirmAsk()`（HTML:3146-3185）— 完了 → studyLog 記録 → 次回復習の生成 */
   const confirmAsk = () => {
@@ -75,6 +87,7 @@ export function ReviewAskModal() {
       order: orderAfterCompletion(s.order, m),
       selId: selIdAfterCompletion(s.selId, m),
       revAsk: null,
+      revAskReveal: false,
     }));
     store.showToast(transition.message);
   };
@@ -141,6 +154,57 @@ export function ReviewAskModal() {
               <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{askR.stage}の復習</span>
             </div>
           </div>
+          {/* ノートのカード（あるときだけ）。理解度を選ぶ前に想起する面（spec §8 / N-066） */}
+          {card ? (
+            <div
+              className="nb-ask-card"
+              style={{
+                border: '1px solid var(--line2)',
+                borderRadius: '12px',
+                background: 'var(--bg2)',
+                padding: '13px 15px',
+                maxHeight: '38vh',
+                overflow: 'auto',
+              }}
+            >
+              <div style={{ fontSize: '10px', color: 'var(--tx3)', marginBottom: '6px' }}>
+                {note ? note.unit : '想起問題'}
+              </div>
+              <NoteMath src={card.q} style={{ color: 'var(--tx0)', fontSize: '14px' }} />
+              {S.revAskReveal ? (
+                <div
+                  style={{
+                    borderTop: '1px dashed var(--line)',
+                    marginTop: '10px',
+                    paddingTop: '10px',
+                    display: 'grid',
+                    gap: '7px',
+                  }}
+                >
+                  {card.guide ? (
+                    <NoteMath src={card.guide} style={{ color: 'var(--tx2)', fontSize: '12.5px' }} />
+                  ) : null}
+                  <NoteMath src={card.a} style={{ color: 'var(--tx1)', fontSize: '13.5px' }} />
+                </div>
+              ) : (
+                <button
+                  onClick={() => store.setState({ revAskReveal: true })}
+                  style={{
+                    marginTop: '10px',
+                    padding: '6px 14px',
+                    border: '1px solid var(--line2)',
+                    borderRadius: '8px',
+                    background: 'none',
+                    color: 'var(--acc)',
+                    font: "600 11.5px 'Noto Sans JP'",
+                    cursor: 'pointer',
+                  }}
+                >
+                  答えを見る
+                </button>
+              )}
+            </div>
+          ) : null}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
             {ASK_GRADES.map((g) => {
               // 選択時 c:'var(--onAcc)' / bg:g.c、bd は常に g.c（HTML:4286-4292）

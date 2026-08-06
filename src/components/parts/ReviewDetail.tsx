@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { fmtD } from '../../lib/logic/dates';
+import { noteRefOf } from '../../lib/logic/noteCards';
 import { reviewNoOf, shiftDue, sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Plan, Seg } from '../../lib/model/types';
@@ -65,6 +66,8 @@ export function ReviewDetail() {
   if (!rSel) return null;
 
   const subj = subjectColorFor(subjColors, rSel.subj);
+  /** ノート由来なら元のノート・カードを引ける（docs/notebook/spec.md §4） */
+  const noteRef = noteRefOf(rSel.seriesId);
   const st = statusOf(ctx, rSel);
   const ttLabel = ttLabelOf(rSel);
   const roundLabel = '第' + reviewNoOf(rSel) + '回';
@@ -474,6 +477,32 @@ export function ReviewDetail() {
                 ＋ 1日
               </button>
             </div>
+            {/* ノート由来の復習だけ。元のノートへ飛ぶ（docs/notebook/spec.md §8） */}
+            {noteRef && S.notes.some((n) => n.id === noteRef.noteId) ? (
+              <button
+                onClick={() => {
+                  store.setState({
+                    view: 'notebook',
+                    nbMode: 'note',
+                    nbSelNoteId: noteRef.noteId,
+                    nbEdit: false,
+                    revSel: null,
+                  });
+                  savePrefs(store);
+                }}
+                style={{
+                  padding: '10px',
+                  border: '1px solid var(--ink)',
+                  borderRadius: '10px',
+                  background: 'var(--inkBg)',
+                  color: 'var(--ink)',
+                  font: "700 12.5px 'Noto Sans JP'",
+                  cursor: 'pointer',
+                }}
+              >
+                ノートを開く
+              </button>
+            ) : null}
             <button
               onClick={reviewToTest}
               style={{

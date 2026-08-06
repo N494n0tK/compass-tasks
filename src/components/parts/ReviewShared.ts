@@ -27,7 +27,7 @@ export const SIZE_MIN: Readonly<Record<SizeKey, number>> = { XS: 5, S: 10, M: 20
  * **開くと同時に復習詳細ドロワーが閉じる**（`revSel:null`）。
  */
 export function openAsk(store: CompassStore, id: string): void {
-  store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revSel: null });
+  store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revAskReveal: false, revSel: null });
 }
 
 /** `statusOf(r)` の戻り（HTML:3260-3266） */

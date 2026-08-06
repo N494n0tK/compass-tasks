@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { generatePrepTasks } from '../lib/logic/prepAutogen';
 import { overdueSegs } from '../lib/logic/schedule';
 import type { AppState, ViewId } from '../lib/model/types';
 import {
@@ -28,6 +29,7 @@ import {
   type SplashGate,
 } from '../lib/persistence';
 import { ReviewAskModal } from './parts/ReviewAskModal';
+import { addToOrder } from './parts/ShellActions';
 import { ShellAppSwitcher } from './parts/ShellAppSwitcher';
 import { ShellNav } from './parts/ShellNav';
 import { OverlayHostContext } from './parts/ShellOverlay';
@@ -87,6 +89,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   const [splashReady, setSplashReady] = useState(false);
   const [themeModeEl, setThemeModeEl] = useState<HTMLDivElement | null>(null);
   const saverRef = useRef<SaveController | null>(null);
+  /** 予習の自動生成をマウントごとに 1 回だけにする番人 */
+  const prepRanRef = useRef(false);
 
   const savePrefs = useMemo(() => () => writePrefs(store), []);
 
@@ -141,6 +145,30 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
       saverRef.current = null;
     };
   }, [uid, email, preview]);
+
+  // ── 予習の自動生成（docs/notebook/spec.md §5 / ワークフロー手順 7）
+  //    クラウド読み込みが終わって `cloudStatus` が 'loading' を抜けた**最初の 1 回**だけ走る。
+  //    そこまで待たないと、保存済みの `prepGenLog` / `dayOverrides` / 設定が反映されず
+  //    同じ日のタスクを二重に積んでしまう。`useRef` でマウントごと 1 回に固定する。
+  useEffect(() => {
+    if (prepRanRef.current) return;
+    if (state.cloudStatus === 'loading') return;
+    prepRanRef.current = true;
+    const s = store.getState();
+    const result = generatePrepTasks({
+      today: dateCtx.today,
+      dayOverrides: s.dayOverrides,
+      settings: s.prepAutoGen,
+      genLog: s.prepGenLog,
+    });
+    if (!result.extras.length && result.genLog === s.prepGenLog) return;
+    store.setState((prev) => ({
+      extras: prev.extras.concat(result.extras),
+      prepGenLog: result.genLog,
+    }));
+    result.extras.forEach((e) => addToOrder(store, e.id));
+    if (result.message) store.showToast(result.message);
+  }, [state.cloudStatus]);
 
   // ── キーボードショートカット（`_key`, HTML:2117-2141 / spec §2.7）
   useEffect(() => {
@@ -212,6 +240,7 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
           appSwitcherOpen: false,
           revSel: null,
           revAsk: null,
+          revAskReveal: false,
           scoreSel: null,
           focusOpen: false,
           focusRunning: false,

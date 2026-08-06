@@ -56,7 +56,7 @@ export function Cockpit() {
 
   // 復習の完了は理解度モーダル（revAsk）を経由する（HTML:2915）
   const openAsk = (id: string) =>
-    store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revSel: null });
+    store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revAskReveal: false, revSel: null });
 
   /** `toggleItem(it)`（HTML:2916-2921） */
   const toggleItem = (it: TodayItem) => () => {

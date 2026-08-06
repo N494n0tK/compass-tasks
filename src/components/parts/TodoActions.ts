@@ -49,7 +49,7 @@ export function gl(col: string, base: number): string {
 
 /** `openAsk(id)`（HTML:2916）— 理解度モーダルを開く（この時点では done にしない） */
 export function openAsk(store: CompassStore, id: string): void {
-  store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revSel: null });
+  store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revAskReveal: false, revSel: null });
 }
 
 /**
