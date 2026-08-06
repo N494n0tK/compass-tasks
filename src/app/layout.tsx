@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { FontStylesheet } from "./FontStylesheet";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,13 +28,9 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
-        {/* ログイン画面もアプリ本体と同じ書体(手書き見出し + 本文)で揃える */}
+        {/* レガシー HTML:14-15 と同一: preconnect は googleapis の 1 本のみ */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
+        <FontStylesheet />
       </head>
       <body>{children}</body>
     </html>
