@@ -22,7 +22,7 @@
 import { generateNoteReviews, cascadeNoteRemoval, syncNoteReviews } from '../../lib/logic/noteCards';
 import { normalizeKeyColor } from '../../lib/logic/noteKeywords';
 import { NOTE_KEYWORD_MAX, type Note } from '../../lib/model/notes';
-import type { ISODate } from '../../lib/model/types';
+import type { ISODate, ReviewGrade } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
 
@@ -64,6 +64,17 @@ export function sanitizeNotes(raw: unknown): Note[] {
         src: str(c.src),
         // v0.11 以前のノートには無い。既存分は AI 作として読む
         origin: c.origin === 'self' ? ('self' as const) : ('ai' as const),
+        // 解いた記録。壊れた行は落とし、古い順に並べ直す
+        attempts: (Array.isArray(c.attempts) ? (c.attempts as Record<string, unknown>[]) : [])
+          .filter(
+            (t) =>
+              t &&
+              typeof t === 'object' &&
+              /^\d{4}-\d{2}-\d{2}$/.test(String(t.day)) &&
+              (t.grade === 'high' || t.grade === 'mid' || t.grade === 'low'),
+          )
+          .map((t) => ({ day: String(t.day), grade: t.grade as ReviewGrade }))
+          .sort((x, y) => x.day.localeCompare(y.day)),
       }));
     const blocks = (Array.isArray(n.blocks) ? (n.blocks as Record<string, unknown>[]) : [])
       .filter((b) => b && typeof b === 'object' && (b.t === 'def' || b.t === 'ex'))
@@ -346,6 +357,37 @@ export function commitNote(
   }
 
   return { created, removed };
+}
+
+/**
+ * 想起問題を 1 回解いた記録をノートに書き足す（`NoteCard.attempts`）。
+ *
+ * **復習には触らない。** 間隔の計算は `ReviewShared.completeReview` の仕事で、
+ * ここは「この問題を、いつ、どう感じたか」だけを残す。だから問題抽出のような
+ * 予定外の解き直しからも同じように呼べる（予定を乱さずに履歴だけ増える）。
+ *
+ * @returns 記録できたら `true`（ノート／カードが見つからなければ `false`）
+ */
+export function recordNoteAttempt(
+  store: CompassStore,
+  noteId: string,
+  cardId: string,
+  day: ISODate,
+  grade: ReviewGrade,
+): boolean {
+  const note = store.getState().notes.find((n) => n.id === noteId);
+  if (!note || !note.cards.some((c) => c.cardId === cardId)) return false;
+
+  const next: Note = {
+    ...note,
+    cards: note.cards.map((c) =>
+      c.cardId === cardId ? { ...c, attempts: c.attempts.concat([{ day, grade }]) } : c,
+    ),
+    updatedAt: day,
+  };
+  store.setState((s) => ({ notes: upsertNote(s.notes, next) }));
+  notebookController()?.save(next);
+  return true;
 }
 
 /** ノートを消し、そのノート由来の**未完了**復習も片付ける（完了済みは履歴として残す） */

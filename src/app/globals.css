@@ -513,6 +513,9 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .compass-brand__chevron{margin-left:auto;color:var(--tx3);font-size:11px;transition:color .14s ease}
+/* Keel Notebook のときはロゴの枠と矢印を版の色にして、別モードにいることを常に見せる */
+.compass-brand.is-notebook .compass-brand__mark{border-color:var(--ink)}
+.compass-brand.is-notebook .compass-brand__chevron{color:var(--ink)}
 .compass-brand:hover .compass-brand__chevron{color:var(--view)}
 
 .app-nav-item{
@@ -662,13 +665,26 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad);
   box-shadow:0 30px 90px rgba(0,0,0,.5);animation:popIn .18s ease;
 }
-.app-switcher-current{
-  width:min(360px,100%);margin:20px auto 26px;padding:18px;display:flex;align-items:center;gap:15px;
-  border:1px solid var(--view);border-radius:var(--rad-s);background:var(--bg2);color:var(--tx0);
-  cursor:pointer;box-shadow:none;text-align:left;transition:background .14s ease;
+/* モード（Compass Tasks / Keel Notebook）。**アプリの移動ではない**ので、
+   下の「ほかのアプリ」のタイルとは別の形にしてある ── 横 1 行、選択中は版で縁取る */
+.app-switcher-mode{
+  width:100%;padding:14px 15px;display:flex;align-items:center;gap:14px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:var(--bg2);color:var(--tx1);cursor:pointer;box-shadow:none;text-align:left;
+  transition:background .14s ease,border-color .14s ease;
 }
-.app-switcher-current:hover{transform:none;background:var(--bg3)}
-.app-switcher-current__icon{width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:var(--rad-s);background:var(--bg0)}
+.app-switcher-mode:hover{transform:none;background:var(--bg3);border-color:var(--mode-accent)}
+.app-switcher-mode.is-on{border-color:var(--mode-accent);background:var(--bg2);cursor:default}
+.app-switcher-mode__icon{
+  width:52px;height:52px;flex:none;display:grid;place-items:center;
+  border:1px solid var(--mode-accent);border-radius:var(--rad-s);background:var(--bg0);
+}
+.app-switcher-mode__state{
+  flex:none;padding:3px 9px;border-radius:var(--rad-s);
+  font:700 10px var(--f-ui);letter-spacing:.04em;
+  border:1px solid var(--mode-accent);color:var(--mode-accent);background:transparent;
+}
+.app-switcher-mode.is-on .app-switcher-mode__state{background:var(--mode-accent);color:var(--onAcc);border-color:var(--mode-accent)}
 .app-switcher-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
 .app-switcher-tile{
   min-width:0;min-height:132px;padding:15px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;
@@ -1005,7 +1021,7 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   /* C-508: 同上。`.score-group-row>span:nth-child(1..6)` をセルの明示クラスへ置換 */
   .score-group-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 8px!important}.score-group-row>.sg-cell-subj{grid-column:1;grid-row:1/3}.score-group-row>.sg-cell-name{grid-column:2;grid-row:1}.score-group-row>.sg-cell-meta{grid-column:2;grid-row:2}.score-group-row>.sg-cell-delta{grid-column:3;grid-row:2}.score-group-row>.sg-cell-score{grid-column:3;grid-row:1}.score-group-row>.sg-cell-arrow{display:none}
   .mini-editor-row{flex-wrap:wrap}.mini-drag-handle,.mini-day-label{display:none!important}.mini-title{order:2;flex:1!important}.mini-size{order:3}.mini-delete{order:4}.mini-day-mobile{display:block!important;order:5;flex:1 1 150px;min-width:0;min-height:36px;padding:6px 8px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg1);color:var(--tx1);font:600 12px var(--f-num);color-scheme:dark}.mini-mobile-actions{display:flex!important;order:6;gap:5px}.mini-mobile-actions button{width:38px;min-height:36px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg3);color:var(--tx1);font-weight:700}
-  .app-switcher-backdrop{padding:12px}.app-switcher-panel{max-height:90dvh;padding:18px}.app-switcher-current{margin:16px auto 20px;padding:16px}.app-switcher-current__icon{width:56px;height:56px}.app-switcher-grid{grid-template-columns:1fr}.app-switcher-tile{min-height:92px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center}.app-switcher-tile__icon{grid-row:1/3}.app-switcher-tile__status{grid-column:3;grid-row:1/3;margin-top:0}
+  .app-switcher-backdrop{padding:12px}.app-switcher-panel{max-height:90dvh;padding:18px}.app-switcher-mode{padding:12px}.app-switcher-mode__icon{width:44px;height:44px}.app-switcher-grid{grid-template-columns:1fr}.app-switcher-tile{min-height:92px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center}.app-switcher-tile__icon{grid-row:1/3}.app-switcher-tile__status{grid-column:3;grid-row:1/3;margin-top:0}
   .empty-note{padding:18px 13px}
   /* コマ帯は横スクロールさせず、7 マスを詰めて 1 画面に収める */
   .koma-strip{grid-template-columns:repeat(7,minmax(0,1fr));margin-bottom:0}
@@ -1091,8 +1107,10 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
    [D] より後ろに置くので、同詳細度なら後勝ちになる。
    ========================================================================== */
 
-/* ナビのアイコン（[C-2] の `.app-nav-item[data-nav=…]` 群と同じ書式） */
+/* ナビのアイコン（[C-2] の `.app-nav-item[data-nav=…]` 群と同じ書式）。
+   Keel Notebook モードのナビは「ノート」と「問題抽出」の 2 つ */
 .app-nav-item[data-nav="notebook"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3h13v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z'/%3E%3Cpath d='M4 17h15M9 3v18M12 8h4'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="extract"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M4 5h10M4 10h10M4 15h6'/%3E%3Cpath d='M15 14l3 3 4-5'/%3E%3C/svg%3E")}
 
 .compass-theme-mode{
   /* 本文の行送り。数式・罫・小札の高さはすべてこれに合わせる */

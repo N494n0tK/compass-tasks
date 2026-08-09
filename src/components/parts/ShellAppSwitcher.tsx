@@ -11,7 +11,9 @@
  */
 
 import type { CSSProperties } from 'react';
+import type { AppMode } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
+import { APP_MODES } from './ShellTheme';
 
 /** `this.APP_CATALOG`（HTML:2039-2043）。url を入れるだけで遷移が有効になる */
 export interface AppCatalogEntry {
@@ -59,9 +61,14 @@ export const comingSoonToast = (name: string) => '「' + name + '」は準備中
 
 export function ShellAppSwitcher({
   store,
+  appMode,
+  onSetAppMode,
   onClose,
 }: {
   store: CompassStore;
+  appMode: AppMode;
+  /** **モードを変えるだけ**。ページ遷移もリロードもしない */
+  onSetAppMode: (mode: AppMode) => void;
   onClose: () => void;
 }) {
   return (
@@ -87,7 +94,7 @@ export function ShellAppSwitcher({
             <div
               style={{ marginTop: '5px', font: "700 20px var(--f-ui)", color: 'var(--tx0)' }}
             >
-              アプリを切り替える
+              切り替える
             </div>
             <div
               style={{
@@ -97,7 +104,7 @@ export function ShellAppSwitcher({
                 color: 'var(--tx3)',
               }}
             >
-              学習や毎日の記録を、Compassからひとつにつなげます。
+              モードは同じアプリの中で切り替わります（下の「ほかのアプリ」は別サイトへ移動）。
             </div>
           </div>
           <button
@@ -119,49 +126,69 @@ export function ShellAppSwitcher({
           </button>
         </div>
 
-        <button type="button" className="app-switcher-current" onClick={onClose}>
-          <span className="app-switcher-current__icon">
-            <img src="/compass-icon.svg?v=20260728-ink" alt="" width="62" height="62" />
+        {/* ── モード。ここは**アプリの移動ではない**。同じアプリのまま中身だけ替わる */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '18px 0 11px' }}
+        >
+          <span style={{ font: "700 12px var(--f-ui)", color: 'var(--tx1)' }}>モード</span>
+          <span style={{ height: '1px', flex: 1, background: 'var(--line)' }}></span>
+          <span style={{ fontSize: '10px', color: 'var(--tx3)' }}>
+            Shift + ロゴ でも切り替えられます
           </span>
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span
-              style={{
-                display: 'block',
-                font: "700 10px var(--f-ui)",
-                color: 'var(--acc)',
-                letterSpacing: '.06em',
-              }}
-            >
-              現在のアプリ
-            </span>
-            <span
-              style={{
-                display: 'block',
-                marginTop: '4px',
-                font: "700 20px var(--f-num)",
-                letterSpacing: '.01em',
-              }}
-            >
-              Compass Tasks
-            </span>
-            <span
-              style={{
-                display: 'block',
-                marginTop: '3px',
-                fontSize: '11px',
-                color: 'var(--tx3)',
-              }}
-            >
-              学習タスク・復習・試験計画
-            </span>
-          </span>
-          <span style={{ color: 'var(--acc)', fontSize: '17px' }} aria-hidden="true">
-            ✓
-          </span>
-        </button>
+        </div>
+        <div style={{ display: 'grid', gap: '7px' }}>
+          {APP_MODES.map((m) => {
+            const on = m.id === appMode;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                className={'app-switcher-mode' + (on ? ' is-on' : '')}
+                onClick={() => (on ? onClose() : onSetAppMode(m.id))}
+                aria-pressed={on}
+                style={{ '--mode-accent': 'var(--' + m.token + ')' } as CSSProperties}
+              >
+                <span className="app-switcher-mode__icon" aria-hidden="true">
+                  {m.id === 'notebook' ? (
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                      stroke="var(--mode-accent)" strokeWidth="1.8">
+                      <path d="M6 3h13v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                      <path d="M4 17h15M9 3v18M12 8h4" />
+                    </svg>
+                  ) : (
+                    <img src="/compass-icon.svg?v=20260728-ink" alt="" width="34" height="34" />
+                  )}
+                </span>
+                <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                  <span
+                    style={{
+                      display: 'block',
+                      font: "700 16px var(--f-disp)",
+                      color: 'var(--tx0)',
+                    }}
+                  >
+                    {m.name}
+                  </span>
+                  <span
+                    style={{
+                      display: 'block',
+                      marginTop: '3px',
+                      fontSize: '11px',
+                      lineHeight: 1.55,
+                      color: 'var(--tx3)',
+                    }}
+                  >
+                    {m.blurb}
+                  </span>
+                </span>
+                <span className="app-switcher-mode__state">{on ? '表示中' : '切り替える →'}</span>
+              </button>
+            );
+          })}
+        </div>
 
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '11px' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0 11px' }}
         >
           <span style={{ font: "700 12px var(--f-ui)", color: 'var(--tx1)' }}>
             ほかのアプリ

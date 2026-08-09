@@ -20,7 +20,7 @@ const T = '2026-08-06';
 const TOMORROW = '2026-08-07';
 
 function card(over: Partial<NoteCard> = {}): NoteCard {
-  return { cardId: 'c0', q: 'Q', a: 'A', guide: '', src: '', origin: 'ai', ...over };
+  return { cardId: 'c0', q: 'Q', a: 'A', guide: '', src: '', origin: 'ai', attempts: [], ...over };
 }
 
 function note(over: Partial<Note> = {}): Note {

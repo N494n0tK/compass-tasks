@@ -33,7 +33,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
-import { fmtD, longDayLabel } from '../../lib/logic/dates';
+import { fmtD, fmtMD, longDayLabel } from '../../lib/logic/dates';
 import { noteSeriesId } from '../../lib/logic/noteCards';
 import { assignCues, blockSearchText } from '../../lib/logic/noteKeywords';
 import { timetableSubjects } from '../../lib/logic/timetable';
@@ -41,6 +41,7 @@ import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import {
   NOTE_CARD_MAX,
+  NOTE_GRADE_META,
   NOTE_KEYWORD_MAX,
   NOTE_KEY_COLORS,
   NOTE_KEY_COLOR_MEANING,
@@ -50,6 +51,7 @@ import {
   type NoteCard,
   type NoteKeyColor,
   type NoteKeyword,
+  lastAttemptOf,
 } from '../../lib/model/notes';
 import type { Review } from '../../lib/model/types';
 import { NoteMath, NoteMathInline, type NoteMarkOptions } from './NoteMath';
@@ -148,6 +150,36 @@ function SubRow({
       <span className={'nb-sub' + (warn ? ' nb-sub--warn' : '')}>{label}</span>
       <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
+  );
+}
+
+/**
+ * 解いた記録の 1 行表示（「3回 · 前回 8/9 ◎」）。
+ * ホバーで全部の履歴（日付 + 記号）が出る。
+ */
+function CardTrail({ card }: { card: Pick<NoteCard, 'attempts'> }) {
+  const last = lastAttemptOf(card);
+  if (!last) {
+    return <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>未着手</span>;
+  }
+  const meta = NOTE_GRADE_META[last.grade];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '10.5px',
+        color: 'var(--tx3)',
+      }}
+      title={card.attempts
+        .map((a) => fmtMD(a.day) + ' ' + NOTE_GRADE_META[a.grade].icon)
+        .join(' / ')}
+    >
+      <span style={{ font: '700 10.5px var(--f-num)' }}>{card.attempts.length + '回'}</span>
+      <span>{'前回 ' + fmtMD(last.day)}</span>
+      <span style={{ color: meta.token, font: '400 14px/1 var(--f-disp)' }}>{meta.icon}</span>
+    </span>
   );
 }
 
@@ -527,6 +559,9 @@ export function NoteView({ note }: NoteViewProps) {
                     }}
                   >
                     <RevealButton open={open} onClick={() => toggle(key)} />
+                    {/* この問題を何回やって、前回どう感じたか（`NoteCard.attempts`）。
+                        復習の「次回」は予定、こちらは実績 */}
+                    <CardTrail card={card} />
                     <span style={{ flex: 1 }} />
                     {pending ? (
                       <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
@@ -653,6 +688,7 @@ export function NoteView({ note }: NoteViewProps) {
                   src: '',
                   // 編集画面から足す問いは、当然「自分で立てた問い」
                   origin: 'self',
+                  attempts: [],
                 });
               });
             }}

@@ -21,9 +21,9 @@ function note(over: Partial<Note> = {}): Note {
     subject: '数学',
     unit: '数列 ─ 漸化式と一般項',
     cards: [
-      { cardId: 'c0', q: 'Q1', a: 'A1', guide: '', src: '', origin: 'ai' },
-      { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '', origin: 'ai' },
-      { cardId: 'c2', q: 'Q3', a: 'A3', guide: '', src: '', origin: 'ai' },
+      { cardId: 'c0', q: 'Q1', a: 'A1', guide: '', src: '', origin: 'ai', attempts: [] },
+      { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '', origin: 'ai', attempts: [] },
+      { cardId: 'c2', q: 'Q3', a: 'A3', guide: '', src: '', origin: 'ai', attempts: [] },
     ],
     blocks: [],
     summary: '',

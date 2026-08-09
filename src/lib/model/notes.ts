@@ -15,7 +15,7 @@
  * このファイルは純粋な型と定数のみ。React / firebase を import しない。
  */
 
-import type { ISODate } from './types';
+import type { ISODate, ReviewGrade } from './types';
 
 /** 貼り付け JSON の `schema` フィールドに要求する値（spec §3.2） */
 export const NOTE_SCHEMA = 'compass-note@1';
@@ -39,6 +39,29 @@ export const NOTE_SUBJECT_OTHER = 'その他';
  */
 export type NoteCardOrigin = 'self' | 'ai';
 
+/**
+ * 想起問題を 1 回解いた記録。
+ *
+ * 復習の間隔（`Review`）とは別に、**問題そのものの履歴**としてノート側に残す。
+ * 復習行は完了すると次の行に置き換わっていくので、「この問題を何回やって、
+ * そのときどうだったか」はノートに書いておかないと辿れない。
+ */
+export interface NoteAttempt {
+  /** 解いた日 */
+  day: ISODate;
+  /** そのときの理解度（`ReviewGrade` と同じ 3 段階） */
+  grade: ReviewGrade;
+}
+
+/** 理解度の見た目。丸つけの記号そのまま（`ReviewAskModal` / `NoteDrill` と同じ並び） */
+export const NOTE_GRADE_META: Readonly<
+  Record<ReviewGrade, { icon: string; label: string; token: string }>
+> = {
+  high: { icon: '◎', label: 'ばっちり', token: 'var(--grn)' },
+  mid: { icon: '○', label: 'まあまあ', token: 'var(--tx1)' },
+  low: { icon: '△', label: '不安', token: 'var(--pink)' },
+};
+
 /** 想起問題 1 問 = 復習カード 1 枚（spec §2） */
 export interface NoteCard {
   /** `'c' + base36`。取り込み時に採番し、以後**不変**（復習の `seriesId` に埋め込まれる） */
@@ -53,6 +76,30 @@ export interface NoteCard {
   src: string;
   /** `'self'` = 自分がノートに書いた問い / `'ai'` = AI が補った問い */
   origin: NoteCardOrigin;
+  /**
+   * 解いた記録。**古い順**（末尾が直近）。
+   * 記録するのは理解度を答えた瞬間だけ ―― 解答を開いただけでは増やさない。
+   */
+  attempts: NoteAttempt[];
+}
+
+/** 直近の記録。まだ 1 度も解いていなければ `null` */
+export function lastAttemptOf(card: Pick<NoteCard, 'attempts'>): NoteAttempt | null {
+  const a = card.attempts;
+  return a.length ? a[a.length - 1] : null;
+}
+
+/**
+ * 「苦手な順」の並び替えキー（小さいほど先）。
+ *
+ * **不安 → 未着手 → まあまあ → ばっちり** の順にした。
+ * 未着手を先頭にしないのは、1 度やって「不安」と答えた問題の方が
+ * 「取りこぼしている」ことがはっきりしているから。
+ */
+export function weaknessRank(card: Pick<NoteCard, 'attempts'>): number {
+  const last = lastAttemptOf(card);
+  if (!last) return 1;
+  return last.grade === 'low' ? 0 : last.grade === 'mid' ? 2 : 3;
 }
 
 /**

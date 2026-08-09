@@ -25,7 +25,7 @@ import {
   searchAddReviewToast,
   searchAddSegToast,
 } from './ShellSearch';
-import { TITLES } from './ShellTheme';
+import { NOTEBOOK_TITLES, TITLES, appModeDef } from './ShellTheme';
 import { todayTotals, type TodayItem } from './ShellTodayItems';
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
@@ -40,6 +40,8 @@ export interface ShellTopbarProps {
   /** `overdue.length`（HTML:2689）。ナビのバッジと同じ数え方 */
   overdueCount: number;
   onOpenAppSwitcher: () => void;
+  /** Shift + ロゴ。ポップアップを開かずにモードだけ入れ替える */
+  onToggleAppMode: () => void;
 }
 
 export function ShellTopbar({
@@ -51,13 +53,16 @@ export function ShellTopbar({
   todayItems,
   overdueCount,
   onOpenAppSwitcher,
+  onToggleAppMode,
 }: ShellTopbarProps) {
   const S = state;
   const T = ctx.today;
   const matcher = makeSearchMatcher(S);
   const { q } = matcher;
   const totals = todayTotals(todayItems);
-  const title = TITLES[S.view];
+  // 見出しはモードごと。Keel Notebook では `nbMode` が画面にあたる
+  const title = S.appMode === 'notebook' ? NOTEBOOK_TITLES[S.nbMode] : TITLES[S.view];
+  const mode = appModeDef(S.appMode);
   // `parseInt(T.slice(5,7),10)+'月'+parseInt(T.slice(8,10),10)+'日('+DAYS[0].dow+')'`（HTML:4130）
   const todayHeader =
     parseInt(T.slice(5, 7), 10) +
@@ -84,12 +89,14 @@ export function ShellTopbar({
         flex: 'none',
       }}
     >
+      {/* モバイルではここがロゴ。左ナビと同じく Shift + クリックで直接トグルする */}
       <button
         type="button"
         className="mobile-app-launcher"
-        onClick={onOpenAppSwitcher}
-        aria-label="Compassアプリ一覧を開く"
+        onClick={(e) => (e.shiftKey ? onToggleAppMode() : onOpenAppSwitcher())}
+        aria-label={mode.name + 'を表示中。モードを切り替える'}
         aria-haspopup="dialog"
+        title="タップでモード一覧 / Shift + クリックで直接切り替え"
       >
         <img src="/compass-icon.svg?v=20260728-ink" alt="" width="25" height="25" />
       </button>

@@ -313,7 +313,8 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
       if (!q) errors.push({ path: 'recall[' + i + '].q', message: '問題文が空です' });
       if (!a) errors.push({ path: 'recall[' + i + '].a', message: '解答が空です' });
       // 既存カードとはインデックスで対応付ける（spec §3.4 / N-018）
-      const inherited = existing?.cards[i]?.cardId;
+      const inheritedCard = existing?.cards[i];
+      const inherited = inheritedCard?.cardId;
       const cardId = uniqueCardId(inherited || newCardId(i), usedCardIds);
       usedCardIds.add(cardId);
       cards.push({
@@ -324,6 +325,9 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
         src: asString(item.src),
         // 指定が無ければ AI 作。「自分で書いた問い」は名乗り出た分だけ数える（spec §3.6）
         origin: asOrigin(item.origin),
+        // 上書き取り込みでは**解いた記録を引き継ぐ**。`cardId` を同じインデックスから
+        // 引き継いでいる以上、履歴も同じ問題のものとして残さないと辻褄が合わない
+        attempts: inherited ? (inheritedCard?.attempts ?? []).slice() : [],
       });
     });
   }

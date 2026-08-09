@@ -166,6 +166,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     theme: 'note',
     themeVersion: 3,
     view: 'cockpit',
+    // 動作モード。保存先は localStorage['compass-ui']（`ShellPrefs`）
+    appMode: 'tasks',
     searchOpen: false,
     query: '',
     appSwitcherOpen: false,
@@ -273,6 +275,9 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbSelNoteId: null,
     nbMode: 'note',
     nbSide: 'tree',
+    // 問題抽出は「苦手な順」を既定にする（並べ直さないと結局いつも上から解いてしまう）
+    nbExtractSort: 'weak',
+    nbExtractGrade: null,
     nbMonth: today.slice(0, 8) + '01',
     nbSubjFilter: null,
     nbEdit: false,

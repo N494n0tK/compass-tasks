@@ -18,15 +18,16 @@
  * （理解度モーダルと同じ道。フォークしない）。
  */
 
-import { fmtD } from '../../lib/logic/dates';
+import { fmtD, fmtMD } from '../../lib/logic/dates';
 import { dueCardsOfNote, type DueCard } from '../../lib/logic/noteCards';
 import { sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
-import { exBlockOf, type Note } from '../../lib/model/notes';
+import { NOTE_GRADE_META, exBlockOf, type Note } from '../../lib/model/notes';
 import type { ReviewGrade } from '../../lib/model/types';
 import { NoteMath } from './NoteMath';
 import { NoteView, RevealButton } from './NoteView';
 import { completeReview } from './ReviewShared';
+import { closeNoteDrill } from './ShellActions';
 import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -75,7 +76,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
     store.showToast(message);
   };
 
-  const backToTodo = () => store.setState({ view: 'todo', nbMode: 'note' });
+  const backToTodo = () => closeNoteDrill(store);
 
   return (
     <div style={{ maxWidth: '880px', animation: 'fadeUp .22s ease' }}>
@@ -148,6 +149,33 @@ export function NoteDrill({ note }: NoteDrillProps) {
                 <span style={{ font: '400 11.5px var(--f-ui)', color: 'var(--tx3)' }}>
                   {dc.review.stage + 'の復習 · 第' + dc.review.reviewNo + '回'}
                 </span>
+                {/* これまでの実績。◎○△ を付けるとここに積まれる */}
+                {card && card.attempts.length ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      font: '400 11px var(--f-ui)',
+                      color: 'var(--tx3)',
+                    }}
+                    title={card.attempts
+                      .map((a) => fmtMD(a.day) + ' ' + NOTE_GRADE_META[a.grade].icon)
+                      .join(' / ')}
+                  >
+                    <span style={{ font: '700 11px var(--f-num)' }}>
+                      {'これまで' + card.attempts.length + '回'}
+                    </span>
+                    {card.attempts.slice(-4).map((a, ai) => (
+                      <span
+                        key={ai}
+                        style={{ color: NOTE_GRADE_META[a.grade].token, font: '400 13px/1 var(--f-disp)' }}
+                      >
+                        {NOTE_GRADE_META[a.grade].icon}
+                      </span>
+                    ))}
+                  </span>
+                ) : null}
                 <span style={{ flex: 1 }} />
                 {done ? (
                   <>

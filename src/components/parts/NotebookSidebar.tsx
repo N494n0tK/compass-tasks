@@ -4,8 +4,11 @@
  * Compass — ノート画面のサイドバー（docs/notebook/spec.md §8）
  *
  * 下敷き: `CompassNotebook/チャートノート v2.dc.html` の左ペイン。
- * 上から「ノート / 問題抽出」の切替 →「フォルダ / カレンダー」の探し方 →
- * 一覧 → 教科の絞り込み → ＋ボタン、という並びをそのまま引き継いでいる。
+ * 上から「フォルダ / カレンダー」の探し方 → 一覧 → 教科の絞り込み → ＋ボタン。
+ *
+ * v2 の「ノート / 問題抽出」の切替はここではなく**左ナビ**にある。
+ * ノートは 7 つめのタブではなく Keel Notebook という別モードになったので
+ * （`AppMode`）、モード内の画面切替はアプリのナビが持つのが素直（`ShellNav`）。
  *
  * v2 との違いは 2 つだけ:
  *  - ＋ が「新規ノート」ではなく「JSONから取り込む」（Compass のワークフロー手順 3）
@@ -143,45 +146,6 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
         overflow: 'auto',
       }}
     >
-      {/* ── ノート / 問題抽出。v2 の segmented control（1 本の枠を 2 つに割る） */}
-      <div
-        style={{
-          display: 'flex',
-          border: '1px solid var(--line2)',
-          borderRadius: 'var(--rad-s)',
-          overflow: 'hidden',
-          flex: 'none',
-        }}
-      >
-        {(
-          [
-            { id: 'note', label: 'ノート' },
-            { id: 'extract', label: '問題抽出' },
-          ] as const
-        ).map((m) => {
-          const on = S.nbMode === m.id || (m.id === 'note' && S.nbMode === 'drill');
-          return (
-            <button
-              key={m.id}
-              onClick={() => store.setState({ nbMode: m.id })}
-              aria-pressed={on}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: '700 12px var(--f-disp)',
-                color: on ? 'var(--onAcc)' : 'var(--tx2)',
-                background: on ? 'var(--view)' : 'transparent',
-                border: 0,
-                padding: '8px 0',
-                cursor: 'pointer',
-              }}
-            >
-              {m.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* ── 探し方（排他） */}
       <div style={{ display: 'flex', gap: '4px', flex: 'none' }}>
         {(

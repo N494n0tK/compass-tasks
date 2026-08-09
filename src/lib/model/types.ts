@@ -39,6 +39,18 @@ export type ThemeSkin = 'note' | 'neon' | 'light';
  */
 export type ViewId = 'cockpit' | 'tests' | 'todo' | 'review' | 'add' | 'data' | 'notebook';
 
+/**
+ * 動作モード。**アプリは 1 つのまま、ナビと画面の中身だけを差し替える**。
+ *
+ *  - `tasks`    … Compass Tasks。コックピット / 試験計画 / ToDo / 復習 / 追加 / データ
+ *  - `notebook` … Keel Notebook。授業ノートと問題抽出
+ *
+ * 切替は左上のロゴ（Shift + クリックで直接トグル / ふつうのクリックでポップアップ）。
+ * `view`（タスク側で開いていた画面）は**モードをまたいでも保持する**ので、
+ * ノートから戻ると元の画面に戻る。
+ */
+export type AppMode = 'tasks' | 'notebook';
+
 /** タスクサイズ。`SIZE_MIN = { XS:5, S:10, M:20, L:30 }`（HTML:2037） */
 export type SizeKey = 'XS' | 'S' | 'M' | 'L';
 
@@ -385,6 +397,8 @@ export interface UiPrefs {
   theme: Theme;
   themeVersion: number;
   panelW: PanelW;
+  /** 動作モード。端末ごとの見た目の設定なので、クラウドではなくここに置く */
+  appMode?: AppMode;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -439,6 +453,15 @@ export type NotebookMode = 'note' | 'extract' | 'drill';
  */
 export type NotebookSide = 'tree' | 'cal';
 
+/**
+ * 問題抽出の並び順。
+ *
+ *  - `note`     … ノート順（授業日の新しい順 → ノート内の並び）
+ *  - `weak`     … 苦手な順（直近の理解度が低い順。同点なら久しく解いていない方が先）
+ *  - `stale`    … 久しぶり順（最後に解いた日が古い順。未着手が先頭）
+ */
+export type NoteExtractSort = 'note' | 'weak' | 'stale';
+
 /** Add 画面の自動細分化モード（`addGeneratorChips`, HTML:3656-3659） */
 export type AddGenerator = 'manual' | 'duo' | 'chart';
 
@@ -471,6 +494,12 @@ export type DragMiniPos = 'before' | 'after';
  * 単一ストアに同居させる（23キーに含まれないので自然に永続化されない）。
  */
 export interface EphemeralState {
+  /**
+   * 動作モード（`tasks` / `notebook`）。テーマや panelW と同じ端末ごとの設定なので、
+   * `PERSISTENT_KEYS`（= クラウドに載る学習データ）ではなく
+   * `localStorage['compass-ui']` に置く（`ShellPrefs`）。
+   */
+  appMode: AppMode;
   searchOpen: boolean;
   query: string;
   appSwitcherOpen: boolean;
@@ -566,6 +595,10 @@ export interface EphemeralState {
   nbMode: NotebookMode;
   /** サイドバーの探し方（教科フォルダ / カレンダー） */
   nbSide: NotebookSide;
+  /** 問題抽出の並び順 */
+  nbExtractSort: NoteExtractSort;
+  /** 問題抽出の理解度による絞り込み（`null` = 全部 / `'none'` = まだ解いていない） */
+  nbExtractGrade: ReviewGrade | 'none' | null;
   /** カレンダーが表示している月（その月の 1 日の iso） */
   nbMonth: ISODate;
   /** 教科の絞り込み（`null` = 全部） */
