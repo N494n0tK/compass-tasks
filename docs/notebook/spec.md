@@ -257,6 +257,7 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 | 「以下がJSONです」などの前置き・後書き | 最初の `{` 〜 最後の `}` を切り出す（warning） |
 | `schema` 行を忘れる | `compass-note@1` とみなす（warning） |
 | `schema` に別の値（`chartnote-v2` 等） | **エラー**（別アプリ・別バージョンの JSON） |
+| LaTeX のバックスラッシュを 1 個で書く（`\circ` など） | `repairJsonEscapes` で補って読む（warning）。**実際に踏んだ最頻出の失敗** |
 | `qi: 0` と文字列で書く | 数値に寄せる |
 | `date` を空文字にする | 今日の日付（warning なし。「読めなかった」の合図として指示済み） |
 | 全角の引用符・末尾カンマ | **エラー**（直しようがない。行番号つきで表示） |
@@ -362,6 +363,9 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 - **N-084** `schema` の前後の空白は無視する
 - **N-085** `date` が空文字なら warning 無しで今日の日付にする
 - **N-086** `qi` が文字列（`"0"`）でも数値として解決する
+- **N-087** LaTeX のバックスラッシュが 1 個（`$36^\circ30'$`）でも補って取り込み、
+  復元後の本文は正しい LaTeX（`\circ`）になる。正しく書かれていれば触らない。
+  直しても JSON にならないもの（全角引用符など）は従来どおりエラー
 
 ### N-2xx 予習の自動生成
 

@@ -69,6 +69,10 @@ export const NOTE_PROMPT = String.raw`あなたは高校生の学習ノート作
 - **JSON の文字列なので、LaTeX のバックスラッシュは 2 個重ねる。**
   - 正しい: "a": "$S_n=\\dfrac{a(r^n-1)}{r-1}$"
   - 誤り:   "a": "$S_n=\dfrac{a(r^n-1)}{r-1}$"
+- **例外なく全部**。1 か所でも 1 個だと JSON 全体が読めなくなる。よく忘れるもの:
+  \\circ（度）, \\times, \\div, \\sum, \\frac, \\dfrac, \\sqrt, \\ne, \\ge, \\le,
+  \\alpha, \\theta, \\pi, \\rightarrow, \\{ \\}
+  - 例: 北緯 36 度 30 分 → "北緯$36^\\circ 30'$"
 - 改行は \n と書く（実際の改行を文字列の中に入れない）。
 - 板書の数式は省略せずすべて LaTeX に起こす。画像が読めない部分は推測で書かず、
   読めた範囲だけを書く。

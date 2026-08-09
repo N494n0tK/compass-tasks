@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { NOTE_SCHEMA, type Note } from '../../model/notes';
-import { diffCards, extractJsonObject, importSummary, parseNoteJson } from '../noteImport';
+import {
+  diffCards,
+  extractJsonObject,
+  importSummary,
+  parseNoteJson,
+  repairJsonEscapes,
+} from '../noteImport';
 
 /** 基準日。vitest は TZ=Asia/Tokyo 固定（vitest.config.ts） */
 const T = '2026-08-06';
@@ -179,6 +185,47 @@ describe('parseNoteJson — 生成AIの出力ゆらぎを吸収する（N-081〜
     );
     expect(ok(res).blocks[0]).toMatchObject({ t: 'ex', cardId: 'c0' });
     expect(res.ok && res.warnings).toEqual([]);
+  });
+
+  it('N-087 LaTeXのバックスラッシュが1個でも自動で補って読み込む', () => {
+    // 実際に起きたケース: $36^\circ30'$ の \circ が 1 個で JSON.parse が全体を拒否した
+    const broken = minimal({
+      blocks: [{ t: 'def', title: 'ミズーリ協定', body: 'PLACEHOLDER' }],
+    }).replace('"PLACEHOLDER"', '"北緯$36^\\circ30\'$を基準とする"');
+    // 前提: 素の JSON.parse は失敗する
+    expect(() => JSON.parse(broken)).toThrow();
+
+    const res = parseNoteJson(broken, { today: T, ...IDS });
+    const note = ok(res);
+    const block = note.blocks[0];
+    expect(block.t === 'def' && block.body).toBe("北緯$36^\\circ30'$を基準とする");
+    expect(res.ok && res.warnings.map((w) => w.message)).toContain(
+      'LaTeXのバックスラッシュ（\\circ など）が1個だったので補って読み込みました',
+    );
+  });
+
+  it('N-087 正しくエスケープされていれば触らない（warning も出ない）', () => {
+    const good = minimal({
+      recall: [{ q: 'x', a: '$S_n=\\dfrac{a}{b}$' }],
+    });
+    const res = parseNoteJson(good, { today: T, ...IDS });
+    expect(ok(res).cards[0].a).toBe('$S_n=\\dfrac{a}{b}$');
+    expect(res.ok && res.warnings).toEqual([]);
+  });
+
+  it('N-087 直しても JSON にならないものは従来どおりエラー', () => {
+    // 全角の引用符は救えない
+    const res = parseNoteJson('{ “schema”: “compass-note@1” }', { today: T, ...IDS });
+    expect(paths(res)).toEqual(['$']);
+    expect(res.ok === false && res.errors[0].message).toContain('JSONとして読み取れません');
+  });
+
+  it('repairJsonEscapes は文字列の外や有効なエスケープに触らない', () => {
+    expect(repairJsonEscapes('{"a":"\\n\\t\\"\\\\"}')).toBe('{"a":"\\n\\t\\"\\\\"}');
+    expect(repairJsonEscapes('{"a":"\\u00b0"}')).toBe('{"a":"\\u00b0"}');
+    expect(repairJsonEscapes('{"a":"\\circ"}')).toBe('{"a":"\\\\circ"}');
+    // 桁の足りない \u も救う
+    expect(repairJsonEscapes('{"a":"\\u12"}')).toBe('{"a":"\\\\u12"}');
   });
 
   it('extractJsonObject は単体でも同じ結果', () => {

@@ -106,6 +106,58 @@ export function extractJsonObject(input: string): { text: string; trimmed: boole
   return { text: sliced, trimmed: sliced !== raw };
 }
 
+/** JSON で意味を持つエスケープ（`\uXXXX` は別途桁数を見る） */
+const VALID_ESCAPES = '"\\/bfnrt';
+
+/**
+ * 文字列の中の**無効なエスケープ**を機械的に直す。
+ *
+ * 生成 AI は LaTeX を吐くとき、`\\dfrac` のように 2 個重ねる指示を出していても
+ * どこか 1 か所で `\circ` `\times` `\sum` のように 1 個で書いてしまう。
+ * JSON では `\c` は不正なので、**たった 1 か所で全体が読めなくなる**（実際に起きた）。
+ *
+ * ここでは文字列リテラルの内側だけを見て、`\` の次が JSON の有効なエスケープ
+ * （`" \ / b f n r t` と桁の揃った `\uXXXX`）でなければバックスラッシュを 2 個にする。
+ * `\circ` → `\\circ` となり、パース後の文字列は LaTeX として正しい `\circ` に戻る。
+ *
+ * **厳密なパースに失敗したときだけ**呼ぶこと（成功したものを触らない）。
+ */
+export function repairJsonEscapes(input: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i];
+    if (!inString) {
+      out += ch;
+      if (ch === '"') inString = true;
+      continue;
+    }
+    if (ch === '"') {
+      out += ch;
+      inString = false;
+      continue;
+    }
+    if (ch !== '\\') {
+      out += ch;
+      continue;
+    }
+    const next = input[i + 1];
+    if (next !== undefined && VALID_ESCAPES.indexOf(next) >= 0) {
+      out += ch + next;
+      i += 1;
+      continue;
+    }
+    if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(input.slice(i + 2, i + 6))) {
+      out += input.slice(i, i + 6);
+      i += 5;
+      continue;
+    }
+    // 無効なエスケープ。バックスラッシュ自身をエスケープする（次の文字は次周で出す）
+    out += '\\\\';
+  }
+  return out;
+}
+
 /** ノート内で衝突しない `cardId` を確保する */
 function uniqueCardId(base: string, used: Set<string>): string {
   if (!used.has(base)) return base;
@@ -137,11 +189,23 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
   // ── JSON として読めるか。コードブロックや前置きは剥がしてから読む
   const extracted = extractJsonObject(text);
   let raw: unknown;
+  let repairedEscapes = false;
   try {
     raw = JSON.parse(extracted.text);
   } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e);
-    return { ok: false, errors: [{ path: '$', message: 'JSONとして読み取れません: ' + reason }] };
+    // LaTeX のバックスラッシュを 1 個で書いてしまった（`\circ` など）ケースを救う
+    let recovered = false;
+    try {
+      raw = JSON.parse(repairJsonEscapes(extracted.text));
+      recovered = true;
+      repairedEscapes = true;
+    } catch {
+      /* 直せなかった。元のエラーを返す */
+    }
+    if (!recovered) {
+      const reason = e instanceof Error ? e.message : String(e);
+      return { ok: false, errors: [{ path: '$', message: 'JSONとして読み取れません: ' + reason }] };
+    }
   }
   if (!isPlainObject(raw)) {
     return {
@@ -153,6 +217,12 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     warnings.push({
       path: '$',
       message: 'コードブロックや前後の文章を取り除いてから読み込みました',
+    });
+  }
+  if (repairedEscapes) {
+    warnings.push({
+      path: '$',
+      message: 'LaTeXのバックスラッシュ（\\circ など）が1個だったので補って読み込みました',
     });
   }
 
