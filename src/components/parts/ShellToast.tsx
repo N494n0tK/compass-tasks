@@ -21,9 +21,9 @@ export function ShellToast({ toast }: { toast: string }) {
         zIndex: 130,
         background: 'var(--bg3)',
         border: '1px solid var(--acc)',
-        borderRadius: '99px',
+        borderRadius: 'var(--rad-s)',
         padding: '10px 20px',
-        font: "700 12.5px 'Noto Sans JP'",
+        font: "700 12.5px var(--f-ui)",
         color: 'var(--tx0)',
         boxShadow: 'var(--gAcc)',
         animation: 'toastIn .2s ease',
@@ -46,13 +46,13 @@ export function ShellTooltip({ tooltip }: { tooltip: Tooltip }) {
         zIndex: 60,
         background: 'var(--bg3)',
         border: '1px solid var(--line2)',
-        borderRadius: '9px',
+        borderRadius: 'var(--rad-s)',
         padding: '8px 11px',
         pointerEvents: 'none',
         boxShadow: '0 8px 28px rgba(0,0,0,.45)',
       }}
     >
-      <div style={{ font: "700 12px 'Noto Sans JP'", color: 'var(--tx0)' }}>{tooltip.title}</div>
+      <div style={{ font: "700 12px var(--f-ui)", color: 'var(--tx0)' }}>{tooltip.title}</div>
       <div style={{ fontSize: '10.5px', color: 'var(--tx2)', marginTop: '2px' }}>
         {tooltip.sub}
       </div>

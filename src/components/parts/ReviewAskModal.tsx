@@ -100,7 +100,7 @@ export function ReviewAskModal() {
             maxWidth: '92vw',
             background: 'var(--bg1)',
             border: '1px solid var(--line2)',
-            borderRadius: '16px',
+            borderRadius: 'var(--rad)',
             padding: '22px',
             display: 'flex',
             flexDirection: 'column',
@@ -110,7 +110,7 @@ export function ReviewAskModal() {
           }}
         >
           <div>
-            <div style={{ font: "700 15px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+            <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
               復習おつかれさま！理解度はどうでしたか？
             </div>
             <div
@@ -124,16 +124,16 @@ export function ReviewAskModal() {
             >
               <span
                 style={{
-                  font: "700 10px 'Noto Sans JP'",
+                  font: "700 10px var(--f-ui)",
                   color: askSubj.c,
                   background: askSubj.bg,
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 9px',
                 }}
               >
                 {askR.subj}
               </span>
-              <span style={{ font: "500 13px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+              <span style={{ font: "500 13px var(--f-ui)", color: 'var(--tx1)' }}>
                 {askR.title}
               </span>
               <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{askR.stage}の復習</span>
@@ -145,7 +145,7 @@ export function ReviewAskModal() {
               className="nb-ask-card"
               style={{
                 border: '1px solid var(--line2)',
-                borderRadius: '12px',
+                borderRadius: 'var(--rad)',
                 background: 'var(--bg2)',
                 padding: '13px 15px',
                 maxHeight: '38vh',
@@ -178,10 +178,10 @@ export function ReviewAskModal() {
                     marginTop: '10px',
                     padding: '6px 14px',
                     border: '1px solid var(--line2)',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--rad-s)',
                     background: 'none',
                     color: 'var(--acc)',
-                    font: "600 11.5px 'Noto Sans JP'",
+                    font: "600 11.5px var(--f-ui)",
                     cursor: 'pointer',
                   }}
                 >
@@ -201,17 +201,17 @@ export function ReviewAskModal() {
                   onClick={() => store.setState({ revAskGrade: g.id })}
                   style={{
                     border: '1px solid ' + g.c,
-                    borderRadius: '12px',
+                    borderRadius: 'var(--rad)',
                     background: on ? g.c : g.bg,
                     padding: '12px 8px',
                     textAlign: 'center',
                     cursor: 'pointer',
                   }}
                 >
-                  <div style={{ font: "700 22px 'Noto Sans JP'", color: c, lineHeight: 1 }}>
+                  <div style={{ font: "700 22px var(--f-ui)", color: c, lineHeight: 1 }}>
                     {g.icon}
                   </div>
-                  <div style={{ font: "700 12px 'Noto Sans JP'", color: c, marginTop: '5px' }}>
+                  <div style={{ font: "700 12px var(--f-ui)", color: c, marginTop: '5px' }}>
                     {g.label}
                   </div>
                   <div style={{ fontSize: '10px', color: 'var(--tx3)', marginTop: '3px' }}>
@@ -233,11 +233,11 @@ export function ReviewAskModal() {
                     key={z}
                     onClick={() => store.setState({ revAskSize: z })}
                     style={{
-                      font: "700 11.5px 'Space Grotesk'",
+                      font: "700 11.5px var(--f-num)",
                       color: on ? 'var(--onAcc)' : 'var(--tx2)',
                       background: on ? 'var(--acc)' : 'var(--bg2)',
                       border: '1px solid ' + (on ? 'var(--acc)' : 'var(--line2)'),
-                      borderRadius: '8px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '6px 12px',
                       cursor: 'pointer',
                     }}
@@ -254,10 +254,10 @@ export function ReviewAskModal() {
               style={{
                 padding: '10px 18px',
                 border: '1px solid var(--line2)',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'none',
                 color: 'var(--tx2)',
-                font: "500 13px 'Noto Sans JP'",
+                font: "500 13px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >
@@ -268,10 +268,10 @@ export function ReviewAskModal() {
               style={{
                 padding: '10px 22px',
                 border: 'none',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 13px 'Noto Sans JP'",
+                font: "700 13px var(--f-ui)",
                 cursor: 'pointer',
                 boxShadow: 'var(--gAcc)',
               }}

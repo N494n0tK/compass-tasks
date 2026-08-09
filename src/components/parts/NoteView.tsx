@@ -29,21 +29,22 @@ import { dateCtx, store, useAppStore } from '../useStore';
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
 
-const SECTION_LABEL: CSSProperties = {
-  font: "700 11px 'Noto Sans JP'",
-  color: 'var(--view)',
-  letterSpacing: '.08em',
-  marginBottom: '10px',
+/** 小見出しの脇に添える細字（「方針」「解答」など）。鉛筆の走り書きの調子で */
+const FIELD_LABEL: CSSProperties = {
+  font: "600 11px var(--f-hand)",
+  color: 'var(--tx3)',
+  letterSpacing: '.1em',
+  marginBottom: '2px',
 };
 
 const INPUT: CSSProperties = {
   width: '100%',
   background: 'var(--bg2)',
   border: '1px solid var(--line2)',
-  borderRadius: '8px',
+  borderRadius: 'var(--rad-s)',
   padding: '8px 10px',
   color: 'var(--tx1)',
-  font: "400 13px 'Noto Sans JP'",
+  font: "400 13px var(--f-ui)",
   lineHeight: 1.7,
   outline: 'none',
   resize: 'vertical',
@@ -52,10 +53,10 @@ const INPUT: CSSProperties = {
 const MINI_BTN: CSSProperties = {
   padding: '4px 9px',
   border: '1px solid var(--line2)',
-  borderRadius: '7px',
+  borderRadius: 'var(--rad-s)',
   background: 'none',
   color: 'var(--tx2)',
-  font: "500 11px 'Noto Sans JP'",
+  font: "500 11px var(--f-ui)",
   cursor: 'pointer',
 };
 
@@ -139,11 +140,12 @@ export function NoteView({ note }: NoteViewProps) {
       <div className="nb-sheet__holes" aria-hidden="true" />
       <div className="nb-sheet__body">
         {/* ── ヘッダ */}
+        {/* ページ頭の日付欄。ノートの一番上に赤で引く 1 本と同じ */}
         <header
           style={{
-            borderBottom: '2px solid var(--line)',
+            borderBottom: '2px solid var(--nb-margin)',
             paddingBottom: '12px',
-            marginBottom: '18px',
+            marginBottom: '20px',
           }}
         >
           <div
@@ -155,19 +157,19 @@ export function NoteView({ note }: NoteViewProps) {
                 type="date"
                 value={note.date}
                 onChange={(e) => patch((d) => void (d.date = e.target.value))}
-                style={{ ...INPUT, width: 'auto', font: "500 11.5px 'Space Grotesk'" }}
+                style={{ ...INPUT, width: 'auto', font: "500 11.5px var(--f-num)" }}
               />
             ) : (
-              <span style={{ font: "500 11.5px 'Space Grotesk'", color: 'var(--tx3)' }}>
+              <span style={{ font: "400 13px var(--f-hand)", color: 'var(--tx2)' }}>
                 {note.date ? note.date.slice(0, 4) + '年' + longDayLabel(note.date) : '日付なし'}
               </span>
             )}
             <span
               style={{
-                font: "700 10px 'Noto Sans JP'",
+                font: "700 10px var(--f-ui)",
                 color: subjColor.c,
                 background: subjColor.bg,
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '2px 9px',
               }}
             >
@@ -203,11 +205,11 @@ export function NoteView({ note }: NoteViewProps) {
                     key={s}
                     onClick={() => patch((d) => void (d.subject = s))}
                     style={{
-                      font: "600 11px 'Noto Sans JP'",
+                      font: "600 11px var(--f-ui)",
                       color: on ? 'var(--onAcc)' : 'var(--tx2)',
                       background: on ? 'var(--view)' : 'var(--bg2)',
                       border: '1px solid ' + (on ? 'var(--view)' : 'var(--line2)'),
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '4px 11px',
                       cursor: 'pointer',
                     }}
@@ -224,48 +226,30 @@ export function NoteView({ note }: NoteViewProps) {
               value={note.unit}
               onChange={(e) => patch((d) => void (d.unit = e.target.value))}
               placeholder="単元名"
-              style={{ ...INPUT, marginTop: '8px', font: "700 20px 'Noto Sans JP'" }}
+              style={{ ...INPUT, marginTop: '8px', font: "600 20px var(--f-hand)" }}
             />
           ) : (
-            <h1
-              className="nb-hand"
-              style={{ margin: '8px 0 0', font: "700 22px 'Noto Sans JP'", color: 'var(--tx0)' }}
-            >
-              {note.unit || '(単元名なし)'}
+            <h1 style={{ margin: '10px 0 0', font: "600 26px var(--f-hand)", color: 'var(--tx0)' }}>
+              <span className="nb-marker">{note.unit || '(単元名なし)'}</span>
             </h1>
           )}
         </header>
 
-        {/* ── 想起 */}
-        <section style={{ marginBottom: '22px' }}>
-          <div style={SECTION_LABEL}>想起</div>
-          <div style={{ display: 'grid', gap: '10px' }}>
+        {/* ── 想起。枠で囲わず、問番号を左の余白にぶら下げる（ノートの書き方そのまま） */}
+        <section style={{ marginBottom: '26px' }}>
+          <div className="nb-label">想起</div>
+          <div style={{ display: 'grid', gap: '18px' }}>
             {note.cards.map((card, i) => {
               const key = 'r:' + note.id + ':' + card.cardId;
               const open = isOpen(key);
               const { pending, done } = reviewOf(card.cardId);
               return (
-                <div
-                  key={card.cardId}
-                  style={{
-                    border: '1px solid var(--line)',
-                    borderRadius: 'var(--rad)',
-                    background: 'var(--nb-card, var(--bg1))',
-                    padding: '12px 14px',
-                  }}
-                >
+                <div key={card.cardId}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                    <span
-                      style={{
-                        font: "700 12px 'Space Grotesk'",
-                        color: 'var(--view)',
-                        flex: '0 0 auto',
-                        marginTop: '2px',
-                      }}
-                    >
-                      {'問' + (i + 1)}
-                    </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
+                      <span className="nb-no" aria-hidden="true">
+                        {'問' + (i + 1)}
+                      </span>
                       {edit ? (
                         <textarea
                           className="fc-acc"
@@ -277,7 +261,7 @@ export function NoteView({ note }: NoteViewProps) {
                           style={{ ...INPUT, minHeight: '52px' }}
                         />
                       ) : (
-                        <NoteMath src={card.q} style={{ color: 'var(--tx0)', fontSize: '14px' }} />
+                        <NoteMath className="nb-write" src={card.q} />
                       )}
                     </div>
                     {edit ? (
@@ -314,17 +298,20 @@ export function NoteView({ note }: NoteViewProps) {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <span
+                    <button
                       onClick={() => toggle(key)}
                       style={{
-                        font: "600 11px 'Noto Sans JP'",
-                        color: 'var(--view)',
+                        padding: 0,
+                        border: 0,
+                        background: 'none',
+                        font: "600 12px var(--f-hand)",
+                        color: 'var(--nb-red)',
                         cursor: 'pointer',
                         userSelect: 'none',
                       }}
                     >
                       {(open ? '▾ ' : '▸ ') + (open ? '解答を隠す' : '解答を見る')}
-                    </span>
+                    </button>
                     <span style={{ flex: 1 }} />
                     {pending ? (
                       <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
@@ -350,18 +337,18 @@ export function NoteView({ note }: NoteViewProps) {
 
                   <div style={wrapStyle(open)}>
                     <div style={WRAP_INNER}>
+                      {/* 解答は赤ペンで書いた体。あとから書き足したぶんなので少し下げる */}
                       <div
                         style={{
-                          paddingTop: '10px',
-                          marginTop: '10px',
-                          borderTop: '1px dashed var(--line)',
+                          paddingLeft: '2px',
+                          marginTop: '6px',
                           display: 'grid',
-                          gap: '8px',
+                          gap: '10px',
                         }}
                       >
                         {edit || card.guide ? (
                           <div>
-                            <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>方針</div>
+                            <div style={FIELD_LABEL}>方針</div>
                             {edit ? (
                               <textarea
                                 className="fc-acc"
@@ -373,12 +360,12 @@ export function NoteView({ note }: NoteViewProps) {
                                 style={{ ...INPUT, minHeight: '44px' }}
                               />
                             ) : (
-                              <NoteMath src={card.guide} style={{ color: 'var(--tx2)', fontSize: '13px' }} />
+                              <NoteMath className="nb-write nb-write--sm" src={card.guide} />
                             )}
                           </div>
                         ) : null}
                         <div>
-                          <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>解答</div>
+                          <div style={FIELD_LABEL}>解答</div>
                           {edit ? (
                             <textarea
                               className="fc-acc"
@@ -388,7 +375,7 @@ export function NoteView({ note }: NoteViewProps) {
                               style={{ ...INPUT, minHeight: '52px' }}
                             />
                           ) : (
-                            <NoteMath src={card.a} style={{ color: 'var(--tx1)', fontSize: '13.5px' }} />
+                            <NoteMath className="nb-write nb-write--red" src={card.a} />
                           )}
                         </div>
                         {edit ? (
@@ -397,10 +384,10 @@ export function NoteView({ note }: NoteViewProps) {
                             value={card.src}
                             onChange={(e) => patch((d) => void (d.cards[i].src = e.target.value))}
                             placeholder="出典(任意)"
-                            style={{ ...INPUT, font: "400 11.5px 'Noto Sans JP'" }}
+                            style={{ ...INPUT, font: "400 11.5px var(--f-ui)" }}
                           />
                         ) : card.src ? (
-                          <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
+                          <div style={{ font: "400 11px var(--f-hand)", color: 'var(--tx3)' }}>
                             {'出典: ' + card.src}
                           </div>
                         ) : null}
@@ -438,9 +425,9 @@ export function NoteView({ note }: NoteViewProps) {
 
         {/* ── 解説 */}
         {note.blocks.length || edit ? (
-          <section style={{ marginBottom: '22px' }}>
-            <div style={SECTION_LABEL}>解説</div>
-            <div style={{ display: 'grid', gap: '12px' }}>
+          <section style={{ marginBottom: '26px' }}>
+            <div className="nb-label">解説</div>
+            <div style={{ display: 'grid', gap: '16px' }}>
               {note.blocks.map((block, bi) => (
                 <NoteBlockRow
                   key={bi}
@@ -488,16 +475,9 @@ export function NoteView({ note }: NoteViewProps) {
 
         {/* ── 演習 */}
         {note.exercise.q || edit ? (
-          <section style={{ marginBottom: '22px' }}>
-            <div style={SECTION_LABEL}>演習</div>
-            <div
-              style={{
-                border: '1px solid var(--line)',
-                borderRadius: 'var(--rad)',
-                background: 'var(--nb-card, var(--bg1))',
-                padding: '12px 14px',
-              }}
-            >
+          <section style={{ marginBottom: '26px' }}>
+            <div className="nb-label">演習</div>
+            <div>
               {edit ? (
                 <textarea
                   className="fc-acc"
@@ -507,29 +487,27 @@ export function NoteView({ note }: NoteViewProps) {
                   style={{ ...INPUT, minHeight: '52px' }}
                 />
               ) : (
-                <NoteMath src={note.exercise.q} style={{ color: 'var(--tx0)', fontSize: '14px' }} />
+                <NoteMath className="nb-write" src={note.exercise.q} />
               )}
-              <div
+              <button
                 onClick={() => toggle('e:' + note.id)}
                 style={{
-                  font: "600 11px 'Noto Sans JP'",
-                  color: 'var(--view)',
+                  marginTop: '8px',
+                  padding: 0,
+                  border: 0,
+                  background: 'none',
+                  font: "600 12px var(--f-hand)",
+                  color: 'var(--nb-red)',
                   cursor: 'pointer',
-                  marginTop: '9px',
                   userSelect: 'none',
                 }}
               >
                 {isOpen('e:' + note.id) ? '▾ 解答を隠す' : '▸ 解答を見る'}
-              </div>
+              </button>
               <div style={wrapStyle(isOpen('e:' + note.id))}>
                 <div style={WRAP_INNER}>
-                  <div
-                    style={{
-                      paddingTop: '10px',
-                      marginTop: '10px',
-                      borderTop: '1px dashed var(--line)',
-                    }}
-                  >
+                  <div style={{ marginTop: '6px' }}>
+                    <div style={FIELD_LABEL}>解答</div>
                     {edit ? (
                       <textarea
                         className="fc-acc"
@@ -539,10 +517,7 @@ export function NoteView({ note }: NoteViewProps) {
                         style={{ ...INPUT, minHeight: '60px' }}
                       />
                     ) : (
-                      <NoteMath
-                        src={note.exercise.a}
-                        style={{ color: 'var(--tx1)', fontSize: '13.5px' }}
-                      />
+                      <NoteMath className="nb-write nb-write--red" src={note.exercise.a} />
                     )}
                   </div>
                 </div>
@@ -566,7 +541,16 @@ export function NoteView({ note }: NoteViewProps) {
             ].map((s) =>
               s.value || edit ? (
                 <div key={s.key} className={'nb-sticky nb-sticky--' + s.tone}>
-                  <div style={{ ...SECTION_LABEL, color: 'inherit', opacity: 0.75 }}>{s.label}</div>
+                  <div
+                    style={{
+                      font: "600 12px var(--f-hand)",
+                      letterSpacing: '.1em',
+                      opacity: 0.7,
+                      marginBottom: '4px',
+                    }}
+                  >
+                    {s.label}
+                  </div>
                   {edit ? (
                     <textarea
                       className="fc-acc"
@@ -576,7 +560,10 @@ export function NoteView({ note }: NoteViewProps) {
                       style={{ ...INPUT, minHeight: '68px', background: 'transparent' }}
                     />
                   ) : (
-                    <NoteMath src={s.value} style={{ fontSize: '13px', lineHeight: 1.8 }} />
+                    <NoteMath
+                      src={s.value}
+                      style={{ font: "400 14px/1.85 var(--f-hand)" }}
+                    />
                   )}
                 </div>
               ) : null,
@@ -622,14 +609,12 @@ function NoteBlockRow({
   return (
     <div
       style={cssVars({
-        border: '1px solid var(--line)',
-        borderLeft: '3px solid var(--view)',
-        borderRadius: 'var(--rad)',
-        background: 'var(--nb-card, var(--bg1))',
-        padding: '12px 14px',
+        /* 赤の縦線は用紙のマージン 1 本だけにしたいので、ここは鉛筆の線で括る */
+        borderLeft: '2px solid var(--nb-rule)',
+        paddingLeft: '14px',
       })}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
         {block.t === 'def' ? (
           edit ? (
             <input
@@ -642,15 +627,16 @@ function NoteBlockRow({
                 })
               }
               placeholder="見出し"
-              style={{ ...INPUT, font: "700 13px 'Noto Sans JP'" }}
+              style={{ ...INPUT, font: "600 14px var(--f-hand)" }}
             />
           ) : (
-            <span style={{ font: "700 13px 'Noto Sans JP'", color: 'var(--tx0)' }}>
-              {block.title || '定義'}
+            /* 用語の見出しは蛍光マーカーで塗る */
+            <span style={{ font: "600 15px var(--f-hand)", color: 'var(--tx0)' }}>
+              <span className="nb-marker">{block.title || '定義'}</span>
             </span>
           )
         ) : (
-          <span style={{ font: "700 12px 'Space Grotesk'", color: 'var(--view)' }}>
+          <span style={{ font: "600 13px var(--f-hand)", color: 'var(--nb-red)' }}>
             {cardNo ? '問' + cardNo + ' の解説' : '解説(対象未設定)'}
           </span>
         )}
@@ -671,7 +657,7 @@ function NoteBlockRow({
                   ...INPUT,
                   width: 'auto',
                   padding: '4px 8px',
-                  font: "400 11px 'Noto Sans JP'",
+                  font: "400 11px var(--f-ui)",
                 }}
               >
                 <option value="">対象なし</option>
@@ -714,12 +700,16 @@ function NoteBlockRow({
             style={{ ...INPUT, minHeight: '70px' }}
           />
         ) : (
-          <NoteMath src={block.body} style={{ color: 'var(--tx1)', fontSize: '13.5px' }} />
+          <NoteMath className="nb-write" src={block.body} />
         )
       ) : (
-        <div style={{ display: 'grid', gap: '9px' }}>
+        <div style={{ display: 'grid', gap: '10px' }}>
           {!edit && card ? (
-            <NoteMath src={card.q} style={{ color: 'var(--tx2)', fontSize: '12.5px' }} />
+            <NoteMath
+              className="nb-write nb-write--sm"
+              src={card.q}
+              style={{ color: 'var(--tx2)' }}
+            />
           ) : null}
           {(
             [
@@ -732,7 +722,7 @@ function NoteBlockRow({
             if (!edit && !value) return null;
             return (
               <div key={f.key}>
-                <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>{f.label}</div>
+                <div style={FIELD_LABEL}>{f.label}</div>
                 {edit ? (
                   <textarea
                     className="fc-acc"
@@ -747,12 +737,13 @@ function NoteBlockRow({
                     style={{ ...INPUT, minHeight: '46px' }}
                   />
                 ) : (
+                  /* 解答と注意は赤ペン。方針は鉛筆のまま */
                   <NoteMath
+                    className={
+                      'nb-write nb-write--sm' +
+                      (f.key === 'guide' ? '' : ' nb-write--red')
+                    }
                     src={value}
-                    style={{
-                      color: f.key === 'caution' ? 'var(--pink)' : 'var(--tx1)',
-                      fontSize: '13px',
-                    }}
                   />
                 )}
               </div>

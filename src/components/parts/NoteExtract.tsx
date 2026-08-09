@@ -58,10 +58,10 @@ export function buildDrillItems(notes: readonly Note[], subjFilter: string | nul
 const MINI_BTN = {
   padding: '4px 9px',
   border: '1px solid var(--line2)',
-  borderRadius: '7px',
+  borderRadius: 'var(--rad-s)',
   background: 'none',
   color: 'var(--tx2)',
-  font: "500 11px 'Noto Sans JP'",
+  font: "500 11px var(--f-ui)",
   cursor: 'pointer',
 } as const;
 
@@ -89,7 +89,7 @@ export function NoteExtract() {
   return (
     <div style={{ animation: 'fadeUp .22s ease', display: 'grid', gap: '12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
-        <div style={{ font: "700 15px 'Noto Sans JP'", color: 'var(--tx0)' }}>問題抽出</div>
+        <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>問題抽出</div>
         <div style={{ fontSize: '11.5px', color: 'var(--tx3)' }}>
           {'全ノートから ' + items.length + ' 問'}
         </div>
@@ -139,10 +139,10 @@ export function NoteExtract() {
             >
               <span
                 style={{
-                  font: "700 10px 'Noto Sans JP'",
+                  font: "700 10px var(--f-ui)",
                   color: it.kind === '想起' ? 'var(--view)' : 'var(--org)',
                   background: it.kind === '想起' ? 'var(--viewBg)' : 'var(--orgBg)',
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 9px',
                 }}
               >
@@ -150,10 +150,10 @@ export function NoteExtract() {
               </span>
               <span
                 style={{
-                  font: "700 10px 'Noto Sans JP'",
+                  font: "700 10px var(--f-ui)",
                   color: color.c,
                   background: color.bg,
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 9px',
                 }}
               >
@@ -179,7 +179,7 @@ export function NoteExtract() {
                 store.setState((s) => ({ nbRevealed: { ...s.nbRevealed, [it.key]: !open } }))
               }
               style={{
-                font: "600 11px 'Noto Sans JP'",
+                font: "600 11px var(--f-ui)",
                 color: 'var(--view)',
                 cursor: 'pointer',
                 marginTop: '9px',

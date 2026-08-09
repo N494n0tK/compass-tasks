@@ -151,7 +151,7 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
             padding: '28px',
             background: 'var(--bg1)',
             border: '1px solid var(--line2)',
-            borderRadius: '20px',
+            borderRadius: 'var(--rad)',
             boxShadow: '0 30px 100px rgba(0,0,0,.55)',
             display: 'flex',
             flexDirection: 'column',
@@ -163,7 +163,7 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
           <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>
             <span
               style={{
-                font: "700 12px 'Noto Sans JP'",
+                font: "700 12px var(--f-ui)",
                 color: 'var(--acc)',
                 letterSpacing: '.08em',
               }}
@@ -177,7 +177,7 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
                 width: '30px',
                 height: '30px',
                 border: '1px solid var(--line2)',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 background: 'none',
                 color: 'var(--tx2)',
                 cursor: 'pointer',
@@ -187,7 +187,7 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
             </button>
           </div>
           <div>
-            <div style={{ font: "700 20px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+            <div style={{ font: "700 20px var(--f-ui)", color: 'var(--tx0)' }}>
               {focusItem ? focusItem.title : '今日のタスクはありません'}
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '6px' }}>
@@ -210,7 +210,7 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
           >
             <span
               style={{
-                font: "700 48px 'Space Grotesk'",
+                font: "700 48px var(--f-num)",
                 color: 'var(--tx0)',
                 letterSpacing: '.03em',
               }}
@@ -227,10 +227,10 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
                   padding: '6px 13px',
                   border:
                     '1px solid ' + (S.focusPreset === min ? 'var(--acc)' : 'var(--line2)'),
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   background: S.focusPreset === min ? 'var(--acc)' : 'var(--bg2)',
                   color: S.focusPreset === min ? 'var(--onAcc)' : 'var(--tx2)',
-                  font: "700 11px 'Space Grotesk'",
+                  font: "700 11px var(--f-num)",
                   cursor: 'pointer',
                 }}
               >
@@ -245,10 +245,10 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
                 flex: 1,
                 padding: '12px',
                 border: 'none',
-                borderRadius: '11px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--acc)',
                 color: 'var(--onAcc)',
-                font: "700 13px 'Noto Sans JP'",
+                font: "700 13px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >
@@ -261,10 +261,10 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
                   flex: 1,
                   padding: '12px',
                   border: '1px solid var(--grn)',
-                  borderRadius: '11px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--grnBg)',
                   color: 'var(--grn)',
-                  font: "700 13px 'Noto Sans JP'",
+                  font: "700 13px var(--f-ui)",
                   cursor: 'pointer',
                 }}
               >

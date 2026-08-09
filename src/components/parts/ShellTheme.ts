@@ -1,98 +1,115 @@
 'use client';
 
 /**
- * Compass — テーマトークンと画面メタ（Phase 2B / TASK S0）
+ * Compass — テーマトークンと画面メタ
  *
- * 出典:
- *  - HTML:786（`.compass-theme` のインライン静的トークン）
- *  - HTML:2637-2678（`glow` / `rad` / `acc` / `gl()` / `themeStyle` / `VIEW_TOKEN`）
- *  - HTML:2680-2687（`views`）、2709（`titles`）、4115（`themeName`）
- *  - css-notes.md §1（`data-theme` の正規化）、§2
+ * 2026-08 のデザイン刷新で色・角丸・影のトークンを総入れ替えした。
+ * 画面メタ（`VIEWS` / `TITLES` / `VIEW_TOKEN` / `normalizeNavOrder`）と
+ * `data-theme` の正規化（css-notes.md §1）は従来どおり。
  *
- * `props`（glow=3 / radius=12 / accent='#3d3629'）は dc エディタ専用で UI から変更できないため、
- * spec Q27 の「既定値で定数にインライン化」を採る（値・計算式はレガシーと同一）。
+ * ## デザイン言語 —「校内プリント」
+ *
+ * Compass のデータ源は時間割なので、見た目も学校の配布物（時間割表・成績表・
+ * ガリ版プリント）に寄せている。判断の軸は 3 つ:
+ *
+ *  1. **紙は方眼**。背景に 32px の方眼罫（`--grid` / `--grid2`）が通り、
+ *     すべての面がその上のセルとして置かれる。角丸は 2–3px、影は使わない。
+ *  2. **インクは数色**。リソグラフの版のように、1 画面につき地の墨 + 差し色 1 色。
+ *     差し色は画面ごと（`VIEW_TOKEN`）。
+ *  3. **蛍光オレンジ（`--pink`）は「いま」専用**。今日のToDo・期限切れ・
+ *     現在のコマにしか出さない。ここだけは面で塗る。
+ *
+ * 3 テーマは同じ版を違う紙に刷ったもの:
+ * `note`=夜の藍刷り（既定） / `light`=印刷したプリント / `dark`=深夜（OLED）。
  */
 
 import type { Theme, ThemeSkin, ViewId } from '../../lib/model/types';
 
 // ─────────────────────────────────────────────────────────────
-// props（HTML:1882 の data-props 既定値）
+// 構造トークン（テーマ非依存）
 // ─────────────────────────────────────────────────────────────
 
-/** `props.glow`（0–10, 既定 3）。`glow = clamp/3` なので既定 1（HTML:2637） */
-const PROP_GLOW = 3;
-/** `props.radius`（既定 12） */
-const PROP_RADIUS = 12;
-/** `props.accent`（既定 '#3d3629'）。**light テーマの `--acc`/`--grad` にだけ効く** */
-const PROP_ACCENT = '#3d3629';
+/** 面（パネル・モーダル）の角丸。紙を裁った程度にしか丸めない */
+const RAD = '3px';
+/** セル（ボタン・入力・チップ・ドット）の角丸 */
+const RAD_S = '2px';
 
-const GLOW = Math.max(0, Math.min(10, PROP_GLOW)) / 3;
-const RAD = PROP_RADIUS + 'px';
+/** 教科パレット。11 色（`logic/subjects.ts` が順に割り当てる） */
+const SUBJECTS_DARK: Record<string, string> = {
+  '--sj-terra': '#ff7a5c',
+  '--sj-rose': '#ff8fb0',
+  '--sj-indigo': '#8aa4ff',
+  '--sj-ochre': '#ffc857',
+  '--sj-forest': '#57c88a',
+  '--sj-teal': '#4fd0d8',
+  '--sj-olive': '#b6d15e',
+  '--sj-amber': '#ffab4d',
+  '--sj-plum': '#b795f5',
+  '--sj-graphite': '#9fb0c2',
+  '--sj-steel': '#74b4ee',
+};
 
-/** `gl(col, base)`（HTML:2639） */
-function gl(col: string, base: number): string {
-  return GLOW === 0
-    ? 'none'
-    : '0 0 ' +
-        Math.round(base * GLOW) +
-        'px color-mix(in srgb, ' +
-        col +
-        ' ' +
-        Math.round(30 * Math.min(GLOW, 2)) +
-        '%, transparent)';
-}
+const SUBJECTS_LIGHT: Record<string, string> = {
+  '--sj-terra': '#c2401f',
+  '--sj-rose': '#b53a63',
+  '--sj-indigo': '#3548a8',
+  '--sj-ochre': '#8a6300',
+  '--sj-forest': '#1d6f45',
+  '--sj-teal': '#0d6f7c',
+  '--sj-olive': '#4f6a12',
+  '--sj-amber': '#95590c',
+  '--sj-plum': '#63409f',
+  '--sj-graphite': '#4f5c69',
+  '--sj-steel': '#2a6296',
+};
 
 // ─────────────────────────────────────────────────────────────
-// `.compass-theme` の静的インラインスタイル（HTML:786）
+// `.compass-theme` の静的インラインスタイル
 // ─────────────────────────────────────────────────────────────
 
-/** HTML:786 の `style="…"` を 1:1 で写したもの。値も順序もレガシーどおり */
+/**
+ * SSR 直後（`buildThemeStyle` が当たる前）に見える既定値。
+ * 中身は `note`（既定テーマ）と同じなので初期描画で色が飛ばない。
+ */
 export const STATIC_THEME_TOKENS: Record<string, string> = {
-  '--bg0': '#100f0c',
-  '--bg1': '#1a1814',
-  '--bg2': '#151310',
-  '--bg3': '#26231c',
-  '--line': '#37332b',
-  '--line2': '#4e4940',
-  '--tx0': '#f2ede1',
-  '--tx1': '#dbd4c7',
-  '--tx2': '#a9a296',
-  '--tx3': '#867f76',
-  '--acc': '#f2ede1',
-  '--accBg': '#2b2822',
-  '--vio': '#bda7e6',
-  '--vioBg': '#2b2438',
-  '--grn': '#96c49c',
-  '--grnBg': '#1d2c21',
-  '--pink': '#dd9184',
-  '--pinkBg': '#36231f',
-  '--blue': '#93b3cf',
-  '--blueBg': '#1e2933',
-  '--org': '#ddb277',
-  '--orgBg': '#33281c',
-  // ノート画面の署名カラー（レガシーに無い追加。docs/notebook/spec.md §8）
-  '--ink': '#cbb693',
-  '--inkBg': '#2f2719',
-  '--onAcc': '#141310',
-  '--rad': '12px',
+  '--bg0': '#0c1520',
+  '--bg1': '#111e2e',
+  '--bg2': '#0e1926',
+  '--bg3': '#1a2c42',
+  '--line': '#1c3049',
+  '--line2': '#2c4967',
+  '--tx0': '#eaf1f8',
+  '--tx1': '#c3d3e3',
+  '--tx2': '#8ba2ba',
+  '--tx3': '#62798f',
+  '--acc': '#f0f5fa',
+  '--accBg': '#1d3149',
+  '--vio': '#9d8bf2',
+  '--vioBg': '#24234a',
+  '--grn': '#35c07d',
+  '--grnBg': '#10332a',
+  '--pink': '#ff5b2e',
+  '--pinkBg': '#3a1c11',
+  '--blue': '#57a8ff',
+  '--blueBg': '#102a45',
+  '--org': '#ffc93f',
+  '--orgBg': '#382c10',
+  // ノート画面の署名カラー（docs/notebook/spec.md §8）
+  '--ink': '#39cfc4',
+  '--inkBg': '#0e3330',
+  '--onAcc': '#0c1520',
+  '--grid': 'rgba(120,165,210,.055)',
+  '--grid2': 'rgba(120,165,210,.10)',
+  '--rad': RAD,
+  '--rad-s': RAD_S,
   '--grad': 'var(--view)',
   '--view': 'var(--acc)',
   '--viewBg': 'var(--accBg)',
   '--gAcc': 'none',
   '--gVio': 'none',
   '--gGrn': 'none',
-  '--sj-terra': '#d98a78',
-  '--sj-rose': '#d894ac',
-  '--sj-indigo': '#8ba3dd',
-  '--sj-ochre': '#dcb765',
-  '--sj-forest': '#7fb08b',
-  '--sj-teal': '#6fb6c4',
-  '--sj-olive': '#a8bf6e',
-  '--sj-amber': '#e0a76a',
-  '--sj-plum': '#b795dc',
-  '--sj-graphite': '#a09a8e',
-  '--sj-steel': '#8fb0cd',
-  fontFamily: "'Noto Sans JP',system-ui,sans-serif",
+  ...SUBJECTS_DARK,
+  fontFamily: 'var(--f-ui)',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -111,141 +128,113 @@ export const THEME_ATTR: Readonly<Record<Theme, ThemeSkin>> = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// themeStyle（HTML:2640-2678）
+// themeStyle — 同じ版を 3 種類の紙に刷る
 // ─────────────────────────────────────────────────────────────
 
-/** neon（素の 2026 基底）。`Object.assign` の第1引数（HTML:2640-2650） */
+/**
+ * `dark` — 深夜（OLED）。`data-theme="neon"`。
+ * 3 テーマの基底でもあるので、ここに全トークンを揃えておく
+ * （`note` / `light` は差分だけを上書きする）。
+ */
 const NEON_TOKENS: Record<string, string> = {
-  '--bg0': '#071421',
-  '--bg1': '#0b1b2b',
-  '--bg2': '#081725',
-  '--bg3': '#10273a',
-  '--line': '#193147',
-  '--line2': '#29465f',
-  '--tx0': '#f1f6fb',
-  '--tx1': '#d4e0eb',
-  '--tx2': '#8fa5b9',
-  '--tx3': '#5d768c',
-  '--acc': '#42d7f2',
-  '--accBg': '#0b3343',
-  '--vio': '#9a79f6',
-  '--vioBg': '#282044',
-  '--grn': '#4cda91',
-  '--grnBg': '#153829',
-  '--pink': '#ff6e5b',
-  '--pinkBg': '#3b2427',
-  '--blue': '#58a6ff',
-  '--blueBg': '#142c48',
-  '--org': '#efa960',
-  '--orgBg': '#3a2b1d',
-  '--ink': '#e879c7',
-  '--inkBg': '#3a1f34',
-  '--onAcc': '#04131d',
+  '--bg0': '#07090d',
+  '--bg1': '#0d1219',
+  '--bg2': '#0a0e14',
+  '--bg3': '#161e29',
+  '--line': '#1a2330',
+  '--line2': '#2c3948',
+  '--tx0': '#f3f7fb',
+  '--tx1': '#ccd7e2',
+  '--tx2': '#8b9aa9',
+  '--tx3': '#5f6d7c',
+  '--acc': '#ffffff',
+  '--accBg': '#1b2531',
+  '--vio': '#ab90ff',
+  '--vioBg': '#241f42',
+  '--grn': '#2ee08a',
+  '--grnBg': '#0b3324',
+  '--pink': '#ff5f2e',
+  '--pinkBg': '#351608',
+  '--blue': '#4fa8ff',
+  '--blueBg': '#0c2743',
+  '--org': '#ffd23f',
+  '--orgBg': '#33280a',
+  '--ink': '#2fe0d2',
+  '--inkBg': '#093330',
+  '--onAcc': '#07090d',
+  '--grid': 'rgba(150,180,210,.05)',
+  '--grid2': 'rgba(150,180,210,.09)',
   '--rad': RAD,
-  '--grad': 'linear-gradient(90deg,#42d7f2,#58a6ff)',
-  '--gAcc': gl('#42d7f2', 14),
-  '--gVio': gl('#9a79f6', 14),
-  '--gGrn': gl('#4cda91', 12),
-  '--sj-terra': '#ef5350',
-  '--sj-rose': '#f277a8',
-  '--sj-indigo': '#5b7bf0',
-  '--sj-ochre': '#f3c74f',
-  '--sj-forest': '#2aa578',
-  '--sj-teal': '#35cfe8',
-  '--sj-olive': '#9bd63b',
-  '--sj-amber': '#f59e42',
-  '--sj-plum': '#9a6bde',
-  '--sj-graphite': '#7f8a99',
-  '--sj-steel': '#4f9cf6',
+  '--rad-s': RAD_S,
+  '--grad': 'var(--view)',
+  '--gAcc': 'none',
+  '--gVio': 'none',
+  '--gGrn': 'none',
+  ...SUBJECTS_DARK,
 };
 
-/** Ink & Paper — Day（HTML:2651-2660） */
+/** `light` — 刷り上がったプリント。紙は温かい灰白、墨は藍 */
 const LIGHT_TOKENS: Record<string, string> = {
-  '--bg0': '#f3f0e6',
-  '--bg1': '#fffdf6',
-  '--bg2': '#faf6ea',
-  '--bg3': '#ebe5d4',
-  '--line': '#ded7c4',
-  '--line2': '#c4bba4',
-  '--tx0': '#1f1c16',
-  '--tx1': '#3a352c',
-  '--tx2': '#6b6458',
-  '--tx3': '#958d7d',
-  '--accBg': '#e9e3d2',
-  '--vio': '#6a4ac2',
-  '--vioBg': '#ece5fa',
-  '--grn': '#2b7d52',
-  '--grnBg': '#dcefe2',
-  '--pink': '#c04832',
-  '--pinkBg': '#fae3dc',
-  '--blue': '#2a68a6',
-  '--blueBg': '#e1ecf7',
-  '--org': '#a56717',
-  '--orgBg': '#f6e9d4',
-  '--ink': '#7a5c2e',
-  '--inkBg': '#f0e7d3',
-  '--onAcc': '#fffdf6',
-  '--acc': PROP_ACCENT,
-  '--grad': PROP_ACCENT,
-  '--gAcc': 'none',
-  '--gVio': 'none',
-  '--gGrn': 'none',
-  '--sj-terra': '#b04b39',
-  '--sj-rose': '#a34866',
-  '--sj-indigo': '#3a55a8',
-  '--sj-ochre': '#8f6c11',
-  '--sj-forest': '#2e6d46',
-  '--sj-teal': '#1f7484',
-  '--sj-olive': '#57731d',
-  '--sj-amber': '#a5661a',
-  '--sj-plum': '#6f4aa8',
-  '--sj-graphite': '#655f55',
-  '--sj-steel': '#37678d',
+  '--bg0': '#e7e4db',
+  '--bg1': '#fbfaf6',
+  '--bg2': '#f2f0e9',
+  '--bg3': '#e4e1d7',
+  '--line': '#d5d1c5',
+  '--line2': '#b2ac9c',
+  '--tx0': '#14202e',
+  '--tx1': '#2d3b4c',
+  '--tx2': '#51606f',
+  // 明るい紙の上でも 4.5:1 を切らないところまで濃くする（補助文言もここを使う）
+  '--tx3': '#6a7885',
+  '--acc': '#17293e',
+  '--accBg': '#e2e6ec',
+  '--vio': '#6544cf',
+  '--vioBg': '#ebe6fb',
+  '--grn': '#16794d',
+  '--grnBg': '#dcefe3',
+  '--pink': '#dd4110',
+  '--pinkBg': '#fbe3d9',
+  '--blue': '#1665c8',
+  '--blueBg': '#e0ecfa',
+  '--org': '#9a6a00',
+  '--orgBg': '#f7ecd2',
+  '--ink': '#0b7d76',
+  '--inkBg': '#dcefed',
+  '--onAcc': '#fbfaf6',
+  '--grid': 'rgba(40,70,105,.055)',
+  '--grid2': 'rgba(40,70,105,.10)',
+  ...SUBJECTS_LIGHT,
 };
 
-/** Ink & Paper — Night（HTML:2661-2671） */
+/** `note`（既定）— 夜の藍刷り。紙も墨も藍、蛍光オレンジだけが浮く */
 const NOTE_TOKENS: Record<string, string> = {
-  '--bg0': '#100f0c',
-  '--bg1': '#1a1814',
-  '--bg2': '#151310',
-  '--bg3': '#26231c',
-  '--line': '#37332b',
-  '--line2': '#4e4940',
-  '--tx0': '#f2ede1',
-  '--tx1': '#dbd4c7',
-  '--tx2': '#a9a296',
-  '--tx3': '#867f76',
-  '--acc': '#f2ede1',
-  '--accBg': '#2b2822',
-  '--vio': '#bda7e6',
-  '--vioBg': '#2b2438',
-  '--grn': '#96c49c',
-  '--grnBg': '#1d2c21',
-  '--pink': '#dd9184',
-  '--pinkBg': '#36231f',
-  '--blue': '#93b3cf',
-  '--blueBg': '#1e2933',
-  '--org': '#ddb277',
-  '--orgBg': '#33281c',
-  '--ink': '#cbb693',
-  '--inkBg': '#2f2719',
-  '--onAcc': '#141310',
-  '--rad': '12px',
-  '--grad': '#f2ede1',
-  '--gAcc': 'none',
-  '--gVio': 'none',
-  '--gGrn': 'none',
-  '--sj-terra': '#d98a78',
-  '--sj-rose': '#d894ac',
-  '--sj-indigo': '#8ba3dd',
-  '--sj-ochre': '#dcb765',
-  '--sj-forest': '#7fb08b',
-  '--sj-teal': '#6fb6c4',
-  '--sj-olive': '#a8bf6e',
-  '--sj-amber': '#e0a76a',
-  '--sj-plum': '#b795dc',
-  '--sj-graphite': '#a09a8e',
-  '--sj-steel': '#8fb0cd',
+  '--bg0': '#0c1520',
+  '--bg1': '#111e2e',
+  '--bg2': '#0e1926',
+  '--bg3': '#1a2c42',
+  '--line': '#1c3049',
+  '--line2': '#2c4967',
+  '--tx0': '#eaf1f8',
+  '--tx1': '#c3d3e3',
+  '--tx2': '#8ba2ba',
+  '--tx3': '#62798f',
+  '--acc': '#f0f5fa',
+  '--accBg': '#1d3149',
+  '--vio': '#9d8bf2',
+  '--vioBg': '#24234a',
+  '--grn': '#35c07d',
+  '--grnBg': '#10332a',
+  '--pink': '#ff5b2e',
+  '--pinkBg': '#3a1c11',
+  '--blue': '#57a8ff',
+  '--blueBg': '#102a45',
+  '--org': '#ffc93f',
+  '--orgBg': '#382c10',
+  '--ink': '#39cfc4',
+  '--inkBg': '#0e3330',
+  '--onAcc': '#0c1520',
+  '--grid': 'rgba(120,165,210,.055)',
+  '--grid2': 'rgba(120,165,210,.10)',
 };
 
 /** 画面ごとの署名カラー（HTML:2674） */

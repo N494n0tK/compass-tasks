@@ -318,7 +318,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
             background: 'var(--bg1)',
             border: '1px solid var(--line2)',
             borderRight: 0,
-            borderRadius: '12px 0 0 12px',
+            borderRadius: 'var(--rad) 0 0 var(--rad)',
             boxShadow: '-8px 8px 28px rgba(0,0,0,.28)',
             display: 'flex',
             flexDirection: 'column',
@@ -327,7 +327,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
           }}
         >
           <span
-            style={{ width: '8px', height: '8px', borderRadius: '99px', background: edC }}
+            style={{ width: '8px', height: '8px', borderRadius: 'var(--rad-s)', background: edC }}
           ></span>
           <button
             onClick={expandEditor}
@@ -337,7 +337,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               width: '36px',
               height: '36px',
               border: '1px solid var(--line2)',
-              borderRadius: '9px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--bg2)',
               color: 'var(--tx0)',
               cursor: 'pointer',
@@ -349,7 +349,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
           <span
             style={{
               writingMode: 'vertical-rl',
-              font: "700 10px 'Noto Sans JP'",
+              font: "700 10px var(--f-ui)",
               color: 'var(--tx2)',
               maxHeight: '150px',
               overflow: 'hidden',
@@ -396,14 +396,14 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               style={{
                 width: '8px',
                 height: '8px',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 background: edC,
                 flex: 'none',
                 boxShadow: '0 0 8px ' + edC,
               }}
             ></span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ font: "700 14px 'Noto Sans JP'", color: 'var(--tx0)' }}>{edName}</div>
+              <div style={{ font: "700 14px var(--f-ui)", color: 'var(--tx0)' }}>{edName}</div>
               <div style={{ fontSize: '11px', color: 'var(--tx3)' }}>{edMeta}</div>
             </div>
             <button
@@ -412,11 +412,11 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               style={{
                 padding: '5px 9px',
                 border: '1px solid var(--line2)',
-                borderRadius: '7px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx2)',
                 cursor: 'pointer',
-                font: "700 10px 'Noto Sans JP'",
+                font: "700 10px var(--f-ui)",
                 flex: 'none',
               }}
             >
@@ -428,7 +428,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                 width: '26px',
                 height: '26px',
                 border: '1px solid var(--line2)',
-                borderRadius: '7px',
+                borderRadius: 'var(--rad-s)',
                 background: 'none',
                 color: 'var(--tx2)',
                 cursor: 'pointer',
@@ -445,7 +445,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               alignItems: 'center',
               gap: '14px',
               background: 'var(--bg2)',
-              borderRadius: '12px',
+              borderRadius: 'var(--rad)',
               padding: '12px 14px',
             }}
           >
@@ -481,7 +481,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                   justifyContent: 'center',
                 }}
               >
-                <span style={{ font: "700 16px 'Space Grotesk'", color: 'var(--tx0)' }}>
+                <span style={{ font: "700 16px var(--f-num)", color: 'var(--tx0)' }}>
                   {edPct}
                   <span style={{ fontSize: '10px' }}>%</span>
                 </span>
@@ -502,7 +502,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               gap: '9px',
               background: 'var(--bg2)',
               border: '1px solid var(--line)',
-              borderRadius: '12px',
+              borderRadius: 'var(--rad)',
               padding: '12px',
             }}
           >
@@ -518,10 +518,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                       flex: 1,
                       padding: '7px',
                       border: '1px solid ' + (active ? 'var(--vio)' : 'var(--line2)'),
-                      borderRadius: '8px',
+                      borderRadius: 'var(--rad-s)',
                       background: active ? 'var(--vio)' : 'var(--bg1)',
                       color: active ? 'var(--onAcc)' : 'var(--tx2)',
-                      font: "700 11.5px 'Noto Sans JP'",
+                      font: "700 11.5px var(--f-ui)",
                       cursor: 'pointer',
                     }}
                   >
@@ -546,10 +546,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                   minWidth: 0,
                   padding: '8px 10px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg1)',
                   color: 'var(--tx0)',
-                  font: "500 12px 'Noto Sans JP'",
+                  font: "500 12px var(--f-ui)",
                   outline: 'none',
                 }}
               />
@@ -562,10 +562,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                   minWidth: 0,
                   padding: '8px 10px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg1)',
                   color: 'var(--tx0)',
-                  font: "500 12px 'Space Grotesk'",
+                  font: "500 12px var(--f-num)",
                   outline: 'none',
                   colorScheme: light ? 'light' : 'dark',
                 }}
@@ -580,10 +580,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               style={{
                 padding: '8px 10px',
                 border: '1px solid var(--line2)',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg1)',
                 color: 'var(--tx0)',
-                font: "500 12px 'Noto Sans JP'",
+                font: "500 12px var(--f-ui)",
                 outline: 'none',
               }}
             />
@@ -600,10 +600,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               style={{
                 padding: '8px 10px',
                 border: '1px solid var(--line2)',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg1)',
                 color: 'var(--tx0)',
-                font: "500 12px 'Noto Sans JP'",
+                font: "500 12px var(--f-ui)",
                 outline: 'none',
               }}
             />
@@ -612,10 +612,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               style={{
                 padding: '9px',
                 border: 'none',
-                borderRadius: '9px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 12px 'Noto Sans JP'",
+                font: "700 12px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >
@@ -723,7 +723,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                     borderRight: '1px solid ' + (dragging ? 'var(--acc)' : 'var(--line)'),
                     borderBottom: '1px solid ' + (dragging ? 'var(--acc)' : 'var(--line)'),
                     borderLeft: '3px solid ' + edC,
-                    borderRadius: '9px',
+                    borderRadius: 'var(--rad-s)',
                     transform: dragging ? 'scale(1.02)' : 'none',
                     boxShadow: dragging
                       ? '0 10px 26px rgba(0,0,0,.45)'
@@ -769,7 +769,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                       height: '16px',
                       flex: 'none',
                       border: '1.5px solid ' + (m.done ? 'var(--acc)' : 'var(--line2)'),
-                      borderRadius: '5px',
+                      borderRadius: 'var(--rad-s)',
                       background: m.done ? 'var(--acc)' : 'transparent',
                       color: 'var(--onAcc)',
                       display: 'flex',
@@ -805,7 +805,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                         flex: 1,
                         minWidth: 0,
                         color: 'var(--tx0)',
-                        font: "500 12.5px 'Noto Sans JP'",
+                        font: "500 12.5px var(--f-ui)",
                         textDecoration: m.done ? 'line-through' : 'none',
                         padding: '2px 0',
                         whiteSpace: 'nowrap',
@@ -843,7 +843,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                         border: 'none',
                         outline: 'none',
                         color: 'var(--tx0)',
-                        font: "500 12.5px 'Noto Sans JP'",
+                        font: "500 12.5px var(--f-ui)",
                         textDecoration: m.done ? 'line-through' : 'none',
                         padding: '2px 0',
                         borderBottom: '1px dashed var(--acc)',
@@ -856,7 +856,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                       fontSize: '10px',
                       color: 'var(--tx3)',
                       flex: 'none',
-                      fontFamily: "'Space Grotesk'",
+                      fontFamily: "var(--f-num)",
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -897,11 +897,11 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                       )
                     }
                     style={{
-                      font: "700 10px 'Space Grotesk'",
+                      font: "700 10px var(--f-num)",
                       color: edC,
                       background: 'var(--bg3)',
                       border: '1px solid var(--line2)',
-                      borderRadius: '5px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '2px 7px',
                       cursor: 'pointer',
                       flex: 'none',
@@ -923,7 +923,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                       width: '20px',
                       height: '20px',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: 'var(--rad-s)',
                       background: 'none',
                       color: 'var(--tx3)',
                       cursor: 'pointer',
@@ -957,11 +957,11 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                       focusEl('ed-new');
                     }}
                     style={{
-                      font: "700 11px 'Space Grotesk'",
+                      font: "700 11px var(--f-num)",
                       color: active ? 'var(--onAcc)' : 'var(--tx2)',
                       background: active ? 'var(--acc)' : 'var(--bg2)',
                       border: '1px solid ' + (active ? 'var(--acc)' : 'var(--line2)'),
-                      borderRadius: '8px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '5px 11px',
                       cursor: 'pointer',
                     }}
@@ -985,10 +985,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                   flex: 1,
                   padding: '9px 12px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '9px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg2)',
                   color: 'var(--tx0)',
-                  font: "500 12.5px 'Noto Sans JP'",
+                  font: "500 12.5px var(--f-ui)",
                   outline: 'none',
                 }}
               />
@@ -997,10 +997,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
                 style={{
                   padding: '9px 16px',
                   border: 'none',
-                  borderRadius: '9px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--grad)',
                   color: 'var(--onAcc)',
-                  font: "700 12px 'Noto Sans JP'",
+                  font: "700 12px var(--f-ui)",
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   flex: 'none',
@@ -1021,10 +1021,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               border:
                 '1px solid ' +
                 (completedPlan ? 'color-mix(in srgb,var(--grn) 55%,var(--line2))' : 'var(--line2)'),
-              borderRadius: '9px',
+              borderRadius: 'var(--rad-s)',
               background: 'none',
               color: completedPlan ? 'var(--grn)' : 'var(--tx3)',
-              font: "600 11.5px 'Noto Sans JP'",
+              font: "600 11.5px var(--f-ui)",
               cursor: 'pointer',
             })}
           >

@@ -22,10 +22,10 @@ const PANEL_LABEL = { fontSize: '11px', color: 'var(--tx3)', marginBottom: '6px'
 const STEP_BADGE = {
   width: '20px',
   height: '20px',
-  borderRadius: '50%',
+  borderRadius: 'var(--rad-s)',
   background: 'var(--viewBg)',
   color: 'var(--view)',
-  font: "700 11px 'Space Grotesk'",
+  font: "700 11px var(--f-num)",
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -111,7 +111,7 @@ export function NoteImportModal() {
             overflow: 'auto',
             background: 'var(--bg1)',
             border: '1px solid var(--line2)',
-            borderRadius: '16px',
+            borderRadius: 'var(--rad)',
             padding: '22px',
             display: 'flex',
             flexDirection: 'column',
@@ -121,7 +121,7 @@ export function NoteImportModal() {
           }}
         >
           <div>
-            <div style={{ font: "700 15px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+            <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
               {target ? 'ノートを上書き取り込み' : 'ノートを取り込む'}
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '5px' }}>
@@ -142,13 +142,13 @@ export function NoteImportModal() {
                   gap: '10px',
                   background: 'var(--bg2)',
                   border: '1px solid var(--line)',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '10px 12px',
                 }}
               >
                 <span style={STEP_BADGE}>1</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: "500 12.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+                  <div style={{ font: "500 12.5px var(--f-ui)", color: 'var(--tx1)' }}>
                     {p.label + 'をコピーして、AIに文字起こしと写真を渡す'}
                   </div>
                   <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{p.hint}</div>
@@ -159,10 +159,10 @@ export function NoteImportModal() {
                   style={{
                     padding: '7px 12px',
                     border: '1px solid var(--line2)',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--rad-s)',
                     background: 'none',
                     color: 'var(--tx2)',
-                    font: "500 11.5px 'Noto Sans JP'",
+                    font: "500 11.5px var(--f-ui)",
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
@@ -177,7 +177,7 @@ export function NoteImportModal() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '7px' }}>
               <span style={STEP_BADGE}>2</span>
-              <div style={{ font: "500 12.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+              <div style={{ font: "500 12.5px var(--f-ui)", color: 'var(--tx1)' }}>
                 出てきたJSONを貼り付ける
               </div>
             </div>
@@ -196,10 +196,10 @@ export function NoteImportModal() {
                 resize: 'vertical',
                 background: 'var(--bg2)',
                 border: '1px solid var(--line2)',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 padding: '11px 12px',
                 color: 'var(--tx1)',
-                font: "400 12px 'Space Grotesk',ui-monospace,monospace",
+                font: "400 12px var(--f-num)",
                 lineHeight: 1.6,
                 outline: 'none',
               }}
@@ -212,7 +212,7 @@ export function NoteImportModal() {
               style={{
                 background: 'var(--pinkBg)',
                 border: '1px solid var(--pink)',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 padding: '11px 13px',
               }}
             >
@@ -222,7 +222,7 @@ export function NoteImportModal() {
               <ul style={{ margin: 0, paddingLeft: '18px', display: 'grid', gap: '3px' }}>
                 {issues.map((issue, i) => (
                   <li key={i} style={{ fontSize: '11.5px', color: 'var(--tx1)' }}>
-                    <code style={{ color: 'var(--pink)', fontFamily: "'Space Grotesk',monospace" }}>
+                    <code style={{ color: 'var(--pink)', fontFamily: "var(--f-num)" }}>
                       {issue.path}
                     </code>
                     {' — ' + issue.message}
@@ -238,10 +238,10 @@ export function NoteImportModal() {
               style={{
                 padding: '10px 18px',
                 border: '1px solid var(--line2)',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'none',
                 color: 'var(--tx2)',
-                font: "500 13px 'Noto Sans JP'",
+                font: "500 13px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >
@@ -252,10 +252,10 @@ export function NoteImportModal() {
               style={{
                 padding: '10px 22px',
                 border: 'none',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 13px 'Noto Sans JP'",
+                font: "700 13px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >

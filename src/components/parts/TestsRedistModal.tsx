@@ -222,7 +222,7 @@ export function TestsRedistModal({
           overflow: 'auto',
           background: 'var(--bg1)',
           border: '1px solid var(--line2)',
-          borderRadius: '16px',
+          borderRadius: 'var(--rad)',
           padding: '22px',
           display: 'flex',
           flexDirection: 'column',
@@ -241,7 +241,7 @@ export function TestsRedistModal({
           }}
         >
           <div style={{ flex: 1, minWidth: '240px' }}>
-            <div style={{ font: "700 16px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+            <div style={{ font: "700 16px var(--f-ui)", color: 'var(--tx0)' }}>
               ↻ {redistPlanName} の再配分
             </div>
             <div style={{ fontSize: '12px', color: 'var(--tx3)', marginTop: '3px' }}>
@@ -255,7 +255,7 @@ export function TestsRedistModal({
             aria-pressed={manual ? 'true' : 'false'}
             style={{
               border: '1px solid ' + (manual ? 'var(--acc)' : 'var(--line2)'),
-              borderRadius: '11px',
+              borderRadius: 'var(--rad-s)',
               background: manual ? 'var(--accBg)' : 'var(--bg2)',
               padding: '7px 9px',
               display: 'flex',
@@ -269,7 +269,7 @@ export function TestsRedistModal({
               style={{
                 width: '34px',
                 height: '19px',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 background: manual ? 'var(--acc)' : 'var(--bg3)',
                 border: '1px solid ' + (manual ? 'var(--acc)' : 'var(--line2)'),
                 position: 'relative',
@@ -284,7 +284,7 @@ export function TestsRedistModal({
                   left: '2px',
                   width: '13px',
                   height: '13px',
-                  borderRadius: '50%',
+                  borderRadius: 'var(--rad-s)',
                   background: manual ? 'var(--onAcc)' : 'var(--tx3)',
                   transform: 'translateX(' + (manual ? '15px' : '0px') + ')',
                   transition: '.16s ease',
@@ -296,7 +296,7 @@ export function TestsRedistModal({
               <span
                 style={{
                   display: 'block',
-                  font: "700 11px 'Noto Sans JP'",
+                  font: "700 11px var(--f-ui)",
                   color: manual ? 'var(--acc)' : 'var(--tx2)',
                   whiteSpace: 'nowrap',
                 }}
@@ -328,11 +328,11 @@ export function TestsRedistModal({
                 key={m.id}
                 onClick={() => store.setState({ redistMode: m.id })}
                 style={{
-                  font: "700 12px 'Noto Sans JP'",
+                  font: "700 12px var(--f-ui)",
                   color: active ? 'var(--onAcc)' : 'var(--tx2)',
                   background: active ? 'var(--acc)' : 'var(--bg2)',
                   border: '1px solid ' + (active ? 'var(--acc)' : 'var(--line2)'),
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '6px 13px',
                   cursor: 'pointer',
                 }}
@@ -348,13 +348,13 @@ export function TestsRedistModal({
               padding: '11px 13px',
               background: 'var(--orgBg)',
               border: '1px solid var(--org)',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
               display: 'flex',
               flexDirection: 'column',
               gap: '4px',
             }}
           >
-            <div style={{ font: "700 12px 'Noto Sans JP'", color: 'var(--org)' }}>
+            <div style={{ font: "700 12px var(--f-ui)", color: 'var(--org)' }}>
               各計画のタスクを期間全体へ等間隔に配置します
             </div>
             <div style={{ fontSize: '10.5px', color: 'var(--tx2)' }}>
@@ -372,10 +372,10 @@ export function TestsRedistModal({
               padding: '11px 13px',
               background: 'var(--bg2)',
               border: '1px solid var(--line)',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
             }}
           >
-            <span style={{ font: "700 11.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>期限前</span>
+            <span style={{ font: "700 11.5px var(--f-ui)", color: 'var(--tx1)' }}>期限前</span>
             <input
               type="number"
               min="1"
@@ -391,14 +391,14 @@ export function TestsRedistModal({
                 width: '66px',
                 padding: '7px 9px',
                 border: '1px solid var(--line2)',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg1)',
                 color: 'var(--tx0)',
-                font: "700 13px 'Space Grotesk'",
+                font: "700 13px var(--f-num)",
                 outline: 'none',
               }}
             />
-            <span style={{ font: "700 11.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+            <span style={{ font: "700 11.5px var(--f-ui)", color: 'var(--tx1)' }}>
               日間に分散
             </span>
             <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
@@ -412,13 +412,13 @@ export function TestsRedistModal({
               padding: '12px 14px',
               background: 'var(--orgBg)',
               border: '1px solid var(--org)',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
               display: 'flex',
               flexDirection: 'column',
               gap: '5px',
             }}
           >
-            <div style={{ font: "700 12px 'Noto Sans JP'", color: 'var(--org)' }}>
+            <div style={{ font: "700 12px var(--f-ui)", color: 'var(--org)' }}>
               固定された予定だけで上限を超えている日があります
             </div>
             <div style={{ fontSize: '10.5px', color: 'var(--tx2)' }}>
@@ -433,13 +433,13 @@ export function TestsRedistModal({
               padding: '12px 14px',
               background: 'var(--pinkBg)',
               border: '1px solid var(--pink)',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
             }}
           >
-            <div style={{ font: "700 12px 'Noto Sans JP'", color: 'var(--pink)' }}>
+            <div style={{ font: "700 12px var(--f-ui)", color: 'var(--pink)' }}>
               {redistUnplacedTitle}
             </div>
             {redistUnplaced.map((u) => (
@@ -456,8 +456,8 @@ export function TestsRedistModal({
                 padding: '12px 14px',
                 background: 'var(--bg2)',
                 border: '1px solid var(--line)',
-                borderRadius: '10px',
-                font: "500 12px 'Noto Sans JP'",
+                borderRadius: 'var(--rad-s)',
+                font: "500 12px var(--f-ui)",
                 color: 'var(--tx2)',
               }}
             >
@@ -474,20 +474,20 @@ export function TestsRedistModal({
                 padding: '11px 13px',
                 background: 'var(--bg2)',
                 border: '1px solid ' + m.bd,
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
               }}
             >
               <span
                 style={{
                   width: '7px',
                   height: '7px',
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   background: m.c,
                   flex: 'none',
                 }}
               ></span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: "500 13px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+                <div style={{ font: "500 13px var(--f-ui)", color: 'var(--tx0)' }}>
                   {m.title}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--tx3)' }}>
@@ -496,7 +496,7 @@ export function TestsRedistModal({
               </div>
               <span
                 style={{
-                  font: "500 11px 'Noto Sans JP'",
+                  font: "500 11px var(--f-ui)",
                   color: 'var(--pink)',
                   textDecoration: 'line-through',
                 }}
@@ -504,11 +504,11 @@ export function TestsRedistModal({
                 {m.fromLabel}
               </span>
               <span style={{ color: 'var(--tx3)' }}>→</span>
-              <span style={{ font: "700 12px 'Noto Sans JP'", color: m.toC }}>{m.toLabel}</span>
+              <span style={{ font: "700 12px var(--f-ui)", color: m.toC }}>{m.toLabel}</span>
             </div>
           ))}
         </div>
-        <div style={{ background: 'var(--bg2)', borderRadius: '10px', padding: '12px 14px' }}>
+        <div style={{ background: 'var(--bg2)', borderRadius: 'var(--rad-s)', padding: '12px 14px' }}>
           <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '8px' }}>
             適用後の負荷(先頭14日) — {redistLoadCaption}
           </div>
@@ -526,7 +526,7 @@ export function TestsRedistModal({
                   justifyContent: 'flex-end',
                 }}
               >
-                <div style={{ fontSize: '9px', color: d.loadC, fontFamily: "'Space Grotesk'" }}>
+                <div style={{ fontSize: '9px', color: d.loadC, fontFamily: "var(--f-num)" }}>
                   {d.loadH}
                 </div>
                 <div
@@ -535,7 +535,7 @@ export function TestsRedistModal({
                     maxWidth: '34px',
                     height: d.pct,
                     background: d.barC,
-                    borderRadius: '4px 4px 0 0',
+                    borderRadius: 'var(--rad-s) var(--rad-s) 0 0',
                     minHeight: '2px',
                   }}
                 ></div>
@@ -553,10 +553,10 @@ export function TestsRedistModal({
             style={{
               padding: '10px 18px',
               border: '1px solid var(--line2)',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
               background: 'none',
               color: 'var(--tx2)',
-              font: "500 13px 'Noto Sans JP'",
+              font: "500 13px var(--f-ui)",
               cursor: 'pointer',
             }}
           >
@@ -567,10 +567,10 @@ export function TestsRedistModal({
             style={{
               padding: '10px 22px',
               border: 'none',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--grad)',
               color: 'var(--onAcc)',
-              font: "700 13px 'Noto Sans JP'",
+              font: "700 13px var(--f-ui)",
               cursor: 'pointer',
               boxShadow: 'var(--gAcc)',
             }}

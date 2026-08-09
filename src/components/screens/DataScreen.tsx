@@ -59,13 +59,13 @@ const cardStyle: CSSProperties = {
 const dotStyle = (background: string, boxShadow: string): CSSProperties => ({
   width: '8px',
   height: '8px',
-  borderRadius: '99px',
+  borderRadius: 'var(--rad-s)',
   background,
   boxShadow,
 });
 
 const headingTextStyle: CSSProperties = {
-  font: "700 14px 'Noto Sans JP'",
+  font: "700 14px var(--f-ui)",
   color: 'var(--tx0)',
 };
 
@@ -81,7 +81,7 @@ const footnoteStyle: CSSProperties = { fontSize: '11px', color: 'var(--tx3)' };
 const fieldStyle: CSSProperties = {
   padding: '9px 11px',
   border: '1px solid var(--line2)',
-  borderRadius: '9px',
+  borderRadius: 'var(--rad-s)',
   background: 'var(--bg2)',
   color: 'var(--tx0)',
   outline: 'none',
@@ -250,7 +250,7 @@ export function DataScreen() {
               display: 'flex',
               background: 'var(--bg1)',
               border: '1px solid var(--line)',
-              borderRadius: '99px',
+              borderRadius: 'var(--rad-s)',
               padding: '2px',
             }}
           >
@@ -259,10 +259,10 @@ export function DataScreen() {
                 key={m.id}
                 onClick={() => store.setState({ dataRange: m.id })}
                 style={{
-                  font: "700 11px 'Noto Sans JP'",
+                  font: "700 11px var(--f-ui)",
                   color: agg.range === m.id ? 'var(--onAcc)' : 'var(--tx2)',
                   background: agg.range === m.id ? 'var(--acc)' : 'transparent',
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '6px 15px',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -273,7 +273,7 @@ export function DataScreen() {
             ))}
           </div>
           <span
-            style={{ fontSize: '10.5px', color: 'var(--tx3)', fontFamily: "'Space Grotesk'" }}
+            style={{ fontSize: '10.5px', color: 'var(--tx3)', fontFamily: "var(--f-num)" }}
           >
             {agg.rangeNote}
           </span>
@@ -283,8 +283,8 @@ export function DataScreen() {
               padding: '6px 14px',
               background: 'var(--bg1)',
               border: '1px solid ' + streak.border,
-              borderRadius: '99px',
-              font: "700 12px 'Noto Sans JP'",
+              borderRadius: 'var(--rad-s)',
+              font: "700 12px var(--f-ui)",
               color: streak.color,
               whiteSpace: 'nowrap',
             }}
@@ -352,7 +352,7 @@ export function DataScreen() {
                 >
                   <span
                     style={{
-                      font: "700 22px 'Space Grotesk'",
+                      font: "700 22px var(--f-num)",
                       color: 'var(--tx0)',
                       lineHeight: 1,
                     }}
@@ -385,7 +385,7 @@ export function DataScreen() {
                       style={{
                         width: '9px',
                         height: '9px',
-                        borderRadius: '3px',
+                        borderRadius: 'var(--rad-s)',
                         background: subjectColorFor(subjColors, l.name).c,
                         flex: 'none',
                       }}
@@ -393,13 +393,13 @@ export function DataScreen() {
                     <span
                       style={{
                         flex: 1,
-                        font: "500 12px 'Noto Sans JP'",
+                        font: "500 12px var(--f-ui)",
                         color: 'var(--tx1)',
                       }}
                     >
                       {l.name}
                     </span>
-                    <span style={{ font: "700 12px 'Space Grotesk'", color: 'var(--tx0)' }}>
+                    <span style={{ font: "700 12px var(--f-num)", color: 'var(--tx0)' }}>
                       {l.h}
                     </span>
                     <span
@@ -435,7 +435,7 @@ export function DataScreen() {
                   key={m.x}
                   x={m.x}
                   y="8"
-                  style={{ font: "700 7.5px 'Space Grotesk'", fill: 'var(--tx3)' }}
+                  style={{ font: "700 7.5px var(--f-num)", fill: 'var(--tx3)' }}
                 >
                   {m.label}
                 </text>
@@ -445,7 +445,7 @@ export function DataScreen() {
                   key={d.label}
                   x="0"
                   y={d.y}
-                  style={{ font: "8px 'Noto Sans JP'", fill: 'var(--tx3)' }}
+                  style={{ font: "8px var(--f-ui)", fill: 'var(--tx3)' }}
                 >
                   {d.label}
                 </text>
@@ -458,7 +458,7 @@ export function DataScreen() {
                   y={c.y}
                   width="12"
                   height="12"
-                  rx="3"
+                  rx="1"
                   fill={c.fill}
                 >
                   <title>{c.tip}</title>
@@ -481,7 +481,7 @@ export function DataScreen() {
                   style={{
                     width: '11px',
                     height: '11px',
-                    borderRadius: '3px',
+                    borderRadius: 'var(--rad-s)',
                     background: fill,
                     flex: 'none',
                   }}
@@ -523,17 +523,17 @@ export function DataScreen() {
                     borderRight: '1px solid var(--line)',
                     borderBottom: '1px solid var(--line)',
                     borderLeft: '3px solid ' + g.c,
-                    borderRadius: '10px',
+                    borderRadius: 'var(--rad-s)',
                     cursor: 'pointer',
                   }}
                 >
                   <span
                     className="sg-cell-subj"
                     style={{
-                      font: "700 10px 'Noto Sans JP'",
+                      font: "700 10px var(--f-ui)",
                       color: g.c,
                       background: g.bg,
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '2px 8px',
                       flex: 'none',
                     }}
@@ -545,7 +545,7 @@ export function DataScreen() {
                     style={{
                       flex: 1,
                       minWidth: 0,
-                      font: "500 13px 'Noto Sans JP'",
+                      font: "500 13px var(--f-ui)",
                       color: 'var(--tx0)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -559,7 +559,7 @@ export function DataScreen() {
                     style={{
                       fontSize: '10.5px',
                       color: 'var(--tx3)',
-                      fontFamily: "'Space Grotesk'",
+                      fontFamily: "var(--f-num)",
                       flex: 'none',
                     }}
                   >
@@ -568,7 +568,7 @@ export function DataScreen() {
                   <span
                     className="sg-cell-delta"
                     style={{
-                      font: "700 11px 'Space Grotesk'",
+                      font: "700 11px var(--f-num)",
                       color: g.deltaC,
                       flex: 'none',
                     }}
@@ -577,7 +577,7 @@ export function DataScreen() {
                   </span>
                   <span
                     className="sg-cell-score"
-                    style={{ font: "700 16px 'Space Grotesk'", color: g.c, flex: 'none' }}
+                    style={{ font: "700 16px var(--f-num)", color: g.c, flex: 'none' }}
                   >
                     {g.latest}
                     <span style={{ fontSize: '10px' }}>点</span>
@@ -618,7 +618,7 @@ export function DataScreen() {
                 ...fieldStyle,
                 flex: 2,
                 minWidth: '150px',
-                font: "500 12.5px 'Noto Sans JP'",
+                font: "500 12.5px var(--f-ui)",
               }}
             />
             <datalist id="compass-score-names">
@@ -636,7 +636,7 @@ export function DataScreen() {
                 ...fieldStyle,
                 flex: 1,
                 minWidth: '90px',
-                font: "500 12.5px 'Noto Sans JP'",
+                font: "500 12.5px var(--f-ui)",
               }}
             />
             <datalist id="compass-subj-list2">
@@ -652,7 +652,7 @@ export function DataScreen() {
               value={S.scoreVal}
               onChange={onScoreVal}
               placeholder="点数"
-              style={{ ...fieldStyle, width: '78px', font: "500 12.5px 'Space Grotesk'" }}
+              style={{ ...fieldStyle, width: '78px', font: "500 12.5px var(--f-num)" }}
             />
             <input
               className="fc-acc"
@@ -664,10 +664,10 @@ export function DataScreen() {
                 width: '150px',
                 padding: '8px 10px',
                 border: '1px solid var(--line2)',
-                borderRadius: '9px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx0)',
-                font: "500 12px 'Space Grotesk'",
+                font: "500 12px var(--f-num)",
                 outline: 'none',
                 colorScheme: schemeVal,
               }}
@@ -679,10 +679,10 @@ export function DataScreen() {
               style={{
                 padding: '9px 16px',
                 border: 'none',
-                borderRadius: '9px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 12px 'Noto Sans JP'",
+                font: "700 12px var(--f-ui)",
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flex: 'none',
@@ -713,10 +713,10 @@ export function DataScreen() {
               style={{
                 padding: '9px 16px',
                 border: '1px solid var(--line2)',
-                borderRadius: '9px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx1)',
-                font: "700 12px 'Noto Sans JP'",
+                font: "700 12px var(--f-ui)",
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}
@@ -730,10 +730,10 @@ export function DataScreen() {
               style={{
                 padding: '9px 16px',
                 border: '1px solid var(--line2)',
-                borderRadius: '9px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx1)',
-                font: "700 12px 'Noto Sans JP'",
+                font: "700 12px var(--f-ui)",
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}

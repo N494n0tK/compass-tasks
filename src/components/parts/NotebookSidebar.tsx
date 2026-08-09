@@ -20,7 +20,7 @@ import { store, useAppStore } from '../useStore';
 const DOW_HEADS = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
 const SECTION_LABEL = {
-  font: "700 10px 'Noto Sans JP'",
+  font: "700 10px var(--f-ui)",
   color: 'var(--tx3)',
   letterSpacing: '.08em',
   margin: '0 0 8px',
@@ -29,10 +29,10 @@ const SECTION_LABEL = {
 const MINI_BTN = {
   padding: '4px 8px',
   border: '1px solid var(--line2)',
-  borderRadius: '7px',
+  borderRadius: 'var(--rad-s)',
   background: 'none',
   color: 'var(--tx2)',
-  font: "500 11px 'Noto Sans JP'",
+  font: "500 11px var(--f-ui)",
   cursor: 'pointer',
 } as const;
 
@@ -115,10 +115,10 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
         style={{
           padding: '10px 14px',
           border: 'none',
-          borderRadius: '10px',
+          borderRadius: 'var(--rad-s)',
           background: 'var(--grad)',
           color: 'var(--onAcc)',
-          font: "700 12.5px 'Noto Sans JP'",
+          font: "700 12.5px var(--f-ui)",
           cursor: 'pointer',
         }}
       >
@@ -140,11 +140,11 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
               style={{
                 flex: 1,
                 textAlign: 'center',
-                font: "600 11.5px 'Noto Sans JP'",
+                font: "600 11.5px var(--f-ui)",
                 color: on ? 'var(--onAcc)' : 'var(--tx2)',
                 background: on ? 'var(--view)' : 'var(--bg2)',
                 border: '1px solid ' + (on ? 'var(--view)' : 'var(--line2)'),
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 padding: '6px 0',
                 cursor: 'pointer',
               }}
@@ -169,7 +169,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
             style={{
               flex: 1,
               textAlign: 'center',
-              font: "700 12px 'Space Grotesk'",
+              font: "700 12px var(--f-num)",
               color: 'var(--tx1)',
             }}
           >
@@ -208,7 +208,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                   textAlign: 'center',
                   fontSize: '11px',
                   padding: '4px 0 6px',
-                  borderRadius: '6px',
+                  borderRadius: 'var(--rad-s)',
                   position: 'relative',
                   cursor: hits.length ? 'pointer' : 'default',
                   color: selected ? 'var(--onAcc)' : hits.length ? 'var(--tx0)' : 'var(--tx3)',
@@ -226,7 +226,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                       transform: 'translateX(-50%)',
                       width: '4px',
                       height: '4px',
-                      borderRadius: '50%',
+                      borderRadius: 'var(--rad-s)',
                       background: 'var(--view)',
                     }}
                   />
@@ -262,7 +262,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                     alignItems: 'center',
                     gap: '7px',
                     padding: '5px 7px',
-                    borderRadius: '7px',
+                    borderRadius: 'var(--rad-s)',
                     cursor: 'pointer',
                   }}
                 >
@@ -273,17 +273,17 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                       store.setState({ nbSubjFilter: filtered ? null : subject });
                     }}
                     style={{
-                      font: "700 10.5px 'Noto Sans JP'",
+                      font: "700 10.5px var(--f-ui)",
                       color: filtered ? 'var(--onAcc)' : color.c,
                       background: filtered ? color.c : color.bg,
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '2px 9px',
                     }}
                   >
                     {subject}
                   </span>
                   <span style={{ flex: 1 }} />
-                  <span style={{ font: "500 10px 'Space Grotesk'", color: 'var(--tx3)' }}>
+                  <span style={{ font: "500 10px var(--f-num)", color: 'var(--tx3)' }}>
                     {list.length + '件'}
                   </span>
                 </div>
@@ -298,7 +298,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                           className="hv-bg3"
                           style={{
                             padding: '5px 8px',
-                            borderRadius: '6px',
+                            borderRadius: 'var(--rad-s)',
                             cursor: 'pointer',
                             background: on ? 'var(--viewBg)' : 'transparent',
                             borderLeft: '2px solid ' + (on ? 'var(--view)' : 'transparent'),
@@ -306,7 +306,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                         >
                           <div
                             style={{
-                              font: "500 11.5px 'Noto Sans JP'",
+                              font: "500 11.5px var(--f-ui)",
                               color: on ? 'var(--tx0)' : 'var(--tx1)',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -349,11 +349,11 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
               }))
             }
             style={{
-              font: "700 10px 'Noto Sans JP'",
+              font: "700 10px var(--f-ui)",
               color: prep.enabled ? 'var(--onAcc)' : 'var(--tx2)',
               background: prep.enabled ? 'var(--grn)' : 'var(--bg3)',
               border: '1px solid ' + (prep.enabled ? 'var(--grn)' : 'var(--line2)'),
-              borderRadius: '99px',
+              borderRadius: 'var(--rad-s)',
               padding: '2px 10px',
               cursor: 'pointer',
             }}
@@ -383,11 +383,11 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                   }))
                 }
                 style={{
-                  font: "500 10px 'Noto Sans JP'",
+                  font: "500 10px var(--f-ui)",
                   color: off ? 'var(--tx3)' : 'var(--tx1)',
                   background: off ? 'transparent' : 'var(--bg3)',
                   border: '1px solid var(--line2)',
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 8px',
                   cursor: 'pointer',
                   textDecoration: off ? 'line-through' : 'none',

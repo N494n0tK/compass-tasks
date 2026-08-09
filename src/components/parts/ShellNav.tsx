@@ -210,7 +210,7 @@ export function ShellNav({
               style={{
                 width: '7px',
                 height: '7px',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 background: v.dot,
                 boxShadow: active ? v.g : 'none',
               }}
@@ -237,7 +237,7 @@ export function ShellNav({
             padding: '10px 12px',
             background: 'var(--bg1)',
             border: '1px solid var(--line)',
-            borderRadius: '10px',
+            borderRadius: 'var(--rad-s)',
             display: 'flex',
             flexDirection: 'column',
             gap: '7px',
@@ -245,7 +245,7 @@ export function ShellNav({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ fontSize: '10px', color: 'var(--tx3)', flex: 1 }}>カウントダウン</div>
-            <span style={{ font: "700 10px 'Space Grotesk'", color: 'var(--tx3)' }}>
+            <span style={{ font: "700 10px var(--f-num)", color: 'var(--tx3)' }}>
               {countdownRows.length}件
             </span>
           </div>
@@ -274,13 +274,13 @@ export function ShellNav({
                   padding: '6px 7px',
                   background: 'var(--bg2)',
                   border: '1px solid var(--line)',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--rad-s)',
                 }}
               >
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      font: "700 11px 'Noto Sans JP'",
+                      font: "700 11px var(--f-ui)",
                       color: 'var(--tx0)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -292,7 +292,7 @@ export function ShellNav({
                   <div style={{ fontSize: '9.5px', color: 'var(--tx3)' }}>{c.dateLabel}</div>
                 </div>
                 <div
-                  style={{ font: "700 16px 'Space Grotesk'", color: c.c, whiteSpace: 'nowrap' }}
+                  style={{ font: "700 16px var(--f-num)", color: c.c, whiteSpace: 'nowrap' }}
                 >
                   {c.days}
                 </div>
@@ -307,7 +307,7 @@ export function ShellNav({
                     width: '20px',
                     height: '20px',
                     border: 'none',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--rad-s)',
                     background: 'none',
                     color: 'var(--tx3)',
                     cursor: 'pointer',
@@ -331,10 +331,10 @@ export function ShellNav({
               width: '100%',
               padding: '7px 8px',
               border: '1px solid var(--line2)',
-              borderRadius: '8px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--bg2)',
               color: 'var(--tx0)',
-              font: "500 11.5px 'Noto Sans JP'",
+              font: "500 11.5px var(--f-ui)",
               outline: 'none',
             }}
           />
@@ -352,10 +352,10 @@ export function ShellNav({
                 minWidth: 0,
                 padding: '7px 8px',
                 border: '1px solid var(--line2)',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx0)',
-                font: "600 10.5px 'Space Grotesk'",
+                font: "600 10.5px var(--f-num)",
                 outline: 'none',
                 // HTML:903 には color-scheme の指定が無い（付いているのは 1317/1381/1390/1599）。
                 // `:root{color-scheme:dark}` のまま = ライトテーマでもピッカーは dark。レガシーどおり
@@ -366,10 +366,10 @@ export function ShellNav({
               style={{
                 width: '34px',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 14px 'Noto Sans JP'",
+                font: "700 14px var(--f-ui)",
                 cursor: 'pointer',
                 boxShadow: 'var(--gAcc)',
               }}
@@ -378,34 +378,33 @@ export function ShellNav({
             </button>
           </div>
         </div>
+        {/* 選択中は `.is-on`（配色は globals.css）。旧実装はインライン style + <span> で
+            キーボードから操作できなかったので、ボタンにして aria-pressed を付けた */}
         <div className="theme-switch" role="group" aria-label="テーマ">
-          <span
+          <button
+            type="button"
+            className={note ? 'is-on' : ''}
+            aria-pressed={note}
             onClick={() => setTheme('note')}
-            style={{
-              color: note ? 'var(--onAcc)' : 'var(--tx3)',
-              background: note ? 'var(--acc)' : 'transparent',
-            }}
           >
             ✎ ノート
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
+            className={!light && !note ? 'is-on' : ''}
+            aria-pressed={!light && !note}
             onClick={() => setTheme('dark')}
-            style={{
-              color: !light && !note ? 'var(--onAcc)' : 'var(--tx3)',
-              background: !light && !note ? 'var(--acc)' : 'transparent',
-            }}
           >
             ✦ ダーク
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
+            className={light ? 'is-on' : ''}
+            aria-pressed={light}
             onClick={() => setTheme('light')}
-            style={{
-              color: light ? 'var(--onAcc)' : 'var(--tx3)',
-              background: light ? 'var(--acc)' : 'transparent',
-            }}
           >
             ☀ ライト
-          </span>
+          </button>
         </div>
         <div className="nav-shortcuts" aria-hidden="true">
           <span>

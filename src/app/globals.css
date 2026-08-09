@@ -20,17 +20,16 @@
 
 /* 認証画面専用トークン。アプリは --bg0..--tx3 系を .compass-theme で定義するため衝突しない */
 :root {
-  --bg: #100f0c;
-  --panel: #1a1814;
-  --panel-2: #26231c;
-  --border: rgba(242, 237, 225, 0.2);
-  --text: #f2ede1;
-  --text-dim: #a9a296;
-  --accent: #f2ede1;
-  --accent-2: #bda7e6;
-  --danger: #dd9184;
-  --ok: #96c49c;
-  --font-hand: "Klee One", "Noto Sans JP", serif;
+  --bg: #0c1520;
+  --panel: #111e2e;
+  --panel-2: #1a2c42;
+  --border: #2c4967;
+  --text: #eaf1f8;
+  --text-dim: #8ba2ba;
+  --accent: #ff5b2e;
+  --accent-2: #9d8bf2;
+  --danger: #ff5b2e;
+  --ok: #35c07d;
 }
 
 html,
@@ -39,7 +38,7 @@ body {
   min-height: 100%;
   background-color: var(--bg);
   color: var(--text);
-  font-family: "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--f-ui);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -57,15 +56,13 @@ body {
 .auth-screen {
   align-items: center;
   background-color: var(--bg);
+  /* アプリ本体と同じ方眼。ログイン前から同じ紙の上に立たせる */
   background-image:
-    radial-gradient(circle at 50% -10%, rgba(242, 237, 225, 0.05), transparent 44%),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0,
-      transparent 31px,
-      rgba(242, 237, 225, 0.065) 31px,
-      rgba(242, 237, 225, 0.065) 32px
-    );
+    linear-gradient(to right, rgba(120, 165, 210, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 165, 210, 0.1) 1px, transparent 1px),
+    linear-gradient(to right, rgba(120, 165, 210, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 165, 210, 0.055) 1px, transparent 1px);
+  background-size: 128px 128px, 128px 128px, 32px 32px, 32px 32px;
   display: flex;
   justify-content: center;
   min-height: 100vh;
@@ -75,13 +72,13 @@ body {
 
 /* ノートを1枚めくったような紙面。左端の綴じ線が Compass の目印 */
 .auth-panel {
-  background: rgba(26, 24, 20, 0.97);
+  background: var(--panel);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 16px;
-  box-shadow: 0 26px 70px -24px rgba(0, 0, 0, 0.72);
+  border-top: 4px solid var(--accent);
+  border-radius: 3px;
+  box-shadow: none;
   max-width: 460px;
-  padding: 34px 32px;
+  padding: 32px;
   width: 100%;
 }
 
@@ -93,28 +90,28 @@ body {
 }
 
 .auth-brand img {
-  border: 1px solid rgba(242, 237, 225, 0.22);
-  border-radius: 14px;
-  background: rgba(242, 237, 225, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg);
   padding: 5px;
 }
 
 .auth-brand h1 {
-  font-family: var(--font-hand);
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: 0.035em;
-  line-height: 1.15;
+  font-family: var(--f-disp);
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
   margin: 0;
 }
 
 .auth-brand span {
   color: var(--text-dim);
   display: block;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  margin-top: 4px;
 }
 
 .auth-panel p {
@@ -128,8 +125,8 @@ body {
   align-items: center;
   background: var(--accent);
   border: 0;
-  border-radius: 12px;
-  color: #141310;
+  border-radius: 2px;
+  color: var(--bg);
   display: inline-flex;
   font-size: 15px;
   font-weight: 700;
@@ -142,8 +139,7 @@ body {
 }
 
 .auth-button:hover {
-  filter: brightness(1.04);
-  transform: translateY(-1px);
+  filter: brightness(1.08);
 }
 
 .auth-button:active {
@@ -156,7 +152,7 @@ body {
 }
 
 .auth-footnote {
-  color: #867f76;
+  color: var(--text-dim);
   display: block;
   font-size: 11px;
   line-height: 1.6;
@@ -188,7 +184,6 @@ body {
 
   .auth-panel {
     align-self: center;
-    border-radius: 16px;
     padding: 24px 20px;
   }
 
@@ -348,7 +343,7 @@ html,body{margin:0;padding:0;height:100%}
 .sp-ring--in{stroke:var(--sp-ring-in);stroke-width:7}
 
 /* 方位 */
-.sp-card{fill:var(--sp-face-line);font:700 23px 'Space Grotesk',system-ui,sans-serif;letter-spacing:.04em;
+.sp-card{fill:var(--sp-face-line);font:700 23px var(--f-num);letter-spacing:.04em;
   text-anchor:middle;dominant-baseline:central;transform-box:fill-box;transform-origin:center;
   animation:spCardIn .42s cubic-bezier(.2,.9,.2,1.2) calc(.98s + var(--ci) * 60ms) both}
 
@@ -383,7 +378,7 @@ html,body{margin:0;padding:0;height:100%}
 .mk-ring{fill:none;stroke:var(--sp-ring);stroke-width:3}
 .mk-ring--mid{stroke:var(--sp-ring-mid);stroke-width:7;opacity:.85}
 .mk-ring--in{stroke:var(--sp-ring-in);stroke-width:7}
-.mk-card{fill:var(--sp-face-line);font:700 23px 'Space Grotesk',system-ui,sans-serif;
+.mk-card{fill:var(--sp-face-line);font:700 23px var(--f-num);
   text-anchor:middle;dominant-baseline:central}
 .mk-needle{transform-origin:256px 256px;animation:mkDrift 7s ease-in-out 2.15s infinite}
 .mk-needle-n{fill:var(--sp-accent);stroke:var(--sp-pin-ring);stroke-width:8;stroke-linejoin:round}
@@ -397,10 +392,10 @@ html,body{margin:0;padding:0;height:100%}
 
 /* ロゴタイプ */
 .compass-splash__word{position:absolute;bottom:-12px;display:flex;gap:.1em;
-  font:700 15px 'Space Grotesk',system-ui,sans-serif;letter-spacing:.12em;color:var(--sp-text)}
+  font:600 13px var(--f-num);letter-spacing:.42em;color:var(--sp-text)}
 .compass-splash__word span{display:inline-block;animation:spLetterIn .42s cubic-bezier(.2,.85,.2,1.1) calc(1.98s + var(--li) * 34ms) both}
 .compass-splash__todo{position:absolute;bottom:-58px;
-  font:700 clamp(28px,7vw,44px) 'Space Grotesk',system-ui,sans-serif;line-height:1;letter-spacing:.06em;
+  font:900 clamp(30px,7vw,46px) var(--f-disp);line-height:1;letter-spacing:.02em;
   background:linear-gradient(90deg,#5eebff 0%,#f0fbff 30%,#43e6b1 66%,#ffd166 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   animation:spTodoWipe .52s cubic-bezier(.25,.85,.2,1) 2.06s both}
@@ -417,122 +412,562 @@ html,body{margin:0;padding:0;height:100%}
 ::-webkit-scrollbar-thumb{background:rgba(128,150,190,.25);border-radius:99px}
 ::-webkit-scrollbar-track{background:transparent}
 
-/* ===== Compass 2026 interface system ===== */
-:root{color-scheme:dark}
-body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-button,input,select,textarea{font:inherit}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-/* 死にルール(spec Q17): ::selection の color-mix は --acc / --tx0 がルート要素で
-   未定義なため無効値になり、ブラウザ既定の選択色が出る。→ 移植しない
-   HTML:180  ::selection{background:color-mix(in srgb,var(--acc) 30%,transparent);color:var(--tx0)} */
-.compass-shell{isolation:isolate;background:var(--bg0)!important}
-.compass-shell::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(circle at 48% -20%,rgba(65,216,243,.055),transparent 34%)}
-.compass-nav{width:clamp(196px,var(--nav-width,220px),252px)!important;padding:18px 12px 14px!important;gap:5px!important;background:color-mix(in srgb,var(--bg2) 94%,black)!important;box-shadow:8px 0 28px rgba(0,0,0,.14)}
-.compass-brand{width:100%;padding:3px 9px 18px!important;margin:0 0 4px;border:0;background:transparent;color:inherit;border-radius:11px;cursor:pointer;text-align:left;transition:background .16s ease,transform .16s ease}
-.compass-brand:hover{background:color-mix(in srgb,var(--acc) 7%,transparent);transform:translateY(-1px)}
-.compass-brand:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.compass-brand__chevron{margin-left:auto;color:var(--tx3);font-size:12px;transition:transform .16s ease,color .16s ease}
-.compass-brand:hover .compass-brand__chevron{transform:translate(2px,-1px);color:var(--acc)}
-.mobile-app-launcher{display:none;width:36px;height:36px;flex:none;align-items:center;justify-content:center;padding:0;border:1px solid var(--line2);border-radius:10px;background:var(--bg2);cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.12)}
-.app-switcher-backdrop{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:24px;background:rgba(3,12,24,.72);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);animation:fadeIn .16s ease}
-.app-switcher-panel{width:min(680px,94vw);max-height:min(720px,90vh);overflow:auto;padding:22px;background:linear-gradient(145deg,color-mix(in srgb,var(--bg1) 96%,#0f3551),var(--bg1));border:1px solid var(--line2);border-radius:22px;box-shadow:0 34px 110px rgba(0,0,0,.58);animation:popIn .2s ease}
-.app-switcher-current{width:min(360px,100%);margin:22px auto 28px;padding:22px;display:flex;align-items:center;gap:16px;border:1px solid color-mix(in srgb,var(--acc) 48%,var(--line2));border-radius:18px;background:radial-gradient(circle at 18% 12%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 58%),var(--bg2);color:var(--tx0);cursor:pointer;box-shadow:0 18px 48px rgba(0,0,0,.22),var(--gAcc);text-align:left;transition:transform .16s ease,border-color .16s ease}
-.app-switcher-current:hover{transform:translateY(-2px);border-color:var(--acc)}
-.app-switcher-current__icon{width:72px;height:72px;flex:none;display:grid;place-items:center;border-radius:18px;background:color-mix(in srgb,var(--acc) 9%,transparent)}
-.app-switcher-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.app-switcher-tile{min-width:0;min-height:138px;padding:15px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;border:1px solid var(--line);border-radius:15px;background:var(--bg2);color:var(--tx1);cursor:pointer;text-align:left;transition:transform .16s ease,border-color .16s ease,background .16s ease}
-.app-switcher-tile:hover{transform:translateY(-2px);border-color:var(--app-accent);background:color-mix(in srgb,var(--app-accent) 7%,var(--bg2))}
-.app-switcher-tile__icon{width:44px;height:44px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--app-accent) 48%,var(--line2));border-radius:13px;background:color-mix(in srgb,var(--app-accent) 12%,var(--bg3));color:var(--app-accent);font:700 23px 'Space Grotesk'}
-.app-switcher-tile__status{margin-top:auto;padding:3px 8px;border-radius:99px;background:color-mix(in srgb,var(--app-accent) 10%,var(--bg3));color:var(--app-accent);font:700 9.5px 'Noto Sans JP'}
-.app-nav-item{position:relative;width:100%;min-height:43px;display:flex!important;align-items:center;gap:11px!important;padding:9px 11px!important;border-radius:9px!important;border:1px solid transparent!important;background:transparent;color:var(--tx2);text-align:left;cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
-.app-nav-item:hover{background:var(--bg3)!important;color:var(--tx0)!important;transform:translateX(2px)}
-.app-nav-item.is-dragging{opacity:.45;transform:scale(.98)}
-.app-nav-item.is-dragover{border-color:var(--acc)!important;box-shadow:inset 0 2px 0 var(--acc)}
-.app-nav-item.is-active{background:color-mix(in srgb,var(--acc) 11%,var(--bg3))!important;border-color:color-mix(in srgb,var(--acc) 24%,var(--line))!important;color:var(--acc)!important}
-.app-nav-item.is-active::after{content:"";position:absolute;left:-13px;top:9px;bottom:9px;width:3px;border-radius:0 4px 4px 0;background:var(--acc);box-shadow:0 0 10px color-mix(in srgb,var(--acc) 55%,transparent)}
-.app-nav-item::before{content:"";width:17px;height:17px;flex:none;background:currentColor;opacity:.92;mask:var(--nav-icon) center/contain no-repeat;-webkit-mask:var(--nav-icon) center/contain no-repeat}
-.app-nav-item[data-nav="cockpit"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1'/%3E%3C/svg%3E")}
-.app-nav-item[data-nav="tests"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3v3M18 3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v13H3V7a2 2 0 0 1 2-2Z'/%3E%3C/svg%3E")}
-.app-nav-item[data-nav="todo"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='4' y='3' width='16' height='18' rx='2'/%3E%3Cpath d='m8 9 2 2 4-4M8 16h8'/%3E%3C/svg%3E")}
+/* ══════════════════════════════════════════════════════════════════════════
+   [C-2] Compass インターフェース ——「校内プリント」(2026-08 デザイン刷新)
+
+   Compass のデータ源は時間割なので、見た目も学校の配布物に寄せている。
+   デザイン判断はすべて次の 3 つから導いている(ShellTheme.ts の解説と対):
+
+     1. 紙は方眼。背景に 32px / 128px の二重方眼が通り、画面はその上の
+        「刷り物」として置かれる。面は透明にして方眼を透かす。
+        角丸は 2–3px、影は使わない(印刷物に影は落ちない)。
+     2. インクは版。1 画面につき地の墨 + 差し色 1 色(`--view`)。
+        面を塗るのは「いま選ばれているもの」だけ。
+     3. 蛍光オレンジ(`--pink`)は「いま」専用。今日のToDo・期限切れ・
+        現在のコマにしか出さない。
+
+   書体は 4 つ。それぞれ「誰が書いた文字か」に対応する(FontStylesheet.tsx):
+     --f-disp 見出し / --f-ui 本文 / --f-num 数字 / --f-hand 生徒の手書き
+
+   カスケードの前提: このあとに [D](style-hover 相当)と [E](ノート)が続く。
+   節の順序は変えないこと。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  color-scheme:dark;
+  --f-ui:"BIZ UDPGothic","Noto Sans JP",system-ui,-apple-system,sans-serif;
+  --f-disp:"Zen Kaku Gothic New","BIZ UDPGothic",system-ui,sans-serif;
+  --f-num:"Barlow Condensed","Zen Kaku Gothic New",system-ui,sans-serif;
+  --f-hand:"Klee One","Zen Kaku Gothic New",serif;
+  /* 旧名。コンポーネント側にまだ参照が残っていても壊れないようにしておく */
+  --font-hand:var(--f-hand);
+  --font-num:var(--f-num);
+}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-family:var(--f-ui)}
+button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
+::selection{background:var(--pink);color:var(--onAcc)}
+
+/* ── 用紙 ────────────────────────────────────────────────────────────── */
+
+.compass-shell{
+  isolation:isolate;
+  background:var(--bg0)!important;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.005em;
+}
+/* 方眼。細罫 32px / 太罫 128px。position:fixed なので、紙は動かず刷った内容だけが動く */
+.compass-shell::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background-color:var(--bg0);
+  background-image:
+    linear-gradient(to right,var(--grid2) 1px,transparent 1px),
+    linear-gradient(to bottom,var(--grid2) 1px,transparent 1px),
+    linear-gradient(to right,var(--grid) 1px,transparent 1px),
+    linear-gradient(to bottom,var(--grid) 1px,transparent 1px);
+  background-size:128px 128px,128px 128px,32px 32px,32px 32px;
+}
+.compass-main{background:transparent}
+.compass-shell button:focus-visible,.compass-shell input:focus-visible,
+.compass-shell select:focus-visible,.compass-shell textarea:focus-visible,
+.compass-shell [tabindex]:focus-visible{
+  outline:2px solid var(--view)!important;outline-offset:1px;border-radius:0
+}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:0}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── ナビ = 時間割の左端。行を積むだけで、丸めない ───────────────────── */
+
+.compass-nav{
+  width:clamp(196px,var(--nav-width,220px),252px)!important;
+  padding:0!important;gap:0!important;
+  background:var(--bg2)!important;
+  border-right:1px solid var(--line2)!important;
+  box-shadow:none;
+}
+.compass-brand{
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:15px 14px 14px!important;margin:0;
+  border:0;border-bottom:1px solid var(--line2);border-radius:0;
+  background:transparent;color:inherit;text-align:left;cursor:pointer;
+  transition:background .14s ease;
+}
+.compass-brand:hover{background:var(--bg3)}
+.compass-brand:focus-visible{outline:2px solid var(--view);outline-offset:-2px}
+.compass-brand__mark{
+  width:34px;height:34px;flex:none;display:grid;place-items:center;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:var(--bg0);
+  transition:border-color .3s ease;
+}
+.compass-brand__mark img{width:24px;height:24px}
+.compass-brand:hover .compass-brand__mark{border-color:var(--view)}
+.compass-brand__text{flex:1;min-width:0}
+.compass-brand__name{font:900 19px var(--f-disp);letter-spacing:.06em;color:var(--tx0);line-height:1.1}
+.compass-brand__tag{
+  margin-top:2px;font:400 9px var(--f-ui);letter-spacing:.22em;color:var(--tx3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.compass-brand__chevron{margin-left:auto;color:var(--tx3);font-size:11px;transition:color .14s ease}
+.compass-brand:hover .compass-brand__chevron{color:var(--view)}
+
+.app-nav-item{
+  --nav-hue:var(--acc);
+  position:relative;width:100%;min-height:42px;
+  display:flex!important;align-items:center;gap:10px!important;
+  padding:0 12px!important;
+  border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;
+  background:transparent;color:var(--tx2);text-align:left;cursor:pointer;
+  transition:background .13s ease,color .13s ease;
+}
+.app-nav-item::before{
+  content:"";width:17px;height:17px;flex:none;background:currentColor;opacity:.7;
+  mask:var(--nav-icon) center/contain no-repeat;-webkit-mask:var(--nav-icon) center/contain no-repeat;
+}
+.app-nav-item[data-nav="cockpit"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="tests"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3v3M18 3v3M3 9h18M3 5h18v15H3z'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="todo"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M4 3h16v18H4z'/%3E%3Cpath d='m8 9 2 2 4-4M8 16h8'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="review"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M4 12a8 8 0 1 0 2-5.3L4 9'/%3E%3Cpath d='M4 4v5h5M12 8v5l3 2'/%3E%3C/svg%3E")}
-.app-nav-item[data-nav="add"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E%3Cpath d='M12 7v10M7 12h10'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="add"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M3 3h18v18H3z'/%3E%3Cpath d='M12 7v10M7 12h10'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="data"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M5 20v-7h4v7M10 20V8h4v12M15 20V4h4v16M3 20h18'/%3E%3C/svg%3E")}
+.app-nav-item__label{
+  min-width:0;flex:1;font:400 13px var(--f-ui);letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit!important;
+}
+/* 右端の数字はキーボードショートカットそのもの。時間割の「限」と同じ位置に置く */
+.app-nav-item__key{
+  flex:none;width:18px;text-align:center;pointer-events:none;
+  font:600 14px var(--f-num);color:var(--tx3);letter-spacing:.02em;
+}
+.app-nav-item__badge{
+  flex:none;padding:1px 5px;border-radius:var(--rad-s);
+  background:var(--pink);color:var(--onAcc);font:700 11px var(--f-num);
+}
+.app-nav-item:hover{background:var(--bg3)!important;color:var(--tx0)!important;transform:none!important}
+.app-nav-item:hover::before{opacity:1}
+/* 選択中の行は紙まで抜けて、左端にその画面の版のしるしが立つ。
+   面をベタで塗るのは「いま」だけと決めているので、ここは塗らない */
+.app-nav-item.is-active{
+  background:var(--bg0)!important;color:var(--nav-hue)!important;
+  box-shadow:inset 4px 0 0 var(--nav-hue);
+}
+.app-nav-item.is-active::before{opacity:1}
+.app-nav-item.is-active::after{display:none}
+.app-nav-item.is-active .app-nav-item__label{font-weight:700}
+.app-nav-item.is-active .app-nav-item__key{color:var(--nav-hue)}
+.app-nav-item.is-dragging{opacity:.4}
+.app-nav-item.is-dragover{box-shadow:inset 0 2px 0 var(--view)}
 .nav-dot{display:none!important}
-.compass-nav-footer{gap:9px!important}
-.compass-main{background:linear-gradient(180deg,rgba(255,255,255,.008),transparent 24%)}
-.compass-topbar{min-height:68px;padding:11px 20px!important;background:color-mix(in srgb,var(--bg0) 82%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-color:var(--line2)!important;z-index:12}
-.app-view-title{order:1;min-width:190px}
-.app-view-title>div:first-child{font-size:16px!important;letter-spacing:.01em}
-.app-search{position:relative;order:2;margin-left:auto;display:flex;align-items:center;gap:9px;min-width:min(34vw,440px);padding:0 12px;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;color:var(--tx2);box-shadow:inset 0 1px 0 rgba(255,255,255,.025);transition:border-color .16s ease,box-shadow .16s ease}
-.app-search:hover,.app-search:focus-within{border-color:color-mix(in srgb,var(--acc) 64%,var(--line2));box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 9%,transparent)}
-.app-search-input{flex:1;min-width:0;height:38px;padding:0;border:0;outline:0;background:transparent;color:var(--tx0);font:500 13px 'Noto Sans JP'}
+
+.compass-nav-footer{gap:0!important;padding:0!important}
+.compass-nav-footer>div:first-child{
+  padding:12px 14px!important;margin:0;
+  background:transparent!important;border:0!important;border-top:1px solid var(--line2)!important;
+  border-radius:0!important;
+}
+.theme-switch{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 14px 12px;
+  padding:0;background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad-s);overflow:hidden;
+}
+.theme-switch>button{
+  padding:8px 2px;border:0;background:transparent;color:var(--tx3);cursor:pointer;
+  font:400 10px var(--f-ui);white-space:nowrap;transition:background .13s ease,color .13s ease;
+}
+.theme-switch>button+button{border-left:1px solid var(--line2)}
+.theme-switch>button:hover{background:var(--bg3);color:var(--tx0)}
+/* テーマは画面をまたぐ設定なので、ここだけは `--view` に染めず地の墨で塗る */
+.theme-switch>button.is-on{background:var(--tx1);color:var(--bg1)}
+.nav-shortcuts{
+  display:flex;flex-wrap:wrap;gap:3px 8px;justify-content:center;padding:0 12px;
+  font:400 9.5px var(--f-ui);color:var(--tx3);
+}
+.nav-shortcuts kbd{
+  display:inline-grid;place-items:center;min-width:15px;padding:1px 3px;margin:0 1px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg0);
+  color:var(--tx2);font:600 10px var(--f-num);
+}
+.nav-cloud{
+  margin-top:10px;padding:0 12px;text-align:center;font:400 10px var(--f-ui);color:var(--tx2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.nav-version{
+  padding:4px 12px 12px;text-align:center;
+  font:600 10px var(--f-num);color:var(--tx3);letter-spacing:.2em;
+}
+
+/* ── トップバー = プリントの柱 ────────────────────────────────────── */
+
+.compass-topbar{
+  position:relative;min-height:66px;
+  padding:0 20px!important;gap:16px!important;
+  background:var(--bg0);
+  border-bottom:1px solid var(--line2)!important;
+  -webkit-backdrop-filter:none;backdrop-filter:none;z-index:12;
+}
+.app-view-title{order:1;min-width:180px;display:flex;flex-direction:column;justify-content:center;gap:1px;padding-left:13px;position:relative}
+.app-view-title::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;background:var(--view);transition:background .3s ease}
+.app-view-title__name{font:900 19px var(--f-disp)!important;letter-spacing:.05em;color:var(--tx0);line-height:1.2}
+.app-view-title__sub{font:400 10.5px var(--f-ui);color:var(--tx3);line-height:1.4;letter-spacing:.04em}
+.app-search{
+  position:relative;order:2;margin-left:auto;display:flex;align-items:center;gap:9px;
+  min-width:min(32vw,420px);padding:0 11px;height:36px;
+  background:var(--bg2);border:1px solid var(--line2);border-radius:var(--rad-s);
+  color:var(--tx2);box-shadow:none;transition:border-color .13s ease;
+}
+.app-search:hover,.app-search:focus-within{border-color:var(--view);box-shadow:none}
+.app-search-input{flex:1;min-width:0;height:34px;padding:0;border:0;outline:0;background:transparent;color:var(--tx0);font:400 12.5px var(--f-ui)}
 .app-search-input::placeholder{color:var(--tx3)}
-.app-search-shortcut{flex:none;padding:2px 6px;border:1px solid var(--line);border-radius:5px;color:var(--tx3);font:600 10px 'Space Grotesk'}
-.app-search-clear{width:22px;height:22px;flex:none;padding:0;border:0;border-radius:6px;background:transparent;color:var(--tx3);cursor:pointer}.app-search-clear:hover{background:var(--bg3);color:var(--tx0)}
-.app-search-popover{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:80;max-height:min(620px,calc(100vh - 90px));padding:13px;background:var(--bg1);border:1px solid var(--line2);border-radius:12px;box-shadow:0 22px 60px rgba(3,9,20,.48);display:flex;flex-direction:column;gap:10px;animation:fadeUp .16s ease}
-.app-search-results{max-height:370px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.app-search-shortcut{flex:none;padding:1px 5px;border:1px solid var(--line2);border-radius:var(--rad-s);color:var(--tx3);font:600 10px var(--f-num)}
+.app-search-clear{width:22px;height:22px;flex:none;padding:0;border:0;border-radius:var(--rad-s);background:transparent;color:var(--tx3);cursor:pointer}
+.app-search-clear:hover{background:var(--bg3);color:var(--tx0)}
+.app-search-popover{
+  position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:80;
+  max-height:min(620px,calc(100vh - 90px));padding:13px;
+  background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad);
+  box-shadow:0 20px 44px rgba(0,0,0,.34);
+  display:flex;flex-direction:column;gap:10px;animation:fadeUp .14s ease;
+}
+.app-search-results{max-height:370px;overflow:auto;display:flex;flex-direction:column;gap:4px}
 .app-top-actions{order:3;margin-left:auto!important}
-.cockpit-grid{grid-template-columns:minmax(360px,1.18fr) minmax(290px,.9fr) minmax(330px,1fr)!important;gap:1px!important;padding:0!important;background:var(--line)!important;align-content:stretch!important;overflow:hidden!important}
-/* Q18: レガシーは 68px。トップバーの実効 min-height は 70px(HTML:628)なので 70px に統一 */
-.cockpit-panel{min-height:0!important;height:calc(100vh - 70px);overflow:auto;background:var(--bg0)!important;border:0!important;border-radius:0!important;padding:22px 18px 24px!important;gap:11px!important}
-.cockpit-panel--today{background:color-mix(in srgb,var(--bg1) 65%,var(--bg0))!important}
-.cockpit-panel-title{position:sticky;top:-22px;z-index:4;padding:15px 2px 12px!important;margin:-15px -2px 0;background:linear-gradient(180deg,var(--bg0) 72%,transparent)}
-.cockpit-panel--today .cockpit-panel-title{background:linear-gradient(180deg,color-mix(in srgb,var(--bg1) 65%,var(--bg0)) 72%,transparent)}
-.cockpit-task,.cockpit-review,.cockpit-plan{transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease}
-.cockpit-task:hover,.cockpit-review:hover,.cockpit-plan:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--acc) 28%,var(--line2))!important;box-shadow:0 8px 24px rgba(0,0,0,.12)}
-.cockpit-task{padding:12px 13px!important;border-left-width:3px!important;border-radius:9px!important}
-.cockpit-review{padding:12px 13px!important;border-radius:9px!important}
-.cockpit-plan{border-radius:10px!important;padding:13px!important}
-.cockpit-primary-action{border-radius:9px!important;background:var(--acc)!important;box-shadow:0 8px 24px color-mix(in srgb,var(--acc) 17%,transparent)!important;transition:transform .16s ease,filter .16s ease}
-.cockpit-primary-action:hover{transform:translateY(-1px);filter:brightness(1.07)}
-[data-screen-label="Tests"],[data-screen-label="ToDo"],[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{background:var(--bg0)}
-[data-screen-label] input,[data-screen-label] select{transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
-[data-screen-label] input:hover,[data-screen-label] select:hover{border-color:color-mix(in srgb,var(--acc) 38%,var(--line2))!important}
-.plan-timeline-table{box-shadow:0 18px 50px rgba(0,0,0,.14)}
+.app-alert-pill{
+  display:flex;align-items:center;gap:6px;padding:7px 12px;
+  border:0;border-radius:var(--rad-s);background:var(--pink);color:var(--onAcc);
+  font:700 11px var(--f-ui);cursor:pointer;white-space:nowrap;transition:filter .13s ease;
+}
+.app-alert-pill:hover{filter:brightness(1.1)}
+.app-day-meter{display:flex;align-items:baseline;gap:10px;line-height:1}
+.app-day-meter__date{font:600 15px var(--f-num);color:var(--tx1);letter-spacing:.03em;white-space:nowrap}
+.app-day-meter__count{font:700 22px var(--f-num);color:var(--view);letter-spacing:.01em;white-space:nowrap}
+.app-day-meter__count i{margin:0 1px;font-style:normal;color:var(--tx3)}
+.app-progress{position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--line);overflow:hidden;z-index:2}
+.app-progress>span{display:block;height:100%;width:var(--done,0%);background:var(--view);transition:width .5s cubic-bezier(.2,.8,.2,1),background .3s ease}
+
+/* ── アプリ切り替え ────────────────────────────────────────────────── */
+
+.mobile-app-launcher{
+  display:none;width:34px;height:34px;flex:none;align-items:center;justify-content:center;padding:0;
+  border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg2);cursor:pointer;box-shadow:none;
+}
+.app-switcher-backdrop{
+  position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:24px;
+  background:color-mix(in srgb,var(--bg0) 88%,transparent);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fadeIn .14s ease;
+}
+.app-switcher-panel{
+  width:min(680px,94vw);max-height:min(720px,90vh);overflow:auto;padding:24px;
+  background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad);
+  box-shadow:0 30px 90px rgba(0,0,0,.5);animation:popIn .18s ease;
+}
+.app-switcher-current{
+  width:min(360px,100%);margin:20px auto 26px;padding:18px;display:flex;align-items:center;gap:15px;
+  border:1px solid var(--view);border-radius:var(--rad-s);background:var(--bg2);color:var(--tx0);
+  cursor:pointer;box-shadow:none;text-align:left;transition:background .14s ease;
+}
+.app-switcher-current:hover{transform:none;background:var(--bg3)}
+.app-switcher-current__icon{width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:var(--rad-s);background:var(--bg0)}
+.app-switcher-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.app-switcher-tile{
+  min-width:0;min-height:132px;padding:15px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+  border:0;border-radius:0;background:var(--bg2);color:var(--tx1);cursor:pointer;text-align:left;
+  transition:background .14s ease;
+}
+.app-switcher-tile:hover{transform:none;background:var(--bg3)}
+.app-switcher-tile__icon{
+  width:42px;height:42px;display:grid;place-items:center;
+  border:1px solid var(--app-accent);border-radius:var(--rad-s);
+  background:transparent;color:var(--app-accent);font:700 22px var(--f-num);
+}
+.app-switcher-tile__status{
+  margin-top:auto;padding:2px 7px;border-radius:var(--rad-s);
+  background:var(--app-accent);color:var(--onAcc);font:700 9.5px var(--f-ui);
+}
+
+/* ── 面と見出し。面は透明にして方眼を透かす ──────────────────────── */
+
+.cockpit-grid{
+  grid-template-columns:minmax(360px,1.18fr) minmax(290px,.9fr) minmax(330px,1fr)!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  gap:0!important;padding:0!important;background:transparent!important;
+  height:calc(100vh - 66px);align-content:stretch!important;overflow:hidden!important;
+}
+.koma-strip{grid-column:1/-1}
+.cockpit-panel{
+  min-height:0!important;height:100%;overflow:auto;
+  background:transparent!important;
+  border:0!important;border-left:1px solid var(--line2)!important;border-radius:0!important;
+  padding:0 16px 28px!important;gap:9px!important;
+}
+.cockpit-panel--today{border-left:0!important}
+.cockpit-panel--today{background:transparent!important}
+.cockpit-panel-title{
+  position:sticky;top:0;z-index:4;
+  padding:14px 0 9px!important;margin:0 0 5px!important;
+  background:var(--bg0)!important;
+  border-bottom:1px solid var(--line2);
+}
+.panel-heading,.app-view-title__name,.compass-brand__name,.empty-note b{font-family:var(--f-disp)}
+.panel-heading{font:700 14px var(--f-disp);letter-spacing:.06em;color:var(--tx0);line-height:1.3}
+.panel-heading__meta{margin-left:auto;font:600 14px var(--f-num);letter-spacing:.03em;color:var(--tx2);white-space:nowrap}
+.panel-heading__link{margin-left:auto;font:400 10.5px var(--f-ui);color:var(--tx3);cursor:pointer;white-space:nowrap;transition:color .13s ease}
+.panel-heading__link:hover{color:var(--view)}
+/* 版のしるし。丸ではなく、方眼のマス目に合わせた四角 */
+.panel-dot{width:9px;height:9px;flex:none;border-radius:0;background:var(--dot,var(--view));box-shadow:none}
+
+[data-screen-label="Tests"],[data-screen-label="ToDo"],[data-screen-label="Review"],
+[data-screen-label="Data"],[data-screen-label="Add"],[data-screen-label="Notebook"]{
+  background:transparent!important;
+}
+[data-screen-label="Cockpit"],[data-screen-label="Tests"],[data-screen-label="ToDo"],
+[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{
+  animation:inkIn .22s cubic-bezier(.2,.85,.2,1)!important;
+}
+@keyframes inkIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── 刷り物としてのカード。浮かない・丸めない ───────────────────── */
+
+.cockpit-task,.cockpit-review,.cockpit-plan,.todo-plan-card,.todo-other-card{
+  border-radius:var(--rad-s)!important;box-shadow:none!important;
+  transition:background .13s ease,border-color .13s ease;
+}
+.cockpit-task:hover,.cockpit-review:hover,.cockpit-plan:hover,
+.todo-plan-card:hover,.todo-other-card:hover{
+  transform:none!important;box-shadow:none!important;
+  border-color:var(--view)!important;
+}
+.cockpit-task{padding:11px 12px!important;border-left-width:4px!important}
+.cockpit-review,.cockpit-plan{padding:11px 12px!important}
+.cockpit-primary-action{
+  border-radius:var(--rad-s)!important;background:var(--view)!important;color:var(--onAcc)!important;
+  box-shadow:none!important;font-family:var(--f-ui);transition:filter .13s ease;
+}
+.cockpit-primary-action:hover{transform:none;filter:brightness(1.08)}
+.cockpit-week-rate{border:1px solid var(--line);border-radius:var(--rad-s);transition:background .13s ease}
+.cockpit-week-rate:hover{border-color:var(--grn);background:var(--bg3)!important}
+.load-bar{height:6px;border-radius:0;background:var(--line);overflow:hidden}
+.load-bar__fill{height:100%;border-radius:0;background:var(--view);transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.empty-note{
+  display:flex;flex-direction:column;gap:6px;padding:22px 16px;text-align:center;
+  border:1px dashed var(--line2);border-radius:var(--rad-s);background:transparent;
+}
+.empty-note b{font:700 13px var(--f-disp);letter-spacing:.05em;color:var(--tx1)}
+.empty-note span{font:400 11px var(--f-ui);line-height:1.8;color:var(--tx3)}
+.focus-launch{
+  border:1px solid var(--view)!important;border-radius:var(--rad-s)!important;
+  background:transparent!important;color:var(--view)!important;transition:background .13s ease;
+}
+.focus-launch:hover{transform:none;filter:none;background:var(--viewBg)!important}
+.todo-summary linearGradient stop:first-child{stop-color:var(--view)}
+.todo-summary linearGradient stop:last-child{stop-color:var(--view)}
+/* var(--grad) を敷いた主要ボタン。押せるものは常にベタ塗り + 直角 */
+.compass-shell button[style*="var(--grad)"]{border-radius:var(--rad-s)!important;box-shadow:none!important;transition:filter .13s ease}
+.compass-shell button[style*="var(--grad)"]:hover{transform:none;filter:brightness(1.08)}
+
+/* ── 入力欄 ──────────────────────────────────────────────────────── */
+
+[data-screen-label] input,[data-screen-label] select,[data-screen-label] textarea,
+.compass-nav input,.compass-nav select{
+  border-radius:var(--rad-s)!important;box-shadow:none!important;
+  transition:border-color .13s ease;
+}
+[data-screen-label] input:hover,[data-screen-label] select:hover,
+.compass-nav input:hover,.compass-nav select:hover{border-color:var(--view)!important}
+
+/* ── 表(計画タイムライン / 復習一覧) ────────────────────────────── */
+
+.plan-timeline-table{border-radius:var(--rad-s)!important;box-shadow:none}
 .plan-timeline-row:hover .plan-sticky-cell{background:var(--bg3)!important}
-.todo-plan-card,.todo-other-card{transition:border-color .16s ease,background .16s ease,transform .16s ease}
-.todo-plan-card:hover,.todo-other-card:hover{transform:translateY(-1px)}
-.quota-line{cursor:ns-resize;user-select:none;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--acc) 38%,transparent))}
-.quota-line:active{filter:drop-shadow(0 0 13px color-mix(in srgb,var(--acc) 65%,transparent))}
-.focus-launch{transition:transform .16s ease,filter .16s ease}.focus-launch:hover{transform:translateY(-1px);filter:brightness(1.08)}
-.timetable-week-strip button{transition:border-color .15s ease,background .15s ease,color .15s ease,transform .15s ease}
-.timetable-week-strip button:hover{transform:translateY(-1px);border-color:var(--acc)!important;color:var(--tx0)!important}
+.review-table-row{transition:background .12s ease}
+.quota-line{cursor:ns-resize;user-select:none;filter:none}
+.quota-line:active{filter:none}
+.timetable-week-strip button{border-radius:var(--rad-s)!important;transition:border-color .13s ease,background .13s ease,color .13s ease}
+.timetable-week-strip button:hover{transform:none;border-color:var(--view)!important;color:var(--tx0)!important}
 .mobile-scroll-hint,.mini-day-mobile,.mini-mobile-actions{display:none}
 
+/* ══ 署名: 今日のコマ帯 ═════════════════════════════════════════════
+   Compass の前提は「時間割がデータ源」。その時間割を画面の一番上に
+   そのまま置き、今日という 1 日の骨格にしている。
+   ・7 つのマスは 1限〜7限。ここから予習も復習も生まれる
+   ・いま進行中のコマだけが蛍光オレンジでベタ塗りになる
+   ・休講のコマは教科名に取り消し線が入る
+   ════════════════════════════════════════════════════════════════ */
+
+.koma-strip{
+  display:grid;grid-template-columns:auto repeat(7,minmax(0,1fr));
+  gap:1px;margin:0 0 2px;background:var(--line);
+  border-bottom:1px solid var(--line2);
+}
+.koma-strip__axis{
+  display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:9px 14px;background:var(--bg0);
+}
+.koma-strip__dow{display:flex;align-items:baseline;gap:6px;font:700 20px var(--f-num);letter-spacing:.03em;color:var(--tx0);line-height:1}
+.koma-strip__dow span{font:700 12px var(--f-disp);letter-spacing:.08em;color:var(--tx2)}
+.koma-strip__note{font:400 9.5px var(--f-ui);letter-spacing:.1em;color:var(--tx3);white-space:nowrap}
+.koma{
+  position:relative;min-width:0;display:flex;flex-direction:column;gap:4px;
+  padding:9px 10px 8px;background:var(--bg0);
+  border:0;text-align:left;color:inherit;cursor:pointer;
+  transition:background .13s ease;
+}
+.koma:disabled{cursor:default}
+.koma:not(:disabled):not(.koma--now):hover{background:var(--bg3)}
+.koma__no{font:600 11px var(--f-num);letter-spacing:.08em;color:var(--tx3);line-height:1}
+.koma__subj{
+  font:700 13px var(--f-disp);letter-spacing:.04em;color:var(--tx1);line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* そのコマから生まれた今日のタスク。塗り潰しが完了ぶん */
+.koma__tally{display:flex;gap:2px;height:4px;margin-top:1px}
+.koma__tally i{display:block;width:8px;height:4px;border:1px solid var(--line2)}
+.koma__tally i.is-done{background:var(--grn);border-color:var(--grn)}
+.koma--empty .koma__subj{color:var(--tx3);font-weight:400}
+.koma--off .koma__subj{color:var(--tx3);text-decoration:line-through;text-decoration-thickness:1.5px}
+.koma--now{background:var(--pink)}
+.koma--now .koma__no{color:var(--onAcc);opacity:.7}
+.koma--now .koma__subj{color:var(--onAcc)}
+.koma--now .koma__tally i{border-color:color-mix(in srgb,var(--onAcc) 45%,transparent)}
+.koma--now .koma__tally i.is-done{background:var(--onAcc);border-color:var(--onAcc)}
+
+/* ── スプラッシュ ────────────────────────────────────────────────── */
+
+.compass-splash{
+  background-color:#0c1520;
+  background-image:
+    linear-gradient(to right,rgba(120,165,210,.10) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(120,165,210,.10) 1px,transparent 1px),
+    linear-gradient(to right,rgba(120,165,210,.055) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(120,165,210,.055) 1px,transparent 1px);
+  background-size:128px 128px,128px 128px,32px 32px,32px 32px;
+  --sp-guide:rgba(160,200,240,.2);
+  --sp-graphite:rgba(160,200,240,.14);
+  --sp-ink:#eaf1f8;
+  --sp-tick:rgba(200,225,245,.5);
+  --sp-face:#111e2e;
+  --sp-face-line:rgba(200,225,245,.4);
+  --sp-accent:#eaf1f8;
+  --sp-warm:#ff5b2e;
+  --sp-ring:rgba(200,225,245,.2);
+  --sp-ring-mid:#35c07d;
+  --sp-ring-in:#ff5b2e;
+  --sp-pin:#0c1520;
+  --sp-pin-ring:#eaf1f8;
+  --sp-text:#eaf1f8;
+}
+.compass-splash__glow{display:none}
+.compass-splash__mark,.compass-splash__build{filter:none}
+.compass-splash__word{font:600 13px var(--f-num);letter-spacing:.42em;color:var(--sp-text)}
+.compass-splash__todo{
+  font:900 clamp(30px,7vw,46px) var(--f-disp);letter-spacing:.02em;
+  color:var(--sp-text);background:none;-webkit-background-clip:border-box;background-clip:border-box;
+}
+.compass-splash__todo::after{background:var(--sp-warm);border-radius:0;box-shadow:none}
+.sp-card,.mk-card{font:700 23px var(--f-num)}
+
+/* ── ライトテーマ = 刷り上がったプリント ───────────────────────── */
+
+.compass-theme-mode[data-theme="light"] .compass-splash{
+  background-color:#e7e4db;
+  background-image:
+    linear-gradient(to right,rgba(40,70,105,.11) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(40,70,105,.11) 1px,transparent 1px),
+    linear-gradient(to right,rgba(40,70,105,.055) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(40,70,105,.055) 1px,transparent 1px);
+  --sp-guide:rgba(30,55,85,.22);
+  --sp-graphite:rgba(30,55,85,.16);
+  --sp-ink:#17293e;
+  --sp-tick:rgba(30,55,85,.5);
+  --sp-face:#fbfaf6;
+  --sp-face-line:rgba(30,55,85,.38);
+  --sp-accent:#17293e;
+  --sp-warm:#dd4110;
+  --sp-ring:rgba(30,55,85,.22);
+  --sp-ring-mid:#16794d;
+  --sp-ring-in:#dd4110;
+  --sp-pin:#fbfaf6;
+  --sp-pin-ring:#17293e;
+  --sp-text:#14202e;
+}
+/* 紙が明るいと 1px 罫が沈むので、面の区切りだけ濃くする */
+.compass-theme-mode[data-theme="light"] .compass-nav{background:var(--bg2)!important;box-shadow:none}
+.compass-theme-mode[data-theme="light"] .cockpit-grid{background:transparent!important}
+.compass-theme-mode[data-theme="light"] .app-switcher-panel,
+.compass-theme-mode[data-theme="light"] .app-search-popover{box-shadow:0 18px 40px rgba(30,45,65,.16)}
+
+/* ── モバイル ────────────────────────────────────────────────────── */
+
 @media(max-width:1180px){
-  .cockpit-grid{grid-template-columns:minmax(350px,1.15fr) minmax(300px,.85fr)!important;overflow:auto!important}
+  .cockpit-grid{
+    grid-template-columns:minmax(350px,1.15fr) minmax(300px,.85fr)!important;
+    grid-template-rows:auto!important;height:auto!important;overflow:auto!important;
+  }
   .cockpit-panel{height:auto;min-height:520px!important}
-  .cockpit-panel--plans{grid-column:1/-1;display:grid!important;grid-template-columns:1fr 1fr;align-content:start}
+  .cockpit-panel--plans{grid-column:1/-1;display:grid!important;grid-template-columns:1fr 1fr;align-content:start;border-top:1px solid var(--line2)!important}
   .cockpit-panel--plans>.cockpit-panel-title,.cockpit-panel--plans>.cockpit-primary-action{grid-column:1/-1}
-  .app-search{min-width:260px}
+  .app-search{min-width:240px}
+  .koma-strip{grid-template-columns:auto repeat(7,minmax(0,1fr))}
 }
 @media(max-width:820px){
   :root{--mobile-nav-h:calc(64px + env(safe-area-inset-bottom))}
   html,body{width:100%;height:100%;overflow-x:hidden;overscroll-behavior-x:none}
   button,[role="button"],input,select{touch-action:manipulation}
-  .compass-shell{display:block!important;height:100vh!important;height:100dvh!important;padding-bottom:var(--mobile-nav-h)}
-  .compass-nav{position:fixed!important;left:0;right:0;bottom:0;z-index:100;width:100%!important;height:var(--mobile-nav-h);padding:6px max(6px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-right))!important;display:flex!important;flex-direction:row!important;gap:2px!important;border:0!important;border-top:1px solid var(--line2)!important;background:color-mix(in srgb,var(--bg2) 93%,transparent)!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
-  /* 死にルール(spec Q17): 3番目の `.compass-nav>[style*="position:absolute"]` は
-     React が style を `position: absolute`(スペース付き)で直列化するため一致せず、
-     モバイルでもナビのリサイズハンドルは残る。→ セレクタごと移植しない */
+  .compass-shell{display:block!important;height:100vh!important;height:100dvh!important;padding-bottom:calc(var(--mobile-nav-h) + 18px)!important}
+  .compass-nav{
+    position:fixed!important;left:0;right:0;bottom:0;z-index:100;width:100%!important;
+    height:var(--mobile-nav-h);
+    padding:0 max(0px,env(safe-area-inset-left)) env(safe-area-inset-bottom) max(0px,env(safe-area-inset-right))!important;
+    display:flex!important;flex-direction:row!important;gap:1px!important;
+    border:0!important;border-top:1px solid var(--line2)!important;
+    background:var(--line)!important;
+    -webkit-backdrop-filter:none;backdrop-filter:none;
+  }
   .compass-brand,.compass-nav-footer{display:none!important}
   .mobile-app-launcher{display:flex}
-  .app-nav-item{min-width:0!important;min-height:52px!important;flex:1;flex-direction:column!important;justify-content:center;gap:4px!important;padding:4px 2px!important;border:0!important;font-size:9px!important;text-align:center}
-  .app-nav-item::before{width:18px;height:18px}
-  .app-nav-item::after{display:none}
-  .app-nav-item span{font-size:9px!important;flex:none!important}
+  .app-nav-item{
+    min-width:0!important;min-height:56px!important;flex:1;
+    flex-direction:column!important;justify-content:center;gap:4px!important;
+    padding:6px 2px!important;border:0!important;background:var(--bg2)!important;text-align:center;
+  }
+  .app-nav-item::before{width:19px;height:19px}
+  .app-nav-item__key{display:none}
+  .app-nav-item__label{font:400 9px var(--f-ui)!important;text-align:center;flex:none!important}
+  .app-nav-item.is-active{background:var(--bg0)!important;color:var(--nav-hue)!important;box-shadow:inset 0 3px 0 var(--nav-hue)}
+  .app-nav-item__badge{position:absolute;top:3px;right:calc(50% - 21px);padding:0 4px;font-size:9px}
+  /* 「タスク追加」だけは親指の届く丸ボタン。方眼の外に置いた 1 つの例外 */
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]{
+    --nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+    flex:0 0 56px!important;max-width:56px;height:56px;min-height:56px!important;
+    align-self:center;position:relative;top:-14px;margin:0 5px;padding:0!important;
+    border-radius:50%!important;
+    background:var(--org)!important;color:var(--onAcc)!important;
+    border:1px solid var(--org)!important;
+    box-shadow:0 10px 22px -10px rgba(0,0,0,.6);
+    transition:transform .13s ease;
+  }
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]::before{width:26px;height:26px;opacity:1}
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"] .app-nav-item__label{display:none}
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"].is-active,
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]:hover{background:var(--org)!important;color:var(--onAcc)!important}
+  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]:active{transform:scale(.93)}
+
   .compass-main{height:calc(100vh - var(--mobile-nav-h));height:calc(100dvh - var(--mobile-nav-h));width:100%;min-width:0;overflow:hidden}
-  .compass-topbar{min-height:60px;padding:10px 13px!important;gap:8px!important}
-  .app-view-title{min-width:0;flex:1}.app-view-title>div:last-child{display:none}
-  .compass-topbar{flex-wrap:wrap}
-  .app-search{order:4;min-width:0!important;width:100%;margin-left:0!important;flex-basis:100%}
+  .compass-topbar{min-height:54px;padding:8px 13px 9px!important;gap:9px!important;flex-wrap:wrap}
+  .app-view-title{order:1;min-width:0;flex:1;padding-left:10px}
+  .app-view-title::before{top:2px;bottom:2px;width:3px}
+  .app-view-title__name{font-size:16px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-view-title__sub{display:none}
+  .app-alert-pill{display:none!important}
+  .app-day-meter{gap:8px}
+  .app-day-meter__date{font-size:13px}
+  .app-day-meter__count{font-size:18px}
+  .app-search{order:4;min-width:0!important;width:100%;margin-left:0!important;flex-basis:100%;height:34px}
+  .app-search-input{height:32px}
   .app-search-shortcut{display:none}
   .app-search-popover{left:0;right:0;max-height:calc(100dvh - 128px)}
-  /* 死にルール(spec Q17): `.app-top-actions sc-if{display:none!important}` は
-     <sc-if> が DOM に出ないため一度も一致しない。→ 移植しない */
-  .app-top-actions{margin-left:0!important}.app-top-actions>span{font-size:11px!important}
-  .cockpit-grid{display:block!important;overflow:auto!important;background:var(--bg0)!important}
-  .cockpit-panel{height:auto;min-height:0!important;border-bottom:1px solid var(--line)!important;padding:18px 14px 22px!important}
+  .app-top-actions{order:3;margin-left:0!important}
+  .app-top-actions>span{font-size:11px!important}
+
+  .cockpit-grid{display:block!important;overflow:auto!important;background:transparent!important}
+  .cockpit-panel{height:auto;min-height:0!important;border-left:0!important;border-bottom:1px solid var(--line2)!important;padding:0 14px 20px!important}
   .cockpit-panel--plans{display:flex!important}
   [data-screen-label="Tests"],[data-screen-label="ToDo"],[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{padding:14px!important;width:100%;min-width:0;overflow-x:hidden!important}
   [data-screen-label="ToDo"],[data-screen-label="Data"]{display:flex!important;flex-direction:column!important;grid-template-columns:none!important}
@@ -542,7 +977,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .todo-summary{flex-wrap:wrap}.todo-summary .focus-launch{width:100%;min-height:44px}.todo-summary>div:nth-child(2){min-width:150px}
   .plan-controls{gap:8px!important}.plan-controls>div{min-height:54px}.plan-legend{flex-basis:100%!important;justify-content:flex-start!important;gap:8px 12px!important;flex-wrap:wrap}
   .plan-overdue{align-items:flex-start!important;flex-wrap:wrap}.plan-overdue>button{width:100%;margin-left:0!important;min-height:42px}
-  .mobile-scroll-hint{display:block!important;margin:-2px 2px 8px;color:var(--tx3);font:600 10.5px 'Noto Sans JP';text-align:right}
+  .mobile-scroll-hint{display:block!important;margin:-2px 2px 8px;color:var(--tx3);font:400 10.5px var(--f-ui);text-align:right}
   .plan-timeline-table{max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:thin;overscroll-behavior-x:contain}
   .plan-timeline-head,.plan-timeline-row{grid-template-columns:156px repeat(var(--timeline-days),92px)!important;min-width:var(--timeline-mobile-min-width)!important}
   .plan-sticky-cell{padding:11px 10px!important}
@@ -550,494 +985,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   .review-table{overflow:visible!important;background:transparent!important;border:0!important}
   .review-table-inner{min-width:0!important}
   .review-table-head{display:none!important}
-  .review-table-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;grid-template-areas:"subject title actions" "round next actions" "last stage status";gap:8px 9px!important;margin-bottom:8px;padding:11px 10px!important;border-top:1px solid var(--line)!important;border-right:1px solid var(--line)!important;border-bottom:1px solid var(--line)!important;border-radius:11px;background:var(--bg1)!important}
+  .review-table-row{
+    display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;
+    grid-template-areas:"subject title actions" "round next actions" "last stage status";
+    gap:8px 9px!important;margin-bottom:6px;padding:11px 10px!important;
+    border:1px solid var(--line)!important;border-radius:var(--rad-s);background:var(--bg1)!important;
+  }
   /* C-508: レガシーは `>span:nth-child(1..8)`。{{ }} が <span class="sc-interp"> に
      包まれる前提の並び順依存だったので、セルへ明示クラスを振る形に置換した。
-     セル 8 個には .rt-cell と .rt-cell-<名前> の両方を必ず付けること(css-notes.md §3)。
-     並び順・grid-area・見た目はレガシーと同一。 */
+     セル 8 個には .rt-cell と .rt-cell-<名前> の両方を必ず付けること(css-notes.md §3)。 */
   .review-table-row>.rt-cell-subj{grid-area:subject}.review-table-row>.rt-cell-title{grid-area:title}.review-table-row>.rt-cell-last{grid-area:last}.review-table-row>.rt-cell-next{grid-area:next}.review-table-row>.rt-cell-round{grid-area:round}.review-table-row>.rt-cell-stage{grid-area:stage}.review-table-row>.rt-cell-status{grid-area:status}.review-table-row>.rt-cell-actions{grid-area:actions;flex-direction:column;align-items:flex-end!important;justify-content:flex-start!important}
-  .review-table-row>.rt-cell[data-label]::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--tx3);font:500 8.5px 'Noto Sans JP'}
-  .review-divider{margin:10px 0 8px;border-radius:10px}.review-table-foot{padding:10px 4px!important;line-height:1.7}
+  .review-table-row>.rt-cell[data-label]::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--tx3);font:400 8.5px var(--f-ui)}
+  .review-divider{margin:10px 0 8px;border-radius:0}.review-table-foot{padding:10px 4px!important;line-height:1.7}
   .timetable-week-strip{width:100%!important;min-width:0!important;margin-left:0!important;grid-template-columns:28px repeat(5,minmax(0,1fr)) 28px!important}
   /* C-508: 同上。`.score-group-row>span:nth-child(1..6)` をセルの明示クラスへ置換 */
   .score-group-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 8px!important}.score-group-row>.sg-cell-subj{grid-column:1;grid-row:1/3}.score-group-row>.sg-cell-name{grid-column:2;grid-row:1}.score-group-row>.sg-cell-meta{grid-column:2;grid-row:2}.score-group-row>.sg-cell-delta{grid-column:3;grid-row:2}.score-group-row>.sg-cell-score{grid-column:3;grid-row:1}.score-group-row>.sg-cell-arrow{display:none}
-  .mini-editor-row{flex-wrap:wrap}.mini-drag-handle,.mini-day-label{display:none!important}.mini-title{order:2;flex:1!important}.mini-size{order:3}.mini-delete{order:4}.mini-day-mobile{display:block!important;order:5;flex:1 1 150px;min-width:0;min-height:36px;padding:6px 8px;border:1px solid var(--line2);border-radius:8px;background:var(--bg1);color:var(--tx1);font:600 11px 'Space Grotesk';color-scheme:dark}.mini-mobile-actions{display:flex!important;order:6;gap:5px}.mini-mobile-actions button{width:38px;min-height:36px;border:1px solid var(--line2);border-radius:8px;background:var(--bg3);color:var(--tx1);font-weight:700}
-  .app-switcher-backdrop{padding:12px}.app-switcher-panel{max-height:90dvh;padding:18px;border-radius:18px}.app-switcher-current{margin:18px auto 22px;padding:16px}.app-switcher-current__icon{width:58px;height:58px}.app-switcher-grid{grid-template-columns:1fr}.app-switcher-tile{min-height:98px;display:grid;grid-template-columns:44px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center}.app-switcher-tile__icon{grid-row:1/3}.app-switcher-tile__status{grid-column:3;grid-row:1/3;margin-top:0}
-}
-
-/* ===== Dark notebook skin: structure and behavior stay unchanged ===== */
-.compass-theme-mode[data-theme="note"]{
-  --paper:#100f0c;
-  --paper-raised:#1a1814;
-  --paper-soft:#151310;
-  --paper-mark:#26231c;
-  --pencil:#f2ede1;
-  --pencil-soft:#cdc6b9;
-  --graphite:#918b81;
-  --graphite-faint:#867f76;
-  --rule:rgba(242,237,225,.075);
-}
-.compass-theme-mode[data-theme="note"] .compass-shell{
-  background-color:var(--paper)!important;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--rule) 31px,var(--rule) 32px)!important;
-}
-/* 死にルール(spec Q17): note の綴じ線(中央 1px の縦線)は後段
-   `.compass-shell::before{background:...!important}`(HTML:556-559)に負けて
-   一度も表示されない。→ 移植しない
-   HTML:326-328 [data-theme="dark"] .compass-shell::before{background:linear-gradient(90deg,…rgba(238,233,222,.022)…)} */
-.compass-theme-mode[data-theme="note"] .compass-nav{
-  background:rgba(21,19,16,.97)!important;
-  border-right-color:rgba(238,233,222,.16)!important;
-  box-shadow:none!important;
-}
-.compass-theme-mode[data-theme="note"] .compass-brand,
-.compass-theme-mode[data-theme="note"] .app-nav-item,
-.compass-theme-mode[data-theme="note"] button{
-  text-shadow:none;
-}
-.compass-theme-mode[data-theme="note"] .compass-brand:hover{
-  background:rgba(238,233,222,.05);
-}
-.compass-theme-mode[data-theme="note"] .compass-brand>div:first-child{
-  filter:none!important;
-}
-.compass-theme-mode[data-theme="note"] .app-nav-item{
-  border-radius:11px!important;
-}
-.compass-theme-mode[data-theme="note"] .app-nav-item:hover{
-  background:rgba(238,233,222,.06)!important;
-}
-.compass-theme-mode[data-theme="note"] .app-nav-item.is-active{
-  background:rgba(238,233,222,.08)!important;
-  border-color:rgba(238,233,222,.2)!important;
-  color:var(--pencil)!important;
-}
-.compass-theme-mode[data-theme="note"] .app-nav-item.is-active::after{
-  width:2px;
-  border-radius:0;
-  background:var(--pencil);
-  box-shadow:none;
-}
-.compass-theme-mode[data-theme="note"] .compass-main{
-  background:transparent;
-}
-.compass-theme-mode[data-theme="note"] .compass-topbar{
-  background:rgba(16,15,12,.94);
-  border-color:rgba(242,237,225,.16)!important;
-  -webkit-backdrop-filter:none;
-  backdrop-filter:none;
-}
-.compass-theme-mode[data-theme="note"] .app-view-title{
-  background:transparent;
-  background-image:none!important;
-}
-.compass-theme-mode[data-theme="note"] .app-view-title>div:first-child,
-.compass-theme-mode[data-theme="note"] .cockpit-panel-title>div:first-child,
-.compass-theme-mode[data-theme="note"] [data-screen-label] h1,
-.compass-theme-mode[data-theme="note"] [data-screen-label] h2{
-  font-family:'Klee One','Noto Sans JP',sans-serif!important;
-  font-weight:600!important;
-  letter-spacing:.035em!important;
-}
-.compass-theme-mode[data-theme="note"] .app-search,
-.compass-theme-mode[data-theme="note"] input,
-.compass-theme-mode[data-theme="note"] select,
-.compass-theme-mode[data-theme="note"] textarea{
-  background:rgba(18,17,14,.84)!important;
-  border-color:rgba(238,233,222,.19)!important;
-  box-shadow:none!important;
-}
-.compass-theme-mode[data-theme="note"] .app-search:hover,
-.compass-theme-mode[data-theme="note"] .app-search:focus-within,
-.compass-theme-mode[data-theme="note"] input:hover,
-.compass-theme-mode[data-theme="note"] select:hover{
-  border-color:rgba(238,233,222,.42)!important;
-  box-shadow:none!important;
-}
-.compass-theme-mode[data-theme="note"] .timetable-slot{
-  background-color:color-mix(in srgb,var(--slot-pencil) 5%,var(--bg2))!important;
-  background-image:
-    repeating-linear-gradient(8deg,transparent 0,transparent 3px,color-mix(in srgb,var(--slot-pencil) 11%,transparent) 3px,color-mix(in srgb,var(--slot-pencil) 11%,transparent) 4px,transparent 4px,transparent 7px),
-    repeating-linear-gradient(-5deg,transparent 0,transparent 8px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 8px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 9px)!important;
-  border-color:color-mix(in srgb,var(--slot-pencil) 58%,var(--line))!important;
-  border-radius:12px!important;
-  box-shadow:
-    inset 3px 0 0 color-mix(in srgb,var(--slot-pencil) 72%,var(--pencil)),
-    inset 0 1px 0 rgba(238,233,222,.055)!important;
-  transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease;
-}
-.compass-theme-mode[data-theme="note"] .timetable-slot:hover{
-  background-color:color-mix(in srgb,var(--slot-pencil) 8%,var(--bg2))!important;
-  border-color:color-mix(in srgb,var(--slot-pencil) 72%,var(--pencil))!important;
-}
-.compass-theme-mode[data-theme="note"] .timetable-slot.is-active{
-  border-color:var(--pencil)!important;
-  box-shadow:
-    inset 4px 0 0 color-mix(in srgb,var(--slot-pencil) 74%,var(--pencil)),
-    0 0 0 1px rgba(238,233,222,.28)!important;
-}
-.compass-theme-mode[data-theme="note"] .timetable-slot.is-added{
-  background-color:color-mix(in srgb,var(--grn) 5%,color-mix(in srgb,var(--slot-pencil) 5%,var(--bg2)))!important;
-}
-.compass-theme-mode[data-theme="note"] .timetable-slot__subject{
-  background-color:color-mix(in srgb,var(--slot-pencil) 4%,var(--bg2))!important;
-  background-image:repeating-linear-gradient(4deg,transparent 0,transparent 5px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 5px,color-mix(in srgb,var(--slot-pencil) 6%,transparent) 6px)!important;
-  border-color:color-mix(in srgb,var(--slot-pencil) 66%,var(--pencil))!important;
-  border-radius:9px!important;
-  box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--slot-pencil) 48%,transparent)!important;
-}
-.compass-theme-mode[data-theme="note"] .timetable-slot__subject:focus{
-  border-color:var(--pencil)!important;
-  box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--slot-pencil) 72%,var(--pencil))!important;
-}
-.compass-theme-mode[data-theme="note"] .app-search-popover,
-.compass-theme-mode[data-theme="note"] .app-switcher-panel{
-  background:var(--paper-raised)!important;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(238,233,222,.045) 31px,rgba(238,233,222,.045) 32px)!important;
-  border-color:rgba(238,233,222,.2)!important;
-  border-radius:16px;
-  box-shadow:0 18px 46px rgba(0,0,0,.46);
-}
-.compass-theme-mode[data-theme="note"] .app-switcher-backdrop{
-  background:rgba(8,8,7,.82);
-  -webkit-backdrop-filter:none;
-  backdrop-filter:none;
-}
-.compass-theme-mode[data-theme="note"] .app-switcher-current,
-.compass-theme-mode[data-theme="note"] .app-switcher-tile{
-  background:rgba(24,23,19,.94);
-  border-color:rgba(238,233,222,.17);
-  border-radius:13px;
-}
-.compass-theme-mode[data-theme="note"] .app-switcher-current:hover,
-.compass-theme-mode[data-theme="note"] .app-switcher-tile:hover{
-  transform:none;
-  border-color:rgba(238,233,222,.38);
-  background:var(--paper-mark);
-}
-.compass-theme-mode[data-theme="note"] .cockpit-grid{
-  background:rgba(238,233,222,.12)!important;
-}
-.compass-theme-mode[data-theme="note"] .cockpit-panel,
-.compass-theme-mode[data-theme="note"] [data-screen-label="Tests"],
-.compass-theme-mode[data-theme="note"] [data-screen-label="ToDo"],
-.compass-theme-mode[data-theme="note"] [data-screen-label="Review"],
-.compass-theme-mode[data-theme="note"] [data-screen-label="Data"],
-.compass-theme-mode[data-theme="note"] [data-screen-label="Add"]{
-  background-color:rgba(16,15,12,.965)!important;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(238,233,222,.045) 31px,rgba(238,233,222,.045) 32px)!important;
-}
-.compass-theme-mode[data-theme="note"] .cockpit-panel--today{
-  background-color:rgba(21,19,16,.985)!important;
-}
-.compass-theme-mode[data-theme="note"] .cockpit-panel-title,
-.compass-theme-mode[data-theme="note"] .cockpit-panel--today .cockpit-panel-title{
-  background:linear-gradient(180deg,var(--paper) 75%,transparent)!important;
-}
-.compass-theme-mode[data-theme="note"] .cockpit-primary-action,
-.compass-theme-mode[data-theme="note"] .focus-launch{
-  border-radius:11px!important;
-}
-.compass-theme-mode[data-theme="note"] .quota-line,
-.compass-theme-mode[data-theme="note"] .quota-line:active{
-  filter:none;
-}
-.compass-theme-mode[data-theme="note"] .compass-splash{
-  background-color:#100f0c;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(242,237,225,.06) 31px,rgba(242,237,225,.06) 32px);
-  /* 焼けた黒紙に、鉛筆と色鉛筆で描かれた計器 */
-  --sp-guide:rgba(242,237,225,.17);
-  --sp-graphite:rgba(242,237,225,.13);
-  --sp-ink:#f2ede1;
-  --sp-tick:rgba(242,237,225,.48);
-  --sp-face:#17150f;
-  --sp-face-line:rgba(242,237,225,.42);
-  --sp-accent:#f2ede1;
-  --sp-warm:#ddb277;
-  --sp-ring:rgba(242,237,225,.22);
-  --sp-ring-mid:#96c49c;
-  --sp-ring-in:#ddb277;
-  --sp-pin:#100f0c;
-  --sp-pin-ring:#f2ede1;
-  --sp-text:#f2ede1;
-}
-.compass-theme-mode[data-theme="note"] .compass-splash__glow{display:none}
-.compass-theme-mode[data-theme="note"] .compass-splash__mark,
-.compass-theme-mode[data-theme="note"] .compass-splash__build{
-  filter:drop-shadow(0 14px 24px rgba(0,0,0,.48));
-}
-.compass-theme-mode[data-theme="note"] .compass-splash__word,
-.compass-theme-mode[data-theme="note"] .compass-splash__todo{
-  color:var(--sp-text);
-  background:none;
-  -webkit-background-clip:border-box;
-  background-clip:border-box;
-  text-shadow:none;
-  font-family:'Klee One','Noto Sans JP',sans-serif;
-}
-.compass-theme-mode[data-theme="note"] .compass-splash__todo::after{
-  background:#cdc6b9;
-  box-shadow:none;
-}
-.compass-theme-mode[data-theme="note"] ::-webkit-scrollbar-thumb{
-  background:rgba(238,233,222,.22);
-  border-radius:99px;
-}
-@media(max-width:820px){
-  .compass-theme-mode[data-theme="note"] .compass-nav{
-    background:rgba(21,19,16,.985)!important;
-    border-top-color:rgba(242,237,225,.18)!important;
-    -webkit-backdrop-filter:none;
-    backdrop-filter:none;
-  }
-}
-@media(prefers-reduced-motion:reduce){.app-nav-item,.cockpit-task,.cockpit-review,.cockpit-plan,.cockpit-primary-action{transition:none!important}}
-
-/* ══════════════════════════════════════════════════════════════════
-   Compass "Ink & Paper" v0.8 — 画面ごとの署名カラー + 手書き見出し
-   ・--view : いま開いている画面の色。ナビ・見出し・主要ボタン・進捗が連動する
-   ・見出しは Klee One(手書き)、数値は Space Grotesk の等幅数字
-   ══════════════════════════════════════════════════════════════════ */
-.compass-theme{
-  --font-hand:'Klee One','Noto Sans JP',serif;
-  --font-num:'Space Grotesk','Noto Sans JP',sans-serif;
-  --ink-rad:13px;
-  --ink-rad-sm:10px;
-  --ink-lift:0 1px 0 rgba(0,0,0,.05),0 8px 22px -16px rgba(0,0,0,.55);
-  --ink-lift-hi:0 2px 0 rgba(0,0,0,.05),0 16px 34px -18px rgba(0,0,0,.6);
-}
-.compass-shell{font-variant-numeric:tabular-nums;letter-spacing:.005em}
-.compass-shell button:focus-visible,.compass-shell input:focus-visible,
-.compass-shell select:focus-visible,.compass-shell [tabindex]:focus-visible{
-  outline:2px solid var(--view)!important;outline-offset:2px
-}
-/* 画面の色がうっすら部屋の空気を変える */
-.compass-shell::before{
-  background:radial-gradient(circle at 50% -14%,color-mix(in srgb,var(--view) 7%,transparent),transparent 42%)!important;
-  transition:background .5s ease;
-}
-
-/* ── 見出しタイポグラフィ ───────────────────────────── */
-.panel-heading,.app-view-title__name,.compass-brand__name,.empty-note b{
-  font-family:var(--font-hand);font-weight:600;letter-spacing:.035em;
-}
-.panel-heading{font-size:16px;color:var(--tx0);line-height:1.3}
-.panel-heading__meta{margin-left:auto;font:600 12px var(--font-num);color:var(--tx2);white-space:nowrap}
-.panel-heading__link{margin-left:auto;font:500 11px 'Noto Sans JP';color:var(--tx3);cursor:pointer;white-space:nowrap;transition:color .16s ease}
-.panel-heading__link:hover{color:var(--view)}
-.panel-dot{width:9px;height:9px;flex:none;border-radius:99px;background:var(--dot,var(--view));box-shadow:0 0 0 3px color-mix(in srgb,var(--dot,var(--view)) 16%,transparent)}
-
-/* ── ブランド ────────────────────────────────────── */
-.compass-brand{gap:11px!important;padding:2px 6px 18px!important}
-.compass-brand__mark{
-  width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:13px;
-  border:1px solid color-mix(in srgb,var(--view) 26%,var(--line));
-  background:color-mix(in srgb,var(--view) 9%,transparent);
-  transition:border-color .3s ease,background .3s ease;
-}
-.compass-brand__mark img{width:26px;height:26px}
-.compass-brand__text{flex:1;min-width:0}
-.compass-brand__name{font-size:20px;color:var(--tx0);line-height:1.15}
-.compass-brand__tag{margin-top:1px;font:500 9px 'Noto Sans JP';letter-spacing:.13em;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.compass-brand:hover .compass-brand__mark{border-color:var(--view);background:color-mix(in srgb,var(--view) 15%,transparent)}
-
-/* ── ナビ ─────────────────────────────────────── */
-.compass-nav{padding:20px 14px 16px!important;gap:3px!important}
-.app-nav-item{--nav-hue:var(--acc);min-height:46px;padding:10px 12px!important;border-radius:12px!important;gap:12px!important}
-.app-nav-item::before{width:19px;height:19px;opacity:.85}
-.app-nav-item__label{min-width:0;font:500 13.5px 'Noto Sans JP';letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.app-nav-item__key{
-  position:absolute;right:10px;top:50%;transform:translateY(-50%);
-  width:19px;height:19px;display:grid;place-items:center;border-radius:6px;pointer-events:none;
-  border:1px solid var(--line);color:var(--tx3);font:600 10px var(--font-num);opacity:0;
-  transition:opacity .16s ease,color .16s ease,border-color .16s ease;
-}
-.app-nav-item__badge{flex:none;padding:1px 7px;border-radius:99px;background:var(--pinkBg);color:var(--pink);font:700 10px var(--font-num)}
-.compass-nav:hover .app-nav-item__key{opacity:1}
-.compass-nav:hover .app-nav-item__badge{margin-right:22px}
-.app-nav-item:hover{background:color-mix(in srgb,var(--nav-hue) 9%,transparent)!important;transform:none!important}
-.app-nav-item:hover::before{opacity:1}
-.app-nav-item:hover .app-nav-item__label{color:var(--tx0)}
-.app-nav-item.is-active{
-  background:color-mix(in srgb,var(--nav-hue) 14%,transparent)!important;
-  border-color:color-mix(in srgb,var(--nav-hue) 28%,transparent)!important;
-  color:var(--nav-hue)!important;
-}
-.app-nav-item.is-active::before{opacity:1}
-.app-nav-item.is-active::after{
-  left:-15px;top:11px;bottom:11px;width:3px;border-radius:0 3px 3px 0;
-  background:var(--nav-hue);box-shadow:none!important;
-}
-.app-nav-item.is-active .app-nav-item__key{border-color:color-mix(in srgb,var(--nav-hue) 40%,transparent);color:var(--nav-hue)}
-
-/* ── ナビ下部 ─────────────────────────────────── */
-.theme-switch{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;background:var(--bg1);border:1px solid var(--line);border-radius:12px}
-.theme-switch>span{text-align:center;padding:7px 2px;border-radius:9px;cursor:pointer;font:700 10px 'Noto Sans JP';white-space:nowrap;transition:background .16s ease,color .16s ease}
-.theme-switch>span:hover{background:color-mix(in srgb,var(--view) 12%,transparent)}
-.nav-shortcuts{display:flex;flex-wrap:wrap;gap:3px 7px;justify-content:center;font:500 9.5px 'Noto Sans JP';color:var(--tx3)}
-.nav-shortcuts kbd{
-  display:inline-grid;place-items:center;min-width:15px;padding:1px 3px;margin:0 1px;
-  border:1px solid var(--line2);border-radius:4px;background:var(--bg2);
-  color:var(--tx2);font:600 9px var(--font-num);
-}
-.nav-cloud{text-align:center;font:600 10px 'Noto Sans JP';color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav-version{text-align:center;font:500 9.5px var(--font-num);color:var(--tx3);letter-spacing:.14em}
-
-/* ── トップバー ───────────────────────────────── */
-.compass-topbar{position:relative;min-height:70px}
-.app-view-title{display:flex;flex-direction:column;justify-content:center;gap:2px;padding-left:13px;position:relative}
-.app-view-title::before{
-  content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:99px;
-  background:var(--view);transition:background .35s ease;
-}
-.app-view-title__name{font-size:18px!important;color:var(--tx0);line-height:1.2}
-.app-view-title__sub{font-size:11px;color:var(--tx3);line-height:1.4}
-.app-alert-pill{
-  display:flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid var(--pink);
-  border-radius:99px;background:var(--pinkBg);color:var(--pink);
-  font:700 11px 'Noto Sans JP';cursor:pointer;white-space:nowrap;
-  transition:transform .16s ease,filter .16s ease;
-}
-.app-alert-pill:hover{transform:translateY(-1px);filter:brightness(1.08)}
-.app-day-meter{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.2}
-.app-day-meter__date{font:600 12.5px 'Noto Sans JP';color:var(--tx1);white-space:nowrap}
-.app-day-meter__count{font:700 13px var(--font-num);color:var(--view);white-space:nowrap}
-.app-day-meter__count i{margin:0 1px;font-style:normal;color:var(--tx3)}
-.app-progress{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--line);overflow:hidden}
-.app-progress>span{display:block;height:100%;width:var(--done,0%);background:var(--view);transition:width .55s cubic-bezier(.2,.8,.2,1),background .35s ease}
-
-/* ── 画面遷移 / カード ─────────────────────────── */
-[data-screen-label="Cockpit"],[data-screen-label="Tests"],[data-screen-label="ToDo"],
-[data-screen-label="Review"],[data-screen-label="Data"],[data-screen-label="Add"]{
-  animation:inkIn .3s cubic-bezier(.2,.85,.2,1)!important;
-}
-@keyframes inkIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.load-bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden}
-.load-bar__fill{height:100%;border-radius:99px;background:var(--view);transition:width .5s cubic-bezier(.2,.8,.2,1),background .35s ease}
-.cockpit-task,.cockpit-review,.cockpit-plan,.todo-plan-card,.todo-other-card{
-  border-radius:var(--ink-rad)!important;box-shadow:var(--ink-lift);
-}
-.cockpit-task:hover,.cockpit-review:hover,.cockpit-plan:hover,
-.todo-plan-card:hover,.todo-other-card:hover{
-  transform:translateY(-2px)!important;box-shadow:var(--ink-lift-hi)!important;
-}
-.cockpit-week-rate{border:1px solid var(--line);transition:border-color .16s ease,background .16s ease}
-.cockpit-week-rate:hover{border-color:color-mix(in srgb,var(--grn) 45%,var(--line2));background:var(--bg3)!important}
-.review-table-row{transition:background .14s ease}
-.plan-timeline-table{border-radius:16px!important}
-.empty-note{
-  display:flex;flex-direction:column;gap:6px;padding:20px 16px;text-align:center;
-  border:1px dashed var(--line2);border-radius:15px;
-  background:color-mix(in srgb,var(--view) 4%,transparent);
-}
-.empty-note b{font-size:13.5px;color:var(--tx1)}
-.empty-note span{font-size:11px;line-height:1.75;color:var(--tx3)}
-/* 集中モードボタン・進捗ドーナツも画面の色に合わせる */
-.focus-launch{
-  border-color:var(--view)!important;
-  background:color-mix(in srgb,var(--view) 13%,transparent)!important;
-  color:var(--view)!important;
-}
-.focus-launch:hover{background:color-mix(in srgb,var(--view) 20%,transparent)!important}
-.todo-summary linearGradient stop:first-child{stop-color:var(--view)}
-.todo-summary linearGradient stop:last-child{stop-color:color-mix(in srgb,var(--view) 55%,var(--vio))}
-/* var(--grad) を使う主要ボタンに共通のホバー */
-.compass-shell button[style*="var(--grad)"]{transition:transform .16s ease,filter .16s ease}
-.compass-shell button[style*="var(--grad)"]:hover{transform:translateY(-1px);filter:brightness(1.07)}
-
-/* ── ライトテーマも同じ「紙」に揃える ───────────── */
-.compass-theme-mode[data-theme="light"] .compass-shell{
-  background-color:var(--bg0)!important;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(80,68,48,.09) 31px,rgba(80,68,48,.09) 32px)!important;
-}
-.compass-theme-mode[data-theme="light"] .cockpit-panel,
-.compass-theme-mode[data-theme="light"] [data-screen-label="Tests"],
-.compass-theme-mode[data-theme="light"] [data-screen-label="ToDo"],
-.compass-theme-mode[data-theme="light"] [data-screen-label="Review"],
-.compass-theme-mode[data-theme="light"] [data-screen-label="Data"],
-.compass-theme-mode[data-theme="light"] [data-screen-label="Add"]{
-  background-color:var(--bg0)!important;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(80,68,48,.07) 31px,rgba(80,68,48,.07) 32px)!important;
-}
-.compass-theme-mode[data-theme="light"] .cockpit-grid{background:var(--line)!important}
-.compass-theme-mode[data-theme="light"] .compass-nav{background:color-mix(in srgb,var(--bg1) 92%,var(--bg3))!important;box-shadow:1px 0 0 var(--line)}
-.compass-theme-mode[data-theme="light"] .compass-topbar{background:color-mix(in srgb,var(--bg1) 88%,transparent)}
-.compass-theme-mode[data-theme="light"] .cockpit-panel-title,
-.compass-theme-mode[data-theme="light"] .cockpit-panel--today .cockpit-panel-title{
-  background:linear-gradient(180deg,var(--bg0) 76%,transparent)!important;
-}
-
-/* ライトテーマのスプラッシュも紙に */
-.compass-theme-mode[data-theme="light"] .compass-splash{
-  background-color:#f3f0e6;
-  background-image:repeating-linear-gradient(180deg,transparent 0,transparent 31px,rgba(80,68,48,.1) 31px,rgba(80,68,48,.1) 32px);
-  --sp-guide:rgba(60,52,38,.2);
-  --sp-graphite:rgba(60,52,38,.15);
-  --sp-ink:#332d24;
-  --sp-tick:rgba(60,52,38,.5);
-  --sp-face:#fffdf6;
-  --sp-face-line:rgba(60,52,38,.38);
-  --sp-accent:#332d24;
-  --sp-warm:#a56717;
-  --sp-ring:rgba(60,52,38,.22);
-  --sp-ring-mid:#2b7d52;
-  --sp-ring-in:#a56717;
-  --sp-pin:#fffdf6;
-  --sp-pin-ring:#332d24;
-  --sp-text:#2a251d;
-}
-.compass-theme-mode[data-theme="light"] .compass-splash__glow{display:none}
-.compass-theme-mode[data-theme="light"] .compass-splash__mark,
-.compass-theme-mode[data-theme="light"] .compass-splash__build{
-  filter:drop-shadow(0 12px 22px rgba(80,68,48,.22));
-}
-.compass-theme-mode[data-theme="light"] .compass-splash__word,
-.compass-theme-mode[data-theme="light"] .compass-splash__todo{
-  color:var(--sp-text);background:none;-webkit-background-clip:border-box;background-clip:border-box;
-  text-shadow:none;font-family:'Klee One','Noto Sans JP',serif;
-}
-.compass-theme-mode[data-theme="light"] .compass-splash__todo::after{background:#6b6458;box-shadow:none}
-
-/* ── モバイル ─────────────────────────────────── */
-@media(max-width:820px){
-  :root{--mobile-nav-h:calc(68px + env(safe-area-inset-bottom))}
-  /* FAB が最下部のカードに重ならないよう、少し余白を足す */
-  .compass-shell{padding-bottom:calc(var(--mobile-nav-h) + 20px)!important}
-  .compass-topbar{min-height:52px;padding:8px 13px 9px!important;gap:6px!important}
-  .app-view-title{flex:1;min-width:0;padding-left:10px}
-  .app-view-title__name{font-size:16px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  /* 未完了の再配分はナビの⚠バッジと重複するので、狭い画面では隠す */
-  .app-alert-pill{display:none!important}
-  .app-day-meter__date{font-size:11px}
-  .app-day-meter__count{font-size:12px}
-  .app-search-input{height:34px}
-  .app-nav-item{border-radius:14px!important;gap:3px!important}
-  .app-nav-item__key{display:none}
-  .app-nav-item__label{font-size:9.5px!important;text-align:center}
-  .app-nav-item.is-active{background:color-mix(in srgb,var(--nav-hue) 16%,transparent)!important}
-  .app-nav-item__badge{position:absolute;top:2px;right:calc(50% - 20px);padding:0 5px;font-size:8.5px}
-  /* 「タスク追加」はモバイルでは浮かせた丸ボタンにする
-     ([data-theme] を挟んでノートテーマの角丸指定より詳細度を上げている) */
-  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]{
-    --nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
-    flex:0 0 58px!important;max-width:58px;height:58px;min-height:58px!important;
-    align-self:center;position:relative;top:-15px;margin:0 6px;padding:0!important;
-    border-radius:50%!important;
-    background:var(--org)!important;color:var(--onAcc)!important;
-    border:1px solid color-mix(in srgb,var(--org) 72%,black)!important;
-    box-shadow:0 14px 28px -10px rgba(0,0,0,.66);
-    transition:transform .14s ease;
-  }
-  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]::before{width:28px;height:28px;opacity:1}
-  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"] .app-nav-item__label{display:none}
-  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"].is-active,
-  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]:hover{background:var(--org)!important;color:var(--onAcc)!important}
-  .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]:active{transform:scale(.93)}
-  .empty-note{padding:16px 13px}
+  .mini-editor-row{flex-wrap:wrap}.mini-drag-handle,.mini-day-label{display:none!important}.mini-title{order:2;flex:1!important}.mini-size{order:3}.mini-delete{order:4}.mini-day-mobile{display:block!important;order:5;flex:1 1 150px;min-width:0;min-height:36px;padding:6px 8px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg1);color:var(--tx1);font:600 12px var(--f-num);color-scheme:dark}.mini-mobile-actions{display:flex!important;order:6;gap:5px}.mini-mobile-actions button{width:38px;min-height:36px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg3);color:var(--tx1);font-weight:700}
+  .app-switcher-backdrop{padding:12px}.app-switcher-panel{max-height:90dvh;padding:18px}.app-switcher-current{margin:16px auto 20px;padding:16px}.app-switcher-current__icon{width:56px;height:56px}.app-switcher-grid{grid-template-columns:1fr}.app-switcher-tile{min-height:92px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center}.app-switcher-tile__icon{grid-row:1/3}.app-switcher-tile__status{grid-column:3;grid-row:1/3;margin-top:0}
+  .empty-note{padding:18px 13px}
+  /* コマ帯は横スクロールさせず、7 マスを詰めて 1 画面に収める */
+  .koma-strip{grid-template-columns:repeat(7,minmax(0,1fr));margin-bottom:0}
+  .koma-strip__axis{display:none}
+  .koma{padding:7px 4px 6px;align-items:center;text-align:center}
+  .koma__subj{font-size:11px;letter-spacing:0}
+  .koma__tally{justify-content:center}
 }
 @media(prefers-reduced-motion:reduce){
   [data-screen-label]{animation:none!important}
   .compass-shell *,.compass-shell *::before,.compass-shell *::after{transition-duration:.01ms!important}
+  .app-nav-item,.cockpit-task,.cockpit-review,.cockpit-plan,.cockpit-primary-action{transition:none!important}
 }
 
 /* ==========================================================================
@@ -1081,104 +1057,184 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 /* ==========================================================================
    [E] ノート画面（docs/notebook/spec.md §8）
-   レガシー Compass に無い追加セクション。`CompassNotebook/チャートノート v3` の
-   紙ノート表現を Compass のテーマトークンで組み直したもの。
-   スキンの割り当て（ユーザー決定）:
-     note / light … v3 の紙ノート風（罫線・パンチ穴・付箋・手書きフォント）
-     neon         … v2 のフラット活字風をダーク配色で
+
+   アプリの他の画面は「学校が配ったプリント」（[C-2] の方眼・ゴシック・直角）。
+   ここだけは「生徒が自分で書いたノート」にする。その対比が、
+   取り込んだ授業内容と Compass の仕組みを見分ける手がかりになる。
+
+   道具立ては本物のノートから取った:
+
+     .nb-write   … 罫線の上に載る本文。行送り 30px = 罫のピッチ（`--nb-pitch`）
+     .nb-red     … 赤ペン。解答・注意・丸つけはここ
+     .nb-marker  … 蛍光マーカー。用語の帯
+     .nb-label   … 見出し。赤の波線（日本語の強調記法そのまま）
+     .nb-shield  … 赤シート。ドリル面で解答にかぶせ、ずらして答え合わせする
+     .nb-maru    … 丸つけの ◎○△
+     .nb-no      … 左余白にぶら下がる問番号
+
+   罫線は**用紙全体ではなく本文ブロックごとに**引く。ページ全体に引くと、
+   セクションの余白のぶんだけ文字が罫からずれてしまう（半端にずれた方が、
+   引いていないより悪い）。ブロックに持たせれば常にぴったり載る。
+
    [D] より後ろに置くので、同詳細度なら後勝ちになる。
    ========================================================================== */
 
-/* ナビのアイコン（[C] の `.app-nav-item[data-nav=…]` 群と同じ書式。
-   [C] はレガシー逐語移植なので、追加分はここに置く） */
+/* ナビのアイコン（[C-2] の `.app-nav-item[data-nav=…]` 群と同じ書式） */
 .app-nav-item[data-nav="notebook"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3h13v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z'/%3E%3Cpath d='M4 17h15M9 3v18M12 8h4'/%3E%3C/svg%3E")}
 
 .compass-theme-mode{
-  /* 既定（neon = v2 フラット）。note / light で上書きする */
-  --nb-paper:var(--bg1);
-  --nb-card:var(--bg2);
-  --nb-rule:transparent;
-  --nb-margin:transparent;
-  --nb-hole:transparent;
-  --nb-sheet-pad:22px 24px;
-  --nb-sheet-radius:var(--rad);
-}
-.compass-theme-mode[data-theme="note"],
-.compass-theme-mode[data-theme="light"]{
-  --nb-paper:color-mix(in srgb,var(--bg1) 88%,var(--tx0) 12%);
-  --nb-card:color-mix(in srgb,var(--bg1) 94%,var(--tx0) 6%);
-  --nb-rule:color-mix(in srgb,var(--line) 70%,transparent);
-  --nb-margin:color-mix(in srgb,var(--pink) 55%,transparent);
+  /* 罫のピッチ。本文の行送りと必ず同じにすること */
+  --nb-pitch:30px;
+  --nb-paper:color-mix(in srgb,var(--bg1) 82%,var(--tx0) 18%);
+  --nb-card:color-mix(in srgb,var(--bg1) 90%,var(--tx0) 10%);
+  --nb-rule:color-mix(in srgb,var(--tx0) 15%,transparent);
+  --nb-margin:color-mix(in srgb,var(--nb-red) 60%,transparent);
   --nb-hole:var(--bg0);
-  --nb-sheet-pad:24px 26px 30px 46px;
+  /* 左は綴じ穴(11–23px) → 問番号(28–68px) → 赤マージン(69px) の順に空ける */
+  --nb-sheet-pad:26px 28px 34px 80px;
+  /* 赤ペン。暗い紙では蛍光寄り、白い紙では朱肉寄りにする */
+  --nb-red:#ff7d72;
+  --nb-marker:rgba(255,213,74,.34);
+  --nb-marker2:rgba(255,120,150,.42);
+  --nb-shield:#c4483d;
+  /* 暗い紙では蛍光ペンは「乗せる」= screen。白い紙では「透かす」= multiply */
+  --nb-marker-blend:screen;
 }
 .compass-theme-mode[data-theme="light"]{
-  --nb-paper:#fffdf4;
-  --nb-card:#fffefa;
+  --nb-paper:#fffefb;
+  --nb-card:#ffffff;
+  --nb-rule:rgba(40,70,105,.16);
+  --nb-red:#c8281e;
+  --nb-marker:rgba(255,205,40,.62);
+  --nb-marker2:rgba(255,120,150,.5);
+  --nb-shield:#d43a2c;
+  --nb-marker-blend:multiply;
 }
 
-/* ── 用紙 */
+/* ── 用紙。罫は本文側が持つので、ここは紙・赤マージン・綴じ穴だけ */
 .nb-sheet{
   position:relative;
   background:var(--nb-paper);
-  border:1px solid var(--line);
-  border-radius:var(--nb-sheet-radius);
-  box-shadow:0 10px 30px -18px rgba(0,0,0,.55);
+  background-image:linear-gradient(to right,transparent 0,transparent 69px,var(--nb-margin) 69px,var(--nb-margin) 70px,transparent 70px);
+  border:1px solid var(--line2);
+  border-radius:var(--rad-s);
+  box-shadow:none;
   overflow:hidden;
-}
-.compass-theme-mode[data-theme="note"] .nb-sheet,
-.compass-theme-mode[data-theme="light"] .nb-sheet{
-  /* 罫線（30px ピッチ）+ 左の赤マージン。装飾なので本文の行送りには合わせない */
-  background-image:
-    linear-gradient(to right,transparent 0,transparent 33px,var(--nb-margin) 33px,var(--nb-margin) 34px,transparent 34px),
-    repeating-linear-gradient(to bottom,transparent 0,transparent 29px,var(--nb-rule) 29px,var(--nb-rule) 30px);
-  background-position:0 0,0 12px;
 }
 .nb-sheet__body{padding:var(--nb-sheet-pad);position:relative;z-index:1}
 
-/* ── パンチ穴（紙テーマだけ）。3 つの円を背景グラデーションで描く */
-.nb-sheet__holes{display:none}
-.compass-theme-mode[data-theme="note"] .nb-sheet__holes,
-.compass-theme-mode[data-theme="light"] .nb-sheet__holes{
+.nb-sheet__holes{
   display:block;position:absolute;left:11px;top:0;bottom:0;width:12px;pointer-events:none;z-index:2;
   background:
-    radial-gradient(circle at 6px 14%,var(--nb-hole) 5px,color-mix(in srgb,var(--line) 80%,transparent) 5.8px,transparent 6.2px),
-    radial-gradient(circle at 6px 50%,var(--nb-hole) 5px,color-mix(in srgb,var(--line) 80%,transparent) 5.8px,transparent 6.2px),
-    radial-gradient(circle at 6px 86%,var(--nb-hole) 5px,color-mix(in srgb,var(--line) 80%,transparent) 5.8px,transparent 6.2px);
+    radial-gradient(circle at 6px 14%,var(--nb-hole) 5px,color-mix(in srgb,var(--line2) 80%,transparent) 5.8px,transparent 6.2px),
+    radial-gradient(circle at 6px 50%,var(--nb-hole) 5px,color-mix(in srgb,var(--line2) 80%,transparent) 5.8px,transparent 6.2px),
+    radial-gradient(circle at 6px 86%,var(--nb-hole) 5px,color-mix(in srgb,var(--line2) 80%,transparent) 5.8px,transparent 6.2px);
 }
 
-/* ── 手書き見出し（紙テーマのみ Klee One） */
-.compass-theme-mode[data-theme="note"] .nb-hand,
-.compass-theme-mode[data-theme="light"] .nb-hand{
-  font-family:'Klee One','Noto Sans JP',serif!important;
-  letter-spacing:.02em;
+/* ── 手書き。アプリ内で Klee One が出るのはノート画面だけ */
+.nb-hand{font-family:var(--f-hand)!important;font-weight:600;letter-spacing:.02em}
+
+/* ── 罫線に載る本文。行送りとピッチが一致しているので必ず線の上に来る */
+.nb-write{
+  font:400 15px/var(--nb-pitch) var(--f-hand);
+  color:var(--tx0);
+  letter-spacing:.01em;
+  background-image:repeating-linear-gradient(
+    to bottom,transparent 0,transparent calc(var(--nb-pitch) - 1px),
+    var(--nb-rule) calc(var(--nb-pitch) - 1px),var(--nb-rule) var(--nb-pitch));
+}
+.nb-write--sm{font-size:13.5px}
+/* 赤ペン。解答・注意・添削はこれ */
+.nb-write--red,.nb-red{color:var(--nb-red)}
+/* 別行立ての数式も 2 行ぶんに収めて、罫のリズムを崩さない */
+.nb-write .katex-display{
+  margin:0;min-height:calc(var(--nb-pitch) * 2);
+  display:flex;align-items:center;justify-content:flex-start;
+}
+.nb-write .katex-display>.katex{text-align:left}
+
+/* ── 蛍光マーカー。帯を 2 本ずらして重ね、手で引いた線に見せる。
+      紙に「乗せる」ので、地の色と混ぜる（暗い紙は screen / 白い紙は multiply）。
+      混色させたいので背景ではなく擬似要素で描く（`isolation` を作らないこと） */
+.nb-marker{position:relative;padding:0 .2em}
+.nb-marker::before,.nb-marker::after{
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  background:var(--nb-marker);mix-blend-mode:var(--nb-marker-blend);
+}
+.nb-marker::before{left:0;right:0;top:16%;bottom:12%}
+.nb-marker::after{left:3%;right:1%;top:24%;bottom:20%}
+.nb-marker--pink{--nb-marker:var(--nb-marker2)}
+
+/* ── 見出しは赤の波線。日本語の強調記法をそのまま使う */
+.nb-label{
+  display:inline-block;margin:0 0 6px;
+  font:600 13px var(--f-hand);color:var(--nb-red);letter-spacing:.12em;
+  text-decoration:underline wavy var(--nb-red);
+  text-underline-offset:6px;text-decoration-thickness:1.5px;
 }
 
-/* ── 付箋（疑問 / 連絡） */
+/* ── 赤マージンの外側にぶら下がる問番号 */
+.nb-no{
+  float:left;width:40px;margin-left:-52px;
+  font:600 14px/var(--nb-pitch) var(--f-hand);color:var(--nb-red);text-align:right;
+  padding-right:12px;user-select:none;
+}
+
+/* ── 赤シート。解答の上にかぶせておいて、押すと右へずれる。
+      **不透明にすること。** 半透明だと下の明るい文字が透けて読めてしまい、
+      隠す道具として成立しない（本物の赤シートも、赤字は完全に消える）。
+      斜めの艶と右端のつまみで「板」に見せる */
+.nb-shield-wrap{position:relative}
+.nb-shield{
+  position:absolute;inset:-4px -10px;z-index:3;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid color-mix(in srgb,var(--nb-shield) 78%,black);
+  border-radius:2px;
+  background:
+    linear-gradient(112deg,rgba(255,255,255,.16) 0 20%,rgba(255,255,255,.04) 30%,transparent 42%),
+    var(--nb-shield);
+  color:rgba(255,255,255,.82);font:600 12px var(--f-hand);letter-spacing:.14em;
+  cursor:pointer;
+  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .3s ease;
+}
+/* 右端のつまみ。ここをつまんでずらす、という手がかり */
+.nb-shield::after{
+  content:"";position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:3px;height:34px;border-radius:2px;background:rgba(255,255,255,.28);
+  box-shadow:6px 0 0 rgba(255,255,255,.28);
+}
+.nb-shield:hover{transform:translateX(7px)}
+.nb-shield:focus-visible{outline:2px solid var(--tx0);outline-offset:2px}
+.nb-shield.is-off{transform:translateX(103%) rotate(1.4deg);opacity:0;pointer-events:none}
+@media(prefers-reduced-motion:reduce){
+  .nb-shield,.nb-shield:hover{transition:opacity .01ms;transform:none}
+  .nb-shield.is-off{transform:none}
+}
+
+/* ── 丸つけ。◎○△ は赤ペンで大きく */
+.nb-maru{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:8px 6px 9px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:transparent;cursor:pointer;
+  transition:background .13s ease,border-color .13s ease;
+}
+.nb-maru:hover{background:color-mix(in srgb,currentColor 10%,transparent);border-color:currentColor}
+.nb-maru__mark{font:400 26px/1 var(--f-hand)}
+.nb-maru__label{font:600 11px var(--f-hand);letter-spacing:.06em}
+.nb-maru__hint{font:400 9.5px var(--f-ui);color:var(--tx3);letter-spacing:.02em}
+
+/* ── 付箋 */
 .nb-sticky{
-  border:1px solid var(--line);
-  border-radius:var(--rad);
+  border:0;border-radius:0;
   background:var(--nb-card);
   color:var(--tx1);
-  padding:12px 14px;
+  padding:14px 16px;
+  box-shadow:2px 2px 0 color-mix(in srgb,var(--tx0) 10%,transparent);
+  font-family:var(--f-hand);
 }
-.compass-theme-mode[data-theme="note"] .nb-sticky,
-.compass-theme-mode[data-theme="light"] .nb-sticky{
-  border:none;
-  border-radius:2px;
-  box-shadow:0 6px 16px -10px rgba(0,0,0,.55);
-  font-family:'Klee One','Noto Sans JP',serif;
-}
-.compass-theme-mode[data-theme="note"] .nb-sticky--doubt,
-.compass-theme-mode[data-theme="light"] .nb-sticky--doubt{
-  background:color-mix(in srgb,var(--pink) 22%,var(--nb-paper));
-  color:var(--tx0);transform:rotate(-.7deg);
-}
-.compass-theme-mode[data-theme="note"] .nb-sticky--notice,
-.compass-theme-mode[data-theme="light"] .nb-sticky--notice{
-  background:color-mix(in srgb,var(--org) 22%,var(--nb-paper));
-  color:var(--tx0);transform:rotate(.6deg);
-}
+.nb-sticky--doubt{background:color-mix(in srgb,var(--pink) 26%,var(--nb-paper));color:var(--tx0);transform:rotate(-.7deg)}
+.nb-sticky--notice{background:color-mix(in srgb,var(--org) 26%,var(--nb-paper));color:var(--tx0);transform:rotate(.6deg)}
 
 /* ── KaTeX をテーマ色になじませる */
 .nb-sheet .katex,.nb-sticky .katex,[data-screen-label="Notebook"] .katex{color:inherit;font-size:1.05em}
@@ -1191,9 +1247,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   [data-screen-label="Notebook"]{flex-direction:column;overflow:auto!important}
   [data-screen-label="Notebook"]>aside{
     width:100%!important;flex:0 0 auto!important;
-    border-right:none!important;border-bottom:1px dashed var(--line2);
+    border-right:none!important;border-bottom:1px solid var(--line2);
     padding-right:0!important;padding-bottom:14px;
   }
-  .compass-theme-mode[data-theme="note"],
-  .compass-theme-mode[data-theme="light"]{--nb-sheet-pad:20px 16px 24px 38px}
+  .compass-theme-mode{--nb-sheet-pad:22px 16px 26px 60px}
+  .nb-sheet{background-image:linear-gradient(to right,transparent 0,transparent 51px,var(--nb-margin) 51px,var(--nb-margin) 52px,transparent 52px)}
+  .nb-sheet__holes{left:6px}
+  .nb-no{width:32px;margin-left:-42px;padding-right:10px}
 }

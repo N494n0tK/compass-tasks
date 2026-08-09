@@ -26,21 +26,39 @@ import { completeReview } from './ReviewShared';
 import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
 
-/** 理解度 3 択。`ReviewAskModal` の `ASK_GRADES` と同じ並び・同じ色 */
-const GRADES: readonly { id: ReviewGrade; icon: string; label: string; c: string; bg: string }[] = [
-  { id: 'high', icon: '◎', label: 'ばっちり', c: 'var(--grn)', bg: 'var(--grnBg)' },
-  { id: 'mid', icon: '○', label: 'まあまあ', c: 'var(--acc)', bg: 'var(--accBg)' },
-  { id: 'low', icon: '△', label: '不安…', c: 'var(--pink)', bg: 'var(--pinkBg)' },
+/**
+ * 理解度 3 択。`ReviewAskModal` の `ASK_GRADES` と同じ並び・同じ色。
+ * ◎○△ は丸つけの記号そのものなので、ここでは赤ペンで大きく書いた体で見せる
+ * （色は意味を運ぶので、記号の形だけを手書きに寄せて色分けは残す）。
+ */
+const GRADES: readonly {
+  id: ReviewGrade;
+  icon: string;
+  label: string;
+  hint: string;
+  c: string;
+}[] = [
+  { id: 'high', icon: '◎', label: 'ばっちり', hint: '次の間隔へ', c: 'var(--grn)' },
+  { id: 'mid', icon: '○', label: 'まあまあ', hint: '同じ間隔でもう一度', c: 'var(--tx1)' },
+  { id: 'low', icon: '△', label: '不安…', hint: '明日もう一度', c: 'var(--nb-red)' },
 ];
 
 const MINI_BTN = {
   padding: '5px 11px',
   border: '1px solid var(--line2)',
-  borderRadius: '8px',
+  borderRadius: 'var(--rad-s)',
   background: 'none',
   color: 'var(--tx2)',
-  font: "500 11.5px 'Noto Sans JP'",
+  font: "500 11.5px var(--f-ui)",
   cursor: 'pointer',
+} as const;
+
+/** 「方針」「解答」などの細字。NoteView と同じ調子で */
+const FIELD_LABEL = {
+  font: "600 11px var(--f-hand)",
+  color: 'var(--tx3)',
+  letterSpacing: '.1em',
+  marginBottom: '2px',
 } as const;
 
 export interface NoteDrillProps {
@@ -82,20 +100,18 @@ export function NoteDrill({ note }: NoteDrillProps) {
         </button>
         <span
           style={{
-            font: "700 10px 'Noto Sans JP'",
+            font: "700 10px var(--f-ui)",
             color: color.c,
             background: color.bg,
-            borderRadius: '99px',
+            borderRadius: 'var(--rad-s)',
             padding: '2px 9px',
           }}
         >
           {note.subject}
         </span>
-        <div className="nb-hand" style={{ font: "700 17px 'Noto Sans JP'", color: 'var(--tx0)' }}>
-          {note.unit}
-        </div>
+        <div style={{ font: "600 19px var(--f-hand)", color: 'var(--tx0)' }}>{note.unit}</div>
         <span style={{ flex: 1 }} />
-        <span style={{ font: "700 12px 'Space Grotesk'", color: 'var(--view)' }}>
+        <span style={{ font: "700 15px var(--f-num)", color: 'var(--view)' }}>
           {cards.length - remaining.length + ' / ' + cards.length + ' 問'}
         </span>
         <button
@@ -118,7 +134,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
             color: 'var(--tx3)',
           }}
         >
-          <div style={{ font: "700 14px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+          <div style={{ font: "700 14px var(--f-ui)", color: 'var(--tx1)' }}>
             このノートの今日ぶんの復習はありません
           </div>
           <div style={{ fontSize: '12px', marginTop: '7px' }}>
@@ -135,106 +151,110 @@ export function NoteDrill({ note }: NoteDrillProps) {
         const ex = card ? exBlockOf(note, card.cardId) : null;
         const done = dc.review.done;
         return (
+          /* 1 問 1 枚。答え合わせが済んだ問には赤ペンで丸がつく */
           <div
             key={dc.reviewId}
             style={{
-              border: '1px solid ' + (done ? 'var(--line)' : 'var(--line2)'),
-              borderLeft: '3px solid ' + (done ? 'var(--grn)' : 'var(--view)'),
-              borderRadius: 'var(--rad)',
-              background: 'var(--nb-card, var(--bg1))',
-              padding: '14px 16px',
-              opacity: done ? 0.62 : 1,
+              position: 'relative',
+              // 赤シートは紙の右端まで滑って消える。そのために枠でクリップする
+              overflow: 'hidden',
+              border: '1px solid var(--line2)',
+              borderRadius: 'var(--rad-s)',
+              background: 'var(--nb-paper)',
+              padding: '14px 18px 16px',
+              opacity: done ? 0.66 : 1,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '8px' }}>
-              <span style={{ font: "700 12px 'Space Grotesk'", color: 'var(--view)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '6px' }}>
+              <span style={{ font: "600 14px var(--f-hand)", color: 'var(--nb-red)' }}>
                 {dc.cardNo ? '問' + dc.cardNo : '問' + (i + 1)}
               </span>
-              <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
+              <span style={{ font: "400 11px var(--f-hand)", color: 'var(--tx3)' }}>
                 {dc.review.stage + 'の復習 · 第' + dc.review.reviewNo + '回'}
               </span>
               <span style={{ flex: 1 }} />
               {done ? (
-                <span style={{ font: "700 11px 'Noto Sans JP'", color: 'var(--grn)' }}>
-                  {'✓ 次回 ' + nextDueLabel(S.reviews, dc)}
-                </span>
+                <>
+                  <span style={{ font: "400 11px var(--f-hand)", color: 'var(--tx3)' }}>
+                    {'次回 ' + nextDueLabel(S.reviews, dc)}
+                  </span>
+                  <span
+                    className="nb-maru__mark"
+                    style={{ color: 'var(--nb-red)' }}
+                    aria-label="答え合わせ済み"
+                  >
+                    ○
+                  </span>
+                </>
               ) : null}
             </div>
 
             {card ? (
-              <NoteMath src={card.q} style={{ color: 'var(--tx0)', fontSize: '15px' }} />
+              <NoteMath className="nb-write" src={card.q} />
             ) : (
-              <div style={{ color: 'var(--tx3)', fontSize: '13px' }}>
+              <div style={{ font: "400 14px var(--f-hand)", color: 'var(--tx3)' }}>
                 {dc.review.title + '（この問題はノートから削除されています）'}
               </div>
             )}
 
             {!done ? (
               <>
-                {!open ? (
+                {/* 解答はもう書いてある。その上に赤シートがかぶっているだけ。
+                    押すとシートがずれて、赤ペンの解答が出てくる。
+                    先に高さが決まっているので、開いてもレイアウトが飛ばない */}
+                <div className="nb-shield-wrap" style={{ marginTop: '14px' }}>
+                  <div
+                    aria-hidden={!open}
+                    style={{ display: 'grid', gap: '10px', paddingLeft: '2px' }}
+                  >
+                    {card && card.guide ? (
+                      <div>
+                        <div style={FIELD_LABEL}>方針</div>
+                        <NoteMath className="nb-write nb-write--sm" src={card.guide} />
+                      </div>
+                    ) : null}
+                    {card ? (
+                      <div>
+                        <div style={FIELD_LABEL}>解答</div>
+                        <NoteMath className="nb-write nb-write--red" src={card.a} />
+                      </div>
+                    ) : null}
+                    {ex && (ex.solution || ex.caution) ? (
+                      <div style={{ borderLeft: '2px solid var(--nb-rule)', paddingLeft: '12px' }}>
+                        <div style={FIELD_LABEL}>解説</div>
+                        {ex.solution ? (
+                          <NoteMath className="nb-write nb-write--sm" src={ex.solution} />
+                        ) : null}
+                        {ex.caution ? (
+                          <NoteMath
+                            className="nb-write nb-write--sm nb-write--red"
+                            src={'※ ' + ex.caution}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                   <button
+                    className={'nb-shield' + (open ? ' is-off' : '')}
                     onClick={() =>
                       store.setState((s) => ({ nbRevealed: { ...s.nbRevealed, [key]: true } }))
                     }
-                    style={{
-                      marginTop: '11px',
-                      padding: '7px 16px',
-                      border: '1px solid var(--line2)',
-                      borderRadius: '9px',
-                      background: 'var(--bg2)',
-                      color: 'var(--view)',
-                      font: "700 12px 'Noto Sans JP'",
-                      cursor: 'pointer',
-                    }}
+                    aria-label="赤シートをずらして解答を見る"
                   >
-                    答えを見る
+                    赤シートをずらす →
                   </button>
-                ) : (
+                </div>
+
+                {open ? (
                   <>
                     <div
                       style={{
-                        borderTop: '1px dashed var(--line)',
-                        marginTop: '11px',
-                        paddingTop: '11px',
-                        display: 'grid',
-                        gap: '8px',
+                        font: "600 12px var(--f-hand)",
+                        color: 'var(--tx2)',
+                        margin: '16px 0 7px',
                       }}
                     >
-                      {card && card.guide ? (
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>方針</div>
-                          <NoteMath src={card.guide} style={{ color: 'var(--tx2)', fontSize: '13px' }} />
-                        </div>
-                      ) : null}
-                      {card ? (
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>解答</div>
-                          <NoteMath src={card.a} style={{ color: 'var(--tx1)', fontSize: '14px' }} />
-                        </div>
-                      ) : null}
-                      {ex && (ex.solution || ex.caution) ? (
-                        <div
-                          style={{
-                            background: 'var(--bg2)',
-                            border: '1px solid var(--line)',
-                            borderRadius: '9px',
-                            padding: '9px 11px',
-                            display: 'grid',
-                            gap: '6px',
-                          }}
-                        >
-                          <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>解説</div>
-                          {ex.solution ? (
-                            <NoteMath src={ex.solution} style={{ color: 'var(--tx1)', fontSize: '13px' }} />
-                          ) : null}
-                          {ex.caution ? (
-                            <NoteMath src={ex.caution} style={{ color: 'var(--pink)', fontSize: '12.5px' }} />
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div style={{ fontSize: '10.5px', color: 'var(--tx3)', margin: '12px 0 6px' }}>
-                      理解度は？（選ぶと次の間隔へ送られます）
+                      合っていた？
                     </div>
                     <div
                       style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}
@@ -242,23 +262,18 @@ export function NoteDrill({ note }: NoteDrillProps) {
                       {GRADES.map((g) => (
                         <button
                           key={g.id}
+                          className="nb-maru"
                           onClick={() => grade(dc, g.id)}
-                          style={{
-                            border: '1px solid ' + g.c,
-                            borderRadius: '10px',
-                            background: g.bg,
-                            color: g.c,
-                            padding: '9px 6px',
-                            font: "700 12px 'Noto Sans JP'",
-                            cursor: 'pointer',
-                          }}
+                          style={{ color: g.c }}
                         >
-                          {g.icon + ' ' + g.label}
+                          <span className="nb-maru__mark">{g.icon}</span>
+                          <span className="nb-maru__label">{g.label}</span>
+                          <span className="nb-maru__hint">{g.hint}</span>
                         </button>
                       ))}
                     </div>
                   </>
-                )}
+                ) : null}
               </>
             ) : null}
           </div>
@@ -275,7 +290,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
             textAlign: 'center',
           }}
         >
-          <div style={{ font: "700 14px 'Noto Sans JP'", color: 'var(--grn)' }}>
+          <div style={{ font: "700 14px var(--f-ui)", color: 'var(--grn)' }}>
             今日ぶんの復習は完了です 🎉
           </div>
           <button
@@ -284,10 +299,10 @@ export function NoteDrill({ note }: NoteDrillProps) {
               marginTop: '11px',
               padding: '8px 18px',
               border: 'none',
-              borderRadius: '9px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--grad)',
               color: 'var(--onAcc)',
-              font: "700 12px 'Noto Sans JP'",
+              font: "700 12px var(--f-ui)",
               cursor: 'pointer',
             }}
           >

@@ -646,7 +646,7 @@ export function AddTask() {
                 style={{
                   flex: 1,
                   minWidth: '200px',
-                  font: "700 12.5px 'Noto Sans JP'",
+                  font: "700 12.5px var(--f-ui)",
                   color: 'var(--grn)',
                 }}
               >
@@ -657,10 +657,10 @@ export function AddTask() {
                 style={{
                   padding: '7px 14px',
                   border: '1px solid var(--grn)',
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'none',
                   color: 'var(--grn)',
-                  font: "700 11.5px 'Noto Sans JP'",
+                  font: "700 11.5px var(--f-ui)",
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   flex: 'none',
@@ -673,10 +673,10 @@ export function AddTask() {
                 style={{
                   padding: '7px 14px',
                   border: 'none',
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--grn)',
                   color: 'var(--onAcc)',
-                  font: "700 11.5px 'Noto Sans JP'",
+                  font: "700 11.5px var(--f-ui)",
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   flex: 'none',
@@ -706,10 +706,10 @@ export function AddTask() {
                   gap: '8px',
                   padding: '8px 10px',
                   border: '1px solid var(--org)',
-                  borderRadius: '9px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--orgBg)',
                   color: 'var(--org)',
-                  font: "700 11.5px 'Noto Sans JP'",
+                  font: "700 11.5px var(--f-ui)",
                 }}
               >
                 <span>時間割から入力 · {addTimetableLabel}</span>
@@ -720,7 +720,7 @@ export function AddTask() {
                     border: 'none',
                     background: 'none',
                     color: 'var(--org)',
-                    font: "500 10.5px 'Noto Sans JP'",
+                    font: "500 10.5px var(--f-ui)",
                     cursor: 'pointer',
                   }}
                 >
@@ -737,11 +737,11 @@ export function AddTask() {
                     key={t.label}
                     onClick={t.onPick}
                     style={{
-                      font: "500 12px 'Noto Sans JP'",
+                      font: "500 12px var(--f-ui)",
                       color: t.c,
                       background: t.bg,
                       border: '1px solid ' + t.bd,
-                      borderRadius: '10px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '7px 14px',
                       cursor: 'pointer',
                     }}
@@ -783,10 +783,10 @@ export function AddTask() {
                   width: '100%',
                   padding: '11px 13px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg2)',
                   color: 'var(--tx0)',
-                  font: "500 13.5px 'Noto Sans JP'",
+                  font: "500 13.5px var(--f-ui)",
                   outline: 'none',
                 }}
               />
@@ -832,10 +832,10 @@ export function AddTask() {
                   width: '100%',
                   padding: '11px 13px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg2)',
                   color: 'var(--tx0)',
-                  font: "500 13.5px 'Noto Sans JP'",
+                  font: "500 13.5px var(--f-ui)",
                   outline: 'none',
                 }}
               />
@@ -850,11 +850,11 @@ export function AddTask() {
                     key={s.name}
                     onClick={s.onPick}
                     style={{
-                      font: "700 11.5px 'Noto Sans JP'",
+                      font: "700 11.5px var(--f-ui)",
                       color: s.c,
                       background: s.bg,
                       border: '1px solid ' + s.bd,
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '5px 12px',
                       cursor: 'pointer',
                     }}
@@ -891,10 +891,10 @@ export function AddTask() {
                       minWidth: 0,
                       padding: '10px 12px',
                       border: '1px solid var(--line2)',
-                      borderRadius: '10px',
+                      borderRadius: 'var(--rad-s)',
                       background: 'var(--bg2)',
                       color: 'var(--tx0)',
-                      font: "500 13px 'Space Grotesk'",
+                      font: "500 13px var(--f-num)",
                       outline: 'none',
                       colorScheme: schemeVal,
                     }}
@@ -902,11 +902,11 @@ export function AddTask() {
                   <span
                     onClick={pickToday}
                     style={{
-                      font: "700 11px 'Noto Sans JP'",
+                      font: "700 11px var(--f-ui)",
                       color: S.addDay === T ? 'var(--onAcc)' : 'var(--tx2)',
                       background: S.addDay === T ? 'var(--acc)' : 'var(--bg2)',
                       border: '1px solid var(--line2)',
-                      borderRadius: '8px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '7px 11px',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
@@ -918,11 +918,11 @@ export function AddTask() {
                   <span
                     onClick={pickTomorrow}
                     style={{
-                      font: "700 11px 'Noto Sans JP'",
+                      font: "700 11px var(--f-ui)",
                       color: S.addDay === TOMORROW ? 'var(--onAcc)' : 'var(--tx2)',
                       background: S.addDay === TOMORROW ? 'var(--acc)' : 'var(--bg2)',
                       border: '1px solid var(--line2)',
-                      borderRadius: '8px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '7px 11px',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
@@ -953,10 +953,10 @@ export function AddTask() {
                       width: '100%',
                       padding: '10px 12px',
                       border: '1px solid var(--line2)',
-                      borderRadius: '10px',
+                      borderRadius: 'var(--rad-s)',
                       background: 'var(--bg2)',
                       color: 'var(--tx0)',
-                      font: "500 13px 'Space Grotesk'",
+                      font: "500 13px var(--f-num)",
                       outline: 'none',
                       colorScheme: schemeVal,
                     }}
@@ -976,11 +976,11 @@ export function AddTask() {
                       key={z.label}
                       onClick={z.onPick}
                       style={{
-                        font: "700 11.5px 'Space Grotesk'",
+                        font: "700 11.5px var(--f-num)",
                         color: z.c,
                         background: z.bg,
                         border: '1px solid ' + z.bd,
-                        borderRadius: '8px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '6px 12px',
                         cursor: 'pointer',
                       }}
@@ -1009,7 +1009,7 @@ export function AddTask() {
               onClick={() => store.setState((s) => ({ addDetailOpen: !s.addDetailOpen }))}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
             >
-              <span style={{ font: "700 12.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+              <span style={{ font: "700 12.5px var(--f-ui)", color: 'var(--tx1)' }}>
                 {addDetailArrow} 詳細{addDetailHint}
               </span>
               <span style={{ marginLeft: 'auto', fontSize: '10.5px', color: 'var(--tx3)' }}>
@@ -1030,7 +1030,7 @@ export function AddTask() {
                           padding: '11px',
                           background: 'var(--bg2)',
                           border: '1px solid var(--line)',
-                          borderRadius: '10px',
+                          borderRadius: 'var(--rad-s)',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '9px',
@@ -1046,7 +1046,7 @@ export function AddTask() {
                         >
                           <span
                             style={{
-                              font: "700 11px 'Noto Sans JP'",
+                              font: "700 11px var(--f-ui)",
                               color: 'var(--tx1)',
                               marginRight: '2px',
                             }}
@@ -1060,10 +1060,10 @@ export function AddTask() {
                               style={{
                                 padding: '5px 9px',
                                 border: '1px solid ' + g.bd,
-                                borderRadius: '8px',
+                                borderRadius: 'var(--rad-s)',
                                 background: g.bg,
                                 color: g.c,
-                                font: "700 10.5px 'Noto Sans JP'",
+                                font: "700 10.5px var(--f-ui)",
                                 cursor: 'pointer',
                               }}
                             >
@@ -1093,7 +1093,7 @@ export function AddTask() {
                                     marginTop: '4px',
                                     padding: '7px 8px',
                                     border: '1px solid var(--line2)',
-                                    borderRadius: '7px',
+                                    borderRadius: 'var(--rad-s)',
                                     background: 'var(--bg1)',
                                     color: 'var(--tx0)',
                                   }}
@@ -1111,7 +1111,7 @@ export function AddTask() {
                                     marginTop: '4px',
                                     padding: '7px 8px',
                                     border: '1px solid var(--line2)',
-                                    borderRadius: '7px',
+                                    borderRadius: 'var(--rad-s)',
                                     background: 'var(--bg1)',
                                     color: 'var(--tx0)',
                                   }}
@@ -1129,7 +1129,7 @@ export function AddTask() {
                                     marginTop: '4px',
                                     padding: '7px 8px',
                                     border: '1px solid var(--line2)',
-                                    borderRadius: '7px',
+                                    borderRadius: 'var(--rad-s)',
                                     background: 'var(--bg1)',
                                     color: 'var(--tx0)',
                                   }}
@@ -1141,10 +1141,10 @@ export function AddTask() {
                                   height: '34px',
                                   padding: '0 12px',
                                   border: 'none',
-                                  borderRadius: '8px',
+                                  borderRadius: 'var(--rad-s)',
                                   background: 'var(--grad)',
                                   color: 'var(--onAcc)',
-                                  font: "700 11px 'Noto Sans JP'",
+                                  font: "700 11px var(--f-ui)",
                                   cursor: 'pointer',
                                   whiteSpace: 'nowrap',
                                 }}
@@ -1179,7 +1179,7 @@ export function AddTask() {
                                     marginTop: '4px',
                                     padding: '7px 8px',
                                     border: '1px solid var(--line2)',
-                                    borderRadius: '7px',
+                                    borderRadius: 'var(--rad-s)',
                                     background: 'var(--bg1)',
                                     color: 'var(--tx0)',
                                   }}
@@ -1197,7 +1197,7 @@ export function AddTask() {
                                     marginTop: '4px',
                                     padding: '7px 8px',
                                     border: '1px solid var(--line2)',
-                                    borderRadius: '7px',
+                                    borderRadius: 'var(--rad-s)',
                                     background: 'var(--bg1)',
                                     color: 'var(--tx0)',
                                   }}
@@ -1209,10 +1209,10 @@ export function AddTask() {
                                   height: '34px',
                                   padding: '0 12px',
                                   border: 'none',
-                                  borderRadius: '8px',
+                                  borderRadius: 'var(--rad-s)',
                                   background: 'var(--grad)',
                                   color: 'var(--onAcc)',
-                                  font: "700 11px 'Noto Sans JP'",
+                                  font: "700 11px var(--f-ui)",
                                   cursor: 'pointer',
                                   whiteSpace: 'nowrap',
                                 }}
@@ -1241,11 +1241,11 @@ export function AddTask() {
                             key={z.label}
                             onClick={z.onPick}
                             style={{
-                              font: "700 11.5px 'Space Grotesk'",
+                              font: "700 11.5px var(--f-num)",
                               color: z.c,
                               background: z.bg,
                               border: '1px solid ' + z.bd,
-                              borderRadius: '8px',
+                              borderRadius: 'var(--rad-s)',
                               padding: '6px 12px',
                               cursor: 'pointer',
                             }}
@@ -1268,10 +1268,10 @@ export function AddTask() {
                         width: '100%',
                         padding: '10px 12px',
                         border: '1px solid var(--line2)',
-                        borderRadius: '10px',
+                        borderRadius: 'var(--rad-s)',
                         background: 'var(--bg2)',
                         color: 'var(--tx0)',
-                        font: "500 12.5px 'Noto Sans JP'",
+                        font: "500 12.5px var(--f-ui)",
                         outline: 'none',
                       }}
                     />
@@ -1294,14 +1294,14 @@ export function AddTask() {
                               padding: '7px 10px',
                               background: 'var(--bg2)',
                               border: '1px solid var(--line)',
-                              borderRadius: '8px',
+                              borderRadius: 'var(--rad-s)',
                             }}
                           >
                             <span
                               style={{
                                 flex: 1,
                                 minWidth: 0,
-                                font: "500 12px 'Noto Sans JP'",
+                                font: "500 12px var(--f-ui)",
                                 color: 'var(--tx0)',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
@@ -1312,10 +1312,10 @@ export function AddTask() {
                             </span>
                             <span
                               style={{
-                                font: "700 10px 'Space Grotesk'",
+                                font: "700 10px var(--f-num)",
                                 color: 'var(--tx2)',
                                 background: 'var(--bg3)',
-                                borderRadius: '5px',
+                                borderRadius: 'var(--rad-s)',
                                 padding: '2px 7px',
                                 flex: 'none',
                               }}
@@ -1329,7 +1329,7 @@ export function AddTask() {
                                 width: '20px',
                                 height: '20px',
                                 border: 'none',
-                                borderRadius: '6px',
+                                borderRadius: 'var(--rad-s)',
                                 background: 'none',
                                 color: 'var(--tx3)',
                                 cursor: 'pointer',
@@ -1358,10 +1358,10 @@ export function AddTask() {
                       width: '100%',
                       padding: '10px 12px',
                       border: '1px solid var(--line2)',
-                      borderRadius: '10px',
+                      borderRadius: 'var(--rad-s)',
                       background: 'var(--bg2)',
                       color: 'var(--tx0)',
-                      font: "500 12.5px 'Noto Sans JP'",
+                      font: "500 12.5px var(--f-ui)",
                       outline: 'none',
                     }}
                   />
@@ -1375,10 +1375,10 @@ export function AddTask() {
             style={{
               padding: '13px',
               border: 'none',
-              borderRadius: '11px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--grad)',
               color: 'var(--onAcc)',
-              font: "700 14px 'Noto Sans JP'",
+              font: "700 14px var(--f-ui)",
               cursor: 'pointer',
               boxShadow: 'var(--gAcc)',
             }}
@@ -1415,14 +1415,14 @@ export function AddTask() {
               style={{
                 width: '8px',
                 height: '8px',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--org)',
                 boxShadow: 'var(--gAcc)',
               }}
             ></span>
             <div
               style={{
-                font: "700 14px 'Noto Sans JP'",
+                font: "700 14px var(--f-ui)",
                 color: 'var(--tx0)',
                 whiteSpace: 'nowrap',
               }}
@@ -1449,11 +1449,11 @@ export function AddTask() {
                     minWidth: 0,
                     padding: '6px 4px',
                     border: '1px solid ' + d.bd,
-                    borderRadius: '8px',
+                    borderRadius: 'var(--rad-s)',
                     background: d.bg,
                     color: d.c,
                     cursor: 'pointer',
-                    font: "700 10.5px 'Noto Sans JP'",
+                    font: "700 10.5px var(--f-ui)",
                     boxShadow: d.glow,
                   }}
                 >
@@ -1488,7 +1488,7 @@ export function AddTask() {
                   padding: '10px 10px',
                   background: slot.bg,
                   border: '1px solid ' + slot.bd,
-                  borderRadius: '11px',
+                  borderRadius: 'var(--rad-s)',
                   boxShadow: slot.glow,
                   opacity: slot.op,
                   cursor: 'pointer',
@@ -1502,7 +1502,7 @@ export function AddTask() {
                     gap: '2px',
                   }}
                 >
-                  <div style={{ font: "700 17px 'Space Grotesk'", color: slot.noC }}>{slot.no}</div>
+                  <div style={{ font: "700 17px var(--f-num)", color: slot.noC }}>{slot.no}</div>
                   <div style={{ fontSize: '9.5px', color: 'var(--tx3)' }}>限</div>
                 </div>
                 <div
@@ -1518,10 +1518,10 @@ export function AddTask() {
                       width: '100%',
                       padding: '8px 10px',
                       border: '1px solid ' + slot.inputBd,
-                      borderRadius: '9px',
+                      borderRadius: 'var(--rad-s)',
                       background: 'var(--bg2)',
                       color: 'var(--tx0)',
-                      font: "700 13px 'Noto Sans JP'",
+                      font: "700 13px var(--f-ui)",
                       outline: 'none',
                     }}
                   />
@@ -1552,10 +1552,10 @@ export function AddTask() {
                           flex: 'none',
                           padding: '3px 8px',
                           border: '1px solid var(--grn)',
-                          borderRadius: '99px',
+                          borderRadius: 'var(--rad-s)',
                           background: 'var(--grnBg)',
                           color: 'var(--grn)',
-                          font: "700 10px 'Noto Sans JP'",
+                          font: "700 10px var(--f-ui)",
                           boxShadow: 'var(--gGrn)',
                         }}
                       >

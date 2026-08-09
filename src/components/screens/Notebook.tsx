@@ -79,7 +79,7 @@ export function Notebook() {
               color: 'var(--tx3)',
             }}
           >
-            <div style={{ font: "700 14px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+            <div style={{ font: "700 14px var(--f-ui)", color: 'var(--tx1)' }}>
               {S.notesLoaded ? 'ノートがまだありません' : 'ノートを読み込んでいます…'}
             </div>
             <div style={{ fontSize: '12px', marginTop: '8px', lineHeight: 1.9 }}>
@@ -95,10 +95,10 @@ export function Notebook() {
                 marginTop: '16px',
                 padding: '10px 20px',
                 border: 'none',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 12.5px 'Noto Sans JP'",
+                font: "700 12.5px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >
