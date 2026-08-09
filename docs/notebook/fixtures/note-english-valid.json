@@ -1,0 +1,53 @@
+{
+  "schema": "compass-note@1",
+  "date": "2026-08-05",
+  "subject": "英語",
+  "unit": "仮定法 ─ 過去・過去完了と if の省略",
+  "recall": [
+    {
+      "q": "仮定法過去の基本形（現在の事実に反する仮定）を、if 節と主節の動詞の形で答えよ。",
+      "guide": "「時制を1つ過去へずらす」が原則。be 動詞は人称にかかわらず were。",
+      "a": "If + S + 過去形 …, S + would/could/might + 原形 …",
+      "src": "教科書 Lesson 8"
+    },
+    {
+      "q": "仮定法過去完了の基本形（過去の事実に反する仮定）を答えよ。",
+      "guide": "過去よりさらに1つ前へずらす。主節は have + 過去分詞。",
+      "a": "If + S + had + 過去分詞 …, S + would/could/might + have + 過去分詞 …",
+      "src": ""
+    },
+    {
+      "q": "if を省略した仮定法では語順がどう変わるか。過去完了の例で示せ。",
+      "guide": "if を消した代わりに助動詞を主語の前へ出す（倒置）。",
+      "a": "Had + S + 過去分詞 …（例: Had I known the truth, I would have told you.）",
+      "src": ""
+    }
+  ],
+  "blocks": [
+    {
+      "t": "def",
+      "title": "仮定法の時制のずらし方",
+      "body": "現在の事実に反する → 過去形（仮定法過去）\n過去の事実に反する → 過去完了形（仮定法過去完了）\n実現可能性のある未来 → if + S + should / were to"
+    },
+    {
+      "t": "ex",
+      "qi": 0,
+      "guide": "「今お金がない」→ 現在の事実に反するので仮定法過去。",
+      "solution": "If I had enough money, I would buy that guitar.\n（お金が十分にあれば、あのギターを買うのに）",
+      "caution": "主節を will にしないこと。would/could/might を使う。"
+    },
+    {
+      "t": "ex",
+      "qi": 2,
+      "guide": "if を落として Had を文頭へ。カンマの位置は変わらない。",
+      "solution": "If I had known the truth, I would have told you.\n→ Had I known the truth, I would have told you.",
+      "caution": "Did / Do では倒置しない。倒置できるのは were / had / should の3つ。"
+    }
+  ],
+  "exercise": {
+    "q": "次の文を if を省略した形に書き換えよ: If it were not for your help, I could not finish this work.",
+    "a": "Were it not for your help, I could not finish this work."
+  },
+  "doubt": "",
+  "notice": "・単語テスト範囲 Unit 9-10\n・来週月曜に和訳プリント提出"
+}

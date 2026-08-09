@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { fmtD } from '../../lib/logic/dates';
+import { noteRefOf } from '../../lib/logic/noteCards';
 import { reviewNoOf, shiftDue, sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Plan, Seg } from '../../lib/model/types';
@@ -26,7 +27,7 @@ import { dateCtx, store, useAppStore } from '../useStore';
 /** 情報カード 5 枚の外枠（HTML:1662-1666。5 枚とも同じ） */
 const INFO_CARD = {
   background: 'var(--bg2)',
-  borderRadius: '10px',
+  borderRadius: 'var(--rad-s)',
   padding: '10px 12px',
 } as const;
 
@@ -65,6 +66,8 @@ export function ReviewDetail() {
   if (!rSel) return null;
 
   const subj = subjectColorFor(subjColors, rSel.subj);
+  /** ノート由来なら元のノート・カードを引ける（docs/notebook/spec.md §4） */
+  const noteRef = noteRefOf(rSel.seriesId);
   const st = statusOf(ctx, rSel);
   const ttLabel = ttLabelOf(rSel);
   const roundLabel = '第' + reviewNoOf(rSel) + '回';
@@ -181,10 +184,10 @@ export function ReviewDetail() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
-                font: "700 11px 'Noto Sans JP'",
+                font: "700 11px var(--f-ui)",
                 color: subj.c,
                 background: subj.bg,
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '3px 10px',
               }}
             >
@@ -192,11 +195,11 @@ export function ReviewDetail() {
             </span>
             <span
               style={{
-                font: "700 10px 'Noto Sans JP'",
+                font: "700 10px var(--f-ui)",
                 color: subj.c,
                 background: subj.bg,
                 border: '1px solid ' + subj.c,
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '3px 9px',
               }}
             >
@@ -204,10 +207,10 @@ export function ReviewDetail() {
             </span>
             <span
               style={{
-                font: "700 10px 'Noto Sans JP'",
+                font: "700 10px var(--f-ui)",
                 color: 'var(--grn)',
                 background: 'var(--grnBg)',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '3px 9px',
               }}
             >
@@ -216,10 +219,10 @@ export function ReviewDetail() {
             {ttLabel ? (
               <span
                 style={{
-                  font: "700 9px 'Noto Sans JP'",
+                  font: "700 9px var(--f-ui)",
                   color: 'var(--org)',
                   background: 'var(--orgBg)',
-                  borderRadius: '5px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 7px',
                 }}
               >
@@ -233,7 +236,7 @@ export function ReviewDetail() {
                 width: '26px',
                 height: '26px',
                 border: '1px solid var(--line2)',
-                borderRadius: '7px',
+                borderRadius: 'var(--rad-s)',
                 background: 'none',
                 color: 'var(--tx2)',
                 cursor: 'pointer',
@@ -256,7 +259,7 @@ export function ReviewDetail() {
               }}
               title="ダブルタップで名称を変更"
               style={{
-                font: "700 17px 'Noto Sans JP'",
+                font: "700 17px var(--f-ui)",
                 color: 'var(--tx0)',
                 cursor: 'text',
                 paddingBottom: '4px',
@@ -291,7 +294,7 @@ export function ReviewDetail() {
                 borderBottom: '1px dashed var(--acc)',
                 outline: 'none',
                 color: 'var(--tx0)',
-                font: "700 17px 'Noto Sans JP'",
+                font: "700 17px var(--f-ui)",
               }}
             />
           ) : null}
@@ -303,7 +306,7 @@ export function ReviewDetail() {
               <div style={INFO_LABEL}>前回学習日</div>
               <div
                 style={{
-                  font: "700 14px 'Space Grotesk'",
+                  font: "700 14px var(--f-num)",
                   color: 'var(--tx0)',
                   marginTop: '2px',
                 }}
@@ -315,7 +318,7 @@ export function ReviewDetail() {
               <div style={INFO_LABEL}>次回復習日</div>
               <div
                 style={{
-                  font: "700 14px 'Noto Sans JP'",
+                  font: "700 14px var(--f-ui)",
                   color: !rSel.done && rSel.due <= T ? 'var(--pink)' : 'var(--tx0)',
                   marginTop: '2px',
                 }}
@@ -325,7 +328,7 @@ export function ReviewDetail() {
             </div>
             <div style={INFO_CARD}>
               <div style={INFO_LABEL}>今回の復習</div>
-              <div style={{ font: "700 14px 'Noto Sans JP'", color: subj.c, marginTop: '2px' }}>
+              <div style={{ font: "700 14px var(--f-ui)", color: subj.c, marginTop: '2px' }}>
                 {roundLabel}
               </div>
             </div>
@@ -333,7 +336,7 @@ export function ReviewDetail() {
               <div style={INFO_LABEL}>復習タイミング</div>
               <div
                 style={{
-                  font: "700 13px 'Noto Sans JP'",
+                  font: "700 13px var(--f-ui)",
                   color: 'var(--tx1)',
                   marginTop: '2px',
                 }}
@@ -345,7 +348,7 @@ export function ReviewDetail() {
               <div style={INFO_LABEL}>目安時間</div>
               <div
                 style={{
-                  font: "700 14px 'Space Grotesk'",
+                  font: "700 14px var(--f-num)",
                   color: 'var(--tx1)',
                   marginTop: '2px',
                 }}
@@ -378,10 +381,10 @@ export function ReviewDetail() {
                 style={{
                   padding: '11px',
                   border: 'none',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--grn)',
                   color: 'var(--onAcc)',
-                  font: "700 13px 'Noto Sans JP'",
+                  font: "700 13px var(--f-ui)",
                   cursor: 'pointer',
                   boxShadow: 'var(--gGrn)',
                 }}
@@ -394,10 +397,10 @@ export function ReviewDetail() {
                 <div
                   style={{
                     padding: '11px',
-                    borderRadius: '10px',
+                    borderRadius: 'var(--rad-s)',
                     background: 'var(--grnBg)',
                     color: 'var(--grn)',
-                    font: "700 12.5px 'Noto Sans JP'",
+                    font: "700 12.5px var(--f-ui)",
                     textAlign: 'center',
                   }}
                 >
@@ -413,10 +416,10 @@ export function ReviewDetail() {
                   style={{
                     padding: '10px',
                     border: '1px solid var(--line2)',
-                    borderRadius: '10px',
+                    borderRadius: 'var(--rad-s)',
                     background: 'var(--bg2)',
                     color: 'var(--tx1)',
-                    font: "700 12.5px 'Noto Sans JP'",
+                    font: "700 12.5px var(--f-ui)",
                     cursor: 'pointer',
                   }}
                 >
@@ -431,10 +434,10 @@ export function ReviewDetail() {
                 style={{
                   padding: '11px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'none',
                   color: 'var(--tx1)',
-                  font: "700 13px 'Noto Sans JP'",
+                  font: "700 13px var(--f-ui)",
                   cursor: 'pointer',
                 }}
               >
@@ -450,10 +453,10 @@ export function ReviewDetail() {
                 style={{
                   padding: '7px 14px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '9px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg2)',
                   color: 'var(--tx1)',
-                  font: "700 12px 'Noto Sans JP'",
+                  font: "700 12px var(--f-ui)",
                   cursor: 'pointer',
                 }}
               >
@@ -464,25 +467,51 @@ export function ReviewDetail() {
                 style={{
                   padding: '7px 14px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '9px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'var(--bg2)',
                   color: 'var(--tx1)',
-                  font: "700 12px 'Noto Sans JP'",
+                  font: "700 12px var(--f-ui)",
                   cursor: 'pointer',
                 }}
               >
                 ＋ 1日
               </button>
             </div>
+            {/* ノート由来の復習だけ。元のノートへ飛ぶ（docs/notebook/spec.md §8） */}
+            {noteRef && S.notes.some((n) => n.id === noteRef.noteId) ? (
+              <button
+                onClick={() => {
+                  store.setState({
+                    view: 'notebook',
+                    nbMode: 'note',
+                    nbSelNoteId: noteRef.noteId,
+                    nbEdit: false,
+                    revSel: null,
+                  });
+                  savePrefs(store);
+                }}
+                style={{
+                  padding: '10px',
+                  border: '1px solid var(--ink)',
+                  borderRadius: 'var(--rad-s)',
+                  background: 'var(--inkBg)',
+                  color: 'var(--ink)',
+                  font: "700 12.5px var(--f-ui)",
+                  cursor: 'pointer',
+                }}
+              >
+                ノートを開く
+              </button>
+            ) : null}
             <button
               onClick={reviewToTest}
               style={{
                 padding: '10px',
                 border: '1px solid var(--vio)',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--vioBg)',
                 color: 'var(--vio)',
-                font: "700 12.5px 'Noto Sans JP'",
+                font: "700 12.5px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >
@@ -501,10 +530,10 @@ export function ReviewDetail() {
               style={{
                 padding: '9px',
                 border: 'none',
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 background: 'none',
                 color: 'var(--tx3)',
-                font: "500 12px 'Noto Sans JP'",
+                font: "500 12px var(--f-ui)",
                 cursor: 'pointer',
               }}
             >

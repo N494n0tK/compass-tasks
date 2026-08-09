@@ -296,10 +296,43 @@ describe('exportData', () => {
     expect(store.exportData().version).toBe(1);
   });
 
-  it('emits the 23 state keys in PERSISTENT_KEYS order', () => {
+  it('emits every state key in PERSISTENT_KEYS order', () => {
     const store = newStore();
     expect(Object.keys(store.exportData().state)).toEqual([...PERSISTENT_KEYS]);
-    expect(PERSISTENT_KEYS).toHaveLength(23);
+  });
+
+  /**
+   * レガシーの 23 キーは**先頭 23 個のまま**でなければならない。
+   * 途中に差し込むと保存トリガの JSON 文字列が変わって無駄な PUT が飛ぶ（spec §4.14）。
+   * 追加キーは必ず末尾に足すこと（docs/notebook/spec.md §11-2）。
+   */
+  it('keeps the legacy 23 keys as an untouched prefix (additions are append-only)', () => {
+    expect(PERSISTENT_KEYS.slice(0, 23)).toEqual([
+      'theme',
+      'themeVersion',
+      'view',
+      'navOrder',
+      'planOrder',
+      'wkMax',
+      'weMax',
+      'selId',
+      'panelW',
+      'studyLog',
+      'scores',
+      'countdowns',
+      'addSubj',
+      'addType',
+      'addSize',
+      'recentSubjs',
+      'dayOverrides',
+      'timetableFocusDate',
+      'planQuota',
+      'segs',
+      'extras',
+      'reviews',
+      'order',
+    ]);
+    expect(PERSISTENT_KEYS.slice(23)).toEqual(['prepAutoGen', 'prepGenLog']);
   });
 
   it('keeps the key order stable regardless of how the state was built', () => {
@@ -363,12 +396,14 @@ describe('exportData', () => {
 // ─────────────────────────────────────────────────────────────
 
 describe('undo', () => {
-  it('undoPayload contains plans + the 14 undo keys in order', () => {
+  it('undoPayload contains plans + the undo keys in order', () => {
     const store = newStore({ plans: { p1: plan() } });
     const payload = store.undoPayload();
     expect(Object.keys(payload)).toEqual(['plans', 'state']);
     expect(Object.keys(payload.state)).toEqual([...UNDO_KEYS]);
-    expect(UNDO_KEYS).toHaveLength(14);
+    // レガシーの 14 キー + `prepGenLog`（extras と一緒に巻き戻す必要がある）
+    expect(UNDO_KEYS).toHaveLength(15);
+    expect(UNDO_KEYS.slice(0, 14)).not.toContain('prepGenLog');
     expect(payload.plans).toBe(store.getPlans()); // レガシー同様、直列化専用の参照渡し
   });
 

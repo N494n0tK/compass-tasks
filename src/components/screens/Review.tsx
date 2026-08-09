@@ -138,7 +138,7 @@ export function Review() {
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ ...STAT_CARD, width: '130px' }}>
           <div style={STAT_LABEL}>今日やる復習</div>
-          <div style={{ font: "700 20px 'Space Grotesk'", color: 'var(--pink)' }}>
+          <div style={{ font: "700 20px var(--f-num)", color: 'var(--pink)' }}>
             {revTodayCount}
             <span style={{ fontSize: '12px', color: 'var(--tx2)' }}>件</span>
           </div>
@@ -147,7 +147,7 @@ export function Review() {
           <div style={STAT_LABEL}>遅れている復習</div>
           <div
             style={{
-              font: "700 20px 'Space Grotesk'",
+              font: "700 20px var(--f-num)",
               color: revLateCount ? 'var(--pink)' : 'var(--tx0)',
             }}
           >
@@ -157,7 +157,7 @@ export function Review() {
         </div>
         <div style={{ ...STAT_CARD, width: '150px' }}>
           <div style={STAT_LABEL}>今週の消化率 · {weekRate.meta}</div>
-          <div style={{ font: "700 20px 'Space Grotesk'", color: 'var(--grn)' }}>
+          <div style={{ font: "700 20px var(--f-num)", color: 'var(--grn)' }}>
             {weekRate.label}
             <span style={{ fontSize: '12px' }}>{weekRate.suffix}</span>
           </div>
@@ -171,10 +171,10 @@ export function Review() {
               gap: '7px',
               padding: '9px 16px',
               border: 'none',
-              borderRadius: '99px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--grn)',
               color: 'var(--onAcc)',
-              font: "700 11.5px 'Noto Sans JP'",
+              font: "700 11.5px var(--f-ui)",
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               flex: 'none',
@@ -184,9 +184,9 @@ export function Review() {
             今日の復習をまとめてToDoへ
             <span
               style={{
-                font: "700 10.5px 'Space Grotesk'",
+                font: "700 10.5px var(--f-num)",
                 background: 'color-mix(in srgb,var(--onAcc) 22%,transparent)',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '1px 7px',
               }}
             >
@@ -210,7 +210,7 @@ export function Review() {
                 display: 'flex',
                 background: 'var(--bg1)',
                 border: '1px solid var(--line)',
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '2px',
               }}
             >
@@ -219,10 +219,10 @@ export function Review() {
                   key={mode.id}
                   onClick={() => store.setState({ revSort: mode.id })}
                   style={{
-                    font: "700 11px 'Noto Sans JP'",
+                    font: "700 11px var(--f-ui)",
                     color: S.revSort === mode.id ? 'var(--onAcc)' : 'var(--tx2)',
                     background: S.revSort === mode.id ? 'var(--acc)' : 'transparent',
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '5px 13px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -248,17 +248,17 @@ export function Review() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                font: "700 11px 'Noto Sans JP'",
+                font: "700 11px var(--f-ui)",
                 color: chip.on ? 'var(--onAcc)' : chip.color.c,
                 background: chip.on ? chip.color.c : chip.color.bg,
                 border: '1px solid ' + chip.color.c,
-                borderRadius: '99px',
+                borderRadius: 'var(--rad-s)',
                 padding: '4px 11px',
                 cursor: 'pointer',
               }}
             >
               {chip.name}
-              <span style={{ font: "700 10px 'Space Grotesk'" }}>{chip.count}</span>
+              <span style={{ font: "700 10px var(--f-num)" }}>{chip.count}</span>
             </span>
           ))}
         </div>
@@ -317,7 +317,7 @@ export function Review() {
                     <span style={{ flex: 1, borderTop: '1px dashed var(--line2)' }} />
                     <span
                       style={{
-                        font: "700 10.5px 'Noto Sans JP'",
+                        font: "700 10.5px var(--f-ui)",
                         color: 'var(--tx3)',
                         letterSpacing: '.06em',
                       }}
@@ -349,10 +349,10 @@ export function Review() {
                   <span className="rt-cell rt-cell-subj">
                     <span
                       style={{
-                        font: "700 10px 'Noto Sans JP'",
+                        font: "700 10px var(--f-ui)",
                         color: color.c,
                         background: color.bg,
-                        borderRadius: '99px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '2px 8px',
                         whiteSpace: 'nowrap',
                       }}
@@ -366,7 +366,7 @@ export function Review() {
                   >
                     <span
                       style={{
-                        font: "500 12.5px 'Noto Sans JP'",
+                        font: "500 12.5px var(--f-ui)",
                         color: 'var(--tx0)',
                         textDecoration: deco,
                         whiteSpace: 'nowrap',
@@ -379,10 +379,10 @@ export function Review() {
                     {ttLabel ? (
                       <span
                         style={{
-                          font: "700 9px 'Noto Sans JP'",
+                          font: "700 9px var(--f-ui)",
                           color: 'var(--org)',
                           background: 'var(--orgBg)',
-                          borderRadius: '5px',
+                          borderRadius: 'var(--rad-s)',
                           padding: '1px 6px',
                           whiteSpace: 'nowrap',
                         }}
@@ -397,7 +397,7 @@ export function Review() {
                     style={{
                       fontSize: '11.5px',
                       color: 'var(--tx3)',
-                      fontFamily: "'Space Grotesk'",
+                      fontFamily: "var(--f-num)",
                     }}
                   >
                     {fmtD(ctx, r.last)}
@@ -406,7 +406,7 @@ export function Review() {
                     className="rt-cell rt-cell-next"
                     data-label="次回"
                     style={{
-                      font: "700 11.5px 'Noto Sans JP'",
+                      font: "700 11.5px var(--f-ui)",
                       color: r.done
                         ? 'var(--tx3)'
                         : r.due <= T
@@ -424,11 +424,11 @@ export function Review() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         minWidth: '48px',
-                        font: "700 10.5px 'Noto Sans JP'",
+                        font: "700 10.5px var(--f-ui)",
                         color: color.c,
                         background: color.bg,
                         border: '1px solid ' + color.c,
-                        borderRadius: '99px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '2px 7px',
                         whiteSpace: 'nowrap',
                       }}
@@ -446,10 +446,10 @@ export function Review() {
                   <span className="rt-cell rt-cell-status" data-label="状態">
                     <span
                       style={{
-                        font: "700 10px 'Noto Sans JP'",
+                        font: "700 10px var(--f-ui)",
                         color: st.c,
                         background: st.bg,
-                        borderRadius: '5px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '2px 7px',
                         whiteSpace: 'nowrap',
                       }}
@@ -473,11 +473,11 @@ export function Review() {
                           onRowAdd(r);
                         }}
                         style={{
-                          font: "700 10.5px 'Noto Sans JP'",
+                          font: "700 10.5px var(--f-ui)",
                           color: 'var(--onAcc)',
                           background: 'var(--grn)',
                           border: 'none',
-                          borderRadius: '99px',
+                          borderRadius: 'var(--rad-s)',
                           padding: '4px 10px',
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -490,7 +490,7 @@ export function Review() {
                     {isAddedToToday(r) ? (
                       <span
                         style={{
-                          font: "700 10.5px 'Noto Sans JP'",
+                          font: "700 10.5px var(--f-ui)",
                           color: 'var(--grn)',
                           whiteSpace: 'nowrap',
                         }}
@@ -505,11 +505,11 @@ export function Review() {
                           openAsk(store, r.id);
                         }}
                         style={{
-                          font: "500 10.5px 'Noto Sans JP'",
+                          font: "500 10.5px var(--f-ui)",
                           color: 'var(--tx2)',
                           background: 'none',
                           border: '1px solid var(--line2)',
-                          borderRadius: '99px',
+                          borderRadius: 'var(--rad-s)',
                           padding: '4px 10px',
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -529,7 +529,7 @@ export function Review() {
                         width: '24px',
                         height: '24px',
                         border: '1px solid var(--line2)',
-                        borderRadius: '7px',
+                        borderRadius: 'var(--rad-s)',
                         background: 'none',
                         color: 'var(--tx2)',
                         cursor: 'pointer',

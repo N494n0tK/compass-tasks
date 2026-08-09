@@ -150,7 +150,7 @@ export function Tests() {
         >
           <div>
             <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>平日 最大負荷</div>
-            <div style={{ font: "700 18px 'Space Grotesk'", color: 'var(--tx0)' }}>
+            <div style={{ font: "700 18px var(--f-num)", color: 'var(--tx0)' }}>
               {maxLoadLabel(S.wkMax)}
             </div>
           </div>
@@ -161,7 +161,7 @@ export function Tests() {
                 width: '22px',
                 height: '18px',
                 border: '1px solid var(--line2)',
-                borderRadius: '5px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx1)',
                 cursor: 'pointer',
@@ -177,7 +177,7 @@ export function Tests() {
                 width: '22px',
                 height: '18px',
                 border: '1px solid var(--line2)',
-                borderRadius: '5px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx1)',
                 cursor: 'pointer',
@@ -202,7 +202,7 @@ export function Tests() {
         >
           <div>
             <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>休日 最大負荷</div>
-            <div style={{ font: "700 18px 'Space Grotesk'", color: 'var(--grn)' }}>
+            <div style={{ font: "700 18px var(--f-num)", color: 'var(--grn)' }}>
               {maxLoadLabel(S.weMax)}
             </div>
           </div>
@@ -213,7 +213,7 @@ export function Tests() {
                 width: '22px',
                 height: '18px',
                 border: '1px solid var(--line2)',
-                borderRadius: '5px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx1)',
                 cursor: 'pointer',
@@ -229,7 +229,7 @@ export function Tests() {
                 width: '22px',
                 height: '18px',
                 border: '1px solid var(--line2)',
-                borderRadius: '5px',
+                borderRadius: 'var(--rad-s)',
                 background: 'var(--bg2)',
                 color: 'var(--tx1)',
                 cursor: 'pointer',
@@ -255,7 +255,7 @@ export function Tests() {
         >
           <div>
             <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>再配分</div>
-            <div style={{ font: "700 13px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+            <div style={{ font: "700 13px var(--f-ui)", color: 'var(--tx0)' }}>
               未完了 {redistTargetCount}件
             </div>
           </div>
@@ -264,10 +264,10 @@ export function Tests() {
             style={{
               padding: '8px 13px',
               border: 'none',
-              borderRadius: '9px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--grad)',
               color: 'var(--onAcc)',
-              font: "700 12px 'Noto Sans JP'",
+              font: "700 12px var(--f-ui)",
               cursor: 'pointer',
               boxShadow: 'var(--gAcc)',
               whiteSpace: 'nowrap',
@@ -281,10 +281,10 @@ export function Tests() {
             style={{
               padding: '8px 13px',
               border: '1px solid ' + (S.redistPickMode ? 'var(--acc)' : 'var(--line2)'),
-              borderRadius: '9px',
+              borderRadius: 'var(--rad-s)',
               background: S.redistPickMode ? 'var(--acc)' : 'var(--bg2)',
               color: S.redistPickMode ? 'var(--onAcc)' : 'var(--tx1)',
-              font: "700 12px 'Noto Sans JP'",
+              font: "700 12px var(--f-ui)",
               cursor: 'pointer',
               boxShadow: S.redistPickMode ? 'var(--gAcc)' : 'none',
               whiteSpace: 'nowrap',
@@ -317,7 +317,7 @@ export function Tests() {
                 width: '8px',
                 height: '10px',
                 background: 'var(--accBg)',
-                borderRadius: '3px',
+                borderRadius: 'var(--rad-s)',
               }}
             ></span>
             XS 5分
@@ -326,7 +326,7 @@ export function Tests() {
                 width: '13px',
                 height: '10px',
                 background: 'var(--accBg)',
-                borderRadius: '3px',
+                borderRadius: 'var(--rad-s)',
               }}
             ></span>
             S 10分
@@ -335,7 +335,7 @@ export function Tests() {
                 width: '20px',
                 height: '10px',
                 background: 'var(--accBg)',
-                borderRadius: '3px',
+                borderRadius: 'var(--rad-s)',
               }}
             ></span>
             M 20分
@@ -344,7 +344,7 @@ export function Tests() {
                 width: '28px',
                 height: '10px',
                 background: 'var(--accBg)',
-                borderRadius: '3px',
+                borderRadius: 'var(--rad-s)',
               }}
             ></span>
             L 30分
@@ -365,7 +365,7 @@ export function Tests() {
             padding: '12px 16px',
           }}
         >
-          <span style={{ font: "700 13px 'Noto Sans JP'", color: 'var(--pink)' }}>
+          <span style={{ font: "700 13px var(--f-ui)", color: 'var(--pink)' }}>
             ⚠ 期限前に終わらなかったタスクが {overdue.length}件
           </span>
           <span style={{ fontSize: '12px', color: 'var(--tx2)' }}>
@@ -377,10 +377,10 @@ export function Tests() {
               marginLeft: 'auto',
               padding: '8px 16px',
               border: 'none',
-              borderRadius: '99px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--pink)',
               color: 'var(--onAcc)',
-              font: "700 12px 'Noto Sans JP'",
+              font: "700 12px var(--f-ui)",
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               flex: 'none',
@@ -400,9 +400,9 @@ export function Tests() {
             padding: '10px 13px',
             background: 'var(--accBg)',
             border: '1px solid var(--acc)',
-            borderRadius: '10px',
+            borderRadius: 'var(--rad-s)',
             color: 'var(--acc)',
-            font: "700 12px 'Noto Sans JP'",
+            font: "700 12px var(--f-ui)",
           }}
         >
           ↓ 再配分したい計画を選択してください
@@ -419,7 +419,7 @@ export function Tests() {
           '--timeline-mobile-min-width': timelineMobileMinW,
           background: 'var(--bg1)',
           border: '1px solid var(--line)',
-          borderRadius: '16px',
+          borderRadius: 'var(--rad)',
           overflowX: 'auto',
         })}
       >
@@ -458,7 +458,7 @@ export function Tests() {
               }}
             >
               <div style={{ fontSize: '10px', color: d.dowC }}>{d.dow}</div>
-              <div style={{ font: "700 12px 'Space Grotesk'", color: d.dateC }}>{d.label}</div>
+              <div style={{ font: "700 12px var(--f-num)", color: d.dateC }}>{d.label}</div>
               <div
                 style={{
                   height: '26px',
@@ -473,13 +473,13 @@ export function Tests() {
                     width: '14px',
                     height: d.pct,
                     background: d.barC,
-                    borderRadius: '3px 3px 0 0',
+                    borderRadius: 'var(--rad-s) var(--rad-s) 0 0',
                     minHeight: '2px',
                     transition: 'height .4s ease,background .3s ease',
                   }}
                 ></div>
               </div>
-              <div style={{ fontSize: '9px', color: d.loadC, fontFamily: "'Space Grotesk'" }}>
+              <div style={{ fontSize: '9px', color: d.loadC, fontFamily: "var(--f-num)" }}>
                 {d.loadH}
               </div>
             </div>
@@ -617,14 +617,14 @@ export function Tests() {
                     style={{
                       width: '7px',
                       height: '7px',
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       background: sub.c,
                       flex: 'none',
                     }}
                   ></span>
                   <span
                     style={{
-                      font: "700 12.5px 'Noto Sans JP'",
+                      font: "700 12.5px var(--f-ui)",
                       color: 'var(--tx0)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -645,10 +645,10 @@ export function Tests() {
                 >
                   <span
                     style={{
-                      font: "700 9px 'Noto Sans JP'",
+                      font: "700 9px var(--f-ui)",
                       color: sub.c,
                       border: '1px ' + (isTest ? 'solid' : 'dashed') + ' ' + sub.c,
-                      borderRadius: '4px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '0 5px',
                     }}
                   >
@@ -657,10 +657,10 @@ export function Tests() {
                   {pl.timetablePeriod ? (
                     <span
                       style={{
-                        font: "700 9px 'Noto Sans JP'",
+                        font: "700 9px var(--f-ui)",
                         color: 'var(--org)',
                         background: 'var(--orgBg)',
-                        borderRadius: '5px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '1px 6px',
                       }}
                     >
@@ -880,7 +880,7 @@ export function Tests() {
                               zIndex: 2,
                               width: segWidth(s.size),
                               height: '22px',
-                              borderRadius: '7px',
+                              borderRadius: 'var(--rad-s)',
                               background: s.done ? 'transparent' : sub.bg,
                               border: '1.5px solid ' + sub.c,
                               color: sub.c,
@@ -925,10 +925,10 @@ export function Tests() {
                               zIndex: 2,
                               padding: '4px 10px',
                               border: '2px solid ' + lineC,
-                              borderRadius: '99px',
+                              borderRadius: 'var(--rad-s)',
                               background: 'var(--bg1)',
                               color: lineC,
-                              font: "700 10px 'Space Grotesk'",
+                              font: "700 10px var(--f-num)",
                               whiteSpace: 'nowrap',
                               boxShadow: '0 0 12px color-mix(in srgb,' + lineC + ' 35%,transparent)',
                               cursor: 'grab',

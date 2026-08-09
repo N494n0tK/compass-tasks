@@ -24,7 +24,7 @@
  * firebase の import はこのモジュールでのみ許可（architecture §2）。React は import しない。
  */
 
-import { collection, doc, getDoc, getDocs, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, writeBatch } from 'firebase/firestore';
 import { getDb, getFirebaseAuth, isFirebaseConfigured } from './firebase';
 
 // ─────────────────────────────────────────────────────────────
@@ -119,6 +119,13 @@ export interface MigrateResult {
   skipped?: string;
 }
 
+/**
+ * `users/{uid}/notes/{noteId}` のドキュメント本体（docs/notebook/spec.md §6）。
+ * `ReviewTask` と同じく**検査しない生データ**として扱い、`Note` としての解釈は
+ * 呼び出し側（`parts/NotebookPersistence`）が行う。
+ */
+export type NoteDoc = Record<string, unknown>;
+
 /** GET / PUT の実装。Firestore 版と preview 版が同じ形を実装する */
 export interface CompassPersistence {
   readonly kind: 'firebase' | 'local';
@@ -131,6 +138,15 @@ export interface CompassPersistence {
   saveCloudState(uid: string, data: unknown, email?: string): Promise<CloudSaveResult>;
   /** ユーザー切り替え・サインアウト時に baseline とフラグを破棄する（SHELL:562-565） */
   reset(): void;
+
+  // ── 授業ノート（docs/notebook/spec.md §6）。`reviewTasks` と違い baseline 差分は取らない。
+  //    ノートは取り込み・編集・削除という明示的な操作でしか変わらないので、
+  //    その都度 1 ドキュメントだけ書けばよい。
+  /** 全ノートを読む。失敗は reject（呼び出し側が localStorage ミラーへ退避する） */
+  loadNotes(uid: string): Promise<NoteDoc[]>;
+  /** 1 件を全置換で保存する。`note.id` が doc id */
+  saveNote(uid: string, note: NoteDoc): Promise<void>;
+  deleteNote(uid: string, noteId: string): Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -142,6 +158,9 @@ function compassStateDoc(uid: string) {
 }
 
 const reviewTasksCol = (uid: string) => collection(getDb(), 'users', uid, 'reviewTasks');
+
+/** 授業ノート（docs/notebook/spec.md §6）。`firestore.rules` の `users/{uid}/{document=**}` で許可済み */
+const notesCol = (uid: string) => collection(getDb(), 'users', uid, 'notes');
 
 /** `undefined` フィールドを落とす（Firestore は undefined を受け付けない, SHELL:35-37） */
 function firestoreSafeData(data: unknown): unknown {
@@ -190,6 +209,17 @@ export function sortAndStripSeq(rows: { id: string; body: ReviewTask }[]): Revie
       void _drop;
       return rest;
     });
+}
+
+/**
+ * ノートの並び。**新しい授業日が先**、同日は id 昇順で安定させる。
+ * Firestore の取得順は保証されないので必ずここを通す。
+ */
+export function sortNotes(rows: readonly NoteDoc[]): NoteDoc[] {
+  const key = (n: NoteDoc, k: 'date' | 'id') => (typeof n[k] === 'string' ? (n[k] as string) : '');
+  return rows
+    .slice()
+    .sort((a, b) => key(b, 'date').localeCompare(key(a, 'date')) || key(a, 'id').localeCompare(key(b, 'id')));
 }
 
 function idOf(review: ReviewTask): string | null {
@@ -632,6 +662,28 @@ class FirestorePersistence implements CompassPersistence {
       deleted: deletes.length
     };
   }
+
+  // ── 授業ノート（docs/notebook/spec.md §6）
+
+  async loadNotes(uid: string): Promise<NoteDoc[]> {
+    const qs = await getDocs(notesCol(uid));
+    return sortNotes(qs.docs.map((d) => d.data() as NoteDoc));
+  }
+
+  async saveNote(uid: string, note: NoteDoc): Promise<void> {
+    const reason = invalidDocIdReason((note as { id?: unknown }).id);
+    if (reason) {
+      // doc() に渡すと throw して保存全体が落ちるので、ここで理由つきに変換する
+      throw new Error('ノートIDが使えません: ' + reason);
+    }
+    await setDoc(doc(notesCol(uid), note.id as string), firestoreSafeData(note) as NoteDoc);
+  }
+
+  async deleteNote(uid: string, noteId: string): Promise<void> {
+    const reason = invalidDocIdReason(noteId);
+    if (reason) throw new Error('ノートIDが使えません: ' + reason);
+    await deleteDoc(doc(notesCol(uid), noteId));
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -657,6 +709,17 @@ export function createLocalPersistence(email: string = PREVIEW_EMAIL): CompassPe
     },
     reset() {
       /* 保持する状態が無い */
+    },
+    // ノートも同じ方針。localStorage `compass-notes` への書き込みはアプリ側
+    // （`parts/NotebookPersistence`）の責務なので、ここでは成功だけ返す。
+    async loadNotes(): Promise<NoteDoc[]> {
+      return [];
+    },
+    async saveNote(): Promise<void> {
+      /* preview では保存しない */
+    },
+    async deleteNote(): Promise<void> {
+      /* preview では保存しない */
     }
   };
 }

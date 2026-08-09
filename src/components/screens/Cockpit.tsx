@@ -25,7 +25,8 @@ import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
 import { orderedPlanIds, toH, todayLoadPct } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Review } from '../../lib/model/types';
-import { addToOrder, mutExtra, mutReview, mutSeg } from '../parts/ShellActions';
+import { KomaStrip } from '../parts/KomaStrip';
+import { addToOrder, mutExtra, mutReview, mutSeg, openNoteDrill } from '../parts/ShellActions';
 import { makeSearchMatcher } from '../parts/ShellSearch';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
@@ -56,10 +57,11 @@ export function Cockpit() {
 
   // 復習の完了は理解度モーダル（revAsk）を経由する（HTML:2915）
   const openAsk = (id: string) =>
-    store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revSel: null });
+    store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revAskReveal: false, revSel: null });
 
-  /** `toggleItem(it)`（HTML:2916-2921） */
+  /** `toggleItem(it)`（HTML:2916-2921）+ ノートの復習はドリルへ（v0.10, spec §8） */
   const toggleItem = (it: TodayItem) => () => {
+    if (it.noteId && !it.done) return openNoteDrill(store, it.noteId);
     if (it.kind === 'seg') mutSeg(store, it.id, (x) => ((x.done = !x.done), x));
     else if (it.kind === 'extra') mutExtra(store, it.id, (x) => ((x.done = !x.done), x));
     else if (!it.done) openAsk(it.id);
@@ -289,6 +291,9 @@ export function Cockpit() {
         animation: 'fadeUp .22s ease',
       }}
     >
+      {/* 今日のコマ帯。3 パネルの上に全幅で敷く（globals.css の `.koma-strip`） */}
+      <KomaStrip state={S} store={store} today={T} todayItems={todayItems} />
+
       {/* 今日 */}
       <div
         className="cockpit-panel cockpit-panel--today"
@@ -341,7 +346,7 @@ export function Cockpit() {
                 borderRight: '1px solid var(--line)',
                 borderBottom: '1px solid var(--line)',
                 borderLeft: '3px solid ' + it.c,
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 opacity: it.op,
                 cursor: 'grab',
               }}
@@ -353,7 +358,7 @@ export function Cockpit() {
                   height: '17px',
                   flex: 'none',
                   border: '1.5px solid ' + it.boxBd,
-                  borderRadius: '6px',
+                  borderRadius: 'var(--rad-s)',
                   background: it.boxBg,
                   color: 'var(--onAcc)',
                   display: 'flex',
@@ -369,7 +374,7 @@ export function Cockpit() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    font: "500 13px 'Noto Sans JP'",
+                    font: "500 13px var(--f-ui)",
                     color: 'var(--tx0)',
                     textDecoration: it.deco,
                     whiteSpace: 'nowrap',
@@ -392,10 +397,10 @@ export function Cockpit() {
                   {it.ttLabel ? (
                     <span
                       style={{
-                        font: "700 9px 'Noto Sans JP'",
+                        font: "700 9px var(--f-ui)",
                         color: 'var(--org)',
                         background: 'var(--orgBg)',
-                        borderRadius: '5px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '1px 6px',
                         whiteSpace: 'nowrap',
                       }}
@@ -407,10 +412,10 @@ export function Cockpit() {
               </div>
               <span
                 style={{
-                  font: "700 10px 'Noto Sans JP'",
+                  font: "700 10px var(--f-ui)",
                   color: it.c,
                   background: it.bg,
-                  borderRadius: '99px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 8px',
                   flex: 'none',
                 }}
@@ -419,10 +424,10 @@ export function Cockpit() {
               </span>
               <span
                 style={{
-                  font: "700 10px 'Space Grotesk'",
+                  font: "700 10px var(--f-num)",
                   color: it.c,
                   background: it.bg,
-                  borderRadius: '5px',
+                  borderRadius: 'var(--rad-s)',
                   padding: '2px 7px',
                 }}
               >
@@ -441,10 +446,10 @@ export function Cockpit() {
           <div
             style={{
               border: '1.5px dashed var(--grn)',
-              borderRadius: '10px',
+              borderRadius: 'var(--rad-s)',
               padding: '12px',
               textAlign: 'center',
-              font: "700 12px 'Noto Sans JP'",
+              font: "700 12px var(--f-ui)",
               color: 'var(--grn)',
               background: 'var(--grnBg)',
             }}
@@ -459,10 +464,10 @@ export function Cockpit() {
             marginTop: 'auto',
             padding: '10px',
             border: '1px dashed var(--line2)',
-            borderRadius: '10px',
+            borderRadius: 'var(--rad-s)',
             background: 'none',
             color: 'var(--tx2)',
-            font: "500 12px 'Noto Sans JP'",
+            font: "500 12px var(--f-ui)",
             cursor: 'pointer',
           }}
         >
@@ -506,7 +511,7 @@ export function Cockpit() {
                 padding: '11px 12px',
                 background: r.cardBg,
                 border: '1px solid ' + r.cardBd,
-                borderRadius: '10px',
+                borderRadius: 'var(--rad-s)',
                 opacity: r.op,
                 cursor: 'grab',
               }}
@@ -514,10 +519,10 @@ export function Cockpit() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <span
                   style={{
-                    font: "700 10px 'Noto Sans JP'",
+                    font: "700 10px var(--f-ui)",
                     color: r.subjC,
                     background: r.subjBg,
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '2px 8px',
                   }}
                 >
@@ -525,10 +530,10 @@ export function Cockpit() {
                 </span>
                 <span
                   style={{
-                    font: "700 10px 'Noto Sans JP'",
+                    font: "700 10px var(--f-ui)",
                     color: 'var(--grn)',
                     background: 'var(--grnBg)',
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '2px 8px',
                   }}
                 >
@@ -537,20 +542,20 @@ export function Cockpit() {
                 {r.ttLabel ? (
                   <span
                     style={{
-                      font: "700 9px 'Noto Sans JP'",
+                      font: "700 9px var(--f-ui)",
                       color: 'var(--org)',
                       background: 'var(--orgBg)',
-                      borderRadius: '5px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '1px 6px',
                     }}
                   >
                     {r.ttLabel}
                   </span>
                 ) : null}
-                <span style={{ font: "700 11px 'Noto Sans JP'", color: r.dueC }}>{r.dueLabel}</span>
+                <span style={{ font: "700 11px var(--f-ui)", color: r.dueC }}>{r.dueLabel}</span>
               </div>
               <div
-                style={{ font: "500 13px 'Noto Sans JP'", color: 'var(--tx0)', marginTop: '5px' }}
+                style={{ font: "500 13px var(--f-ui)", color: 'var(--tx0)', marginTop: '5px' }}
               >
                 {r.title}
               </div>
@@ -569,11 +574,11 @@ export function Cockpit() {
                   <button
                     onClick={r.onAdd}
                     style={{
-                      font: "700 11px 'Noto Sans JP'",
+                      font: "700 11px var(--f-ui)",
                       color: 'var(--onAcc)',
                       background: 'var(--grn)',
                       border: 'none',
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '4px 11px',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
@@ -584,7 +589,7 @@ export function Cockpit() {
                   </button>
                 ) : null}
                 {r.isAdded ? (
-                  <span style={{ font: "700 11px 'Noto Sans JP'", color: 'var(--grn)' }}>
+                  <span style={{ font: "700 11px var(--f-ui)", color: 'var(--grn)' }}>
                     ✓ 今日のToDoに追加済み
                   </span>
                 ) : null}
@@ -607,14 +612,14 @@ export function Cockpit() {
             marginTop: 'auto',
             padding: '10px 12px',
             background: 'var(--bg2)',
-            borderRadius: '10px',
+            borderRadius: 'var(--rad-s)',
             display: 'flex',
             gap: '10px',
             alignItems: 'center',
             cursor: 'pointer',
           }}
         >
-          <span style={{ font: "700 18px 'Space Grotesk'", color: 'var(--grn)' }}>
+          <span style={{ font: "700 18px var(--f-num)", color: 'var(--grn)' }}>
             {weekRate.label + weekRate.suffix}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--tx2)', lineHeight: 1.4 }}>
@@ -664,7 +669,7 @@ export function Cockpit() {
                 padding: '13px',
                 background: p.cardBg,
                 border: '1px ' + p.bStyle + ' ' + p.bColor,
-                borderRadius: '12px',
+                borderRadius: 'var(--rad)',
                 display: 'flex',
                 gap: '13px',
                 alignItems: 'center',
@@ -708,7 +713,7 @@ export function Cockpit() {
                   <span style={{ fontSize: '9px', color: p.c }}>あと</span>
                   <span
                     style={{
-                      font: "700 20px 'Space Grotesk'",
+                      font: "700 20px var(--f-num)",
                       color: 'var(--tx0)',
                       lineHeight: 1,
                     }}
@@ -720,15 +725,15 @@ export function Cockpit() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ font: "700 13px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+                  <span style={{ font: "700 13px var(--f-ui)", color: 'var(--tx0)' }}>
                     {p.name}
                   </span>
                   <span
                     style={{
-                      font: "700 9px 'Noto Sans JP'",
+                      font: "700 9px var(--f-ui)",
                       color: p.c,
                       border: '1px ' + p.bStyle + ' ' + p.c,
-                      borderRadius: '4px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '1px 5px',
                     }}
                   >
@@ -737,10 +742,10 @@ export function Cockpit() {
                   {p.ttLabel ? (
                     <span
                       style={{
-                        font: "700 9px 'Noto Sans JP'",
+                        font: "700 9px var(--f-ui)",
                         color: 'var(--org)',
                         background: 'var(--orgBg)',
-                        borderRadius: '5px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '1px 6px',
                       }}
                     >
@@ -755,7 +760,7 @@ export function Cockpit() {
                   style={{
                     height: '6px',
                     background: 'var(--line)',
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     marginTop: '7px',
                     overflow: 'hidden',
                   }}
@@ -792,10 +797,10 @@ export function Cockpit() {
             marginTop: 'auto',
             padding: '11px',
             border: 'none',
-            borderRadius: '10px',
+            borderRadius: 'var(--rad-s)',
             background: 'var(--grad)',
             color: 'var(--onAcc)',
-            font: "700 13px 'Noto Sans JP'",
+            font: "700 13px var(--f-ui)",
             cursor: 'pointer',
             boxShadow: 'var(--gAcc)',
           }}

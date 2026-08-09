@@ -161,6 +161,8 @@ const SAMPLE_EXPORT: ExportData = {
     extras: [],
     reviews: [],
     order: [],
+    prepAutoGen: { enabled: true, offSubjects: [] },
+    prepGenLog: {},
   },
 };
 
@@ -181,7 +183,7 @@ describe('buildBackupJson', () => {
     expect(JSON.parse(out.content)).toEqual(SAMPLE_EXPORT);
   });
 
-  it('keeps the 3 top-level keys and the 23 state keys in order', () => {
+  it('keeps the 3 top-level keys and every state key in PERSISTENT_KEYS order', () => {
     const parsed = JSON.parse(buildBackupJson(SAMPLE_EXPORT, T).content);
     expect(Object.keys(parsed)).toEqual(['version', 'plans', 'state']);
     expect(Object.keys(parsed.state)).toEqual([...PERSISTENT_KEYS]);

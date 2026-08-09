@@ -77,7 +77,7 @@ export function ShellAppSwitcher({
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{
-                font: "700 11px 'Space Grotesk'",
+                font: "700 11px var(--f-num)",
                 letterSpacing: '.12em',
                 color: 'var(--acc)',
               }}
@@ -85,7 +85,7 @@ export function ShellAppSwitcher({
               COMPASS APPS
             </div>
             <div
-              style={{ marginTop: '5px', font: "700 20px 'Noto Sans JP'", color: 'var(--tx0)' }}
+              style={{ marginTop: '5px', font: "700 20px var(--f-ui)", color: 'var(--tx0)' }}
             >
               アプリを切り替える
             </div>
@@ -109,7 +109,7 @@ export function ShellAppSwitcher({
               height: '32px',
               flex: 'none',
               border: '1px solid var(--line2)',
-              borderRadius: '9px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--bg2)',
               color: 'var(--tx2)',
               cursor: 'pointer',
@@ -127,7 +127,7 @@ export function ShellAppSwitcher({
             <span
               style={{
                 display: 'block',
-                font: "700 10px 'Noto Sans JP'",
+                font: "700 10px var(--f-ui)",
                 color: 'var(--acc)',
                 letterSpacing: '.06em',
               }}
@@ -138,7 +138,7 @@ export function ShellAppSwitcher({
               style={{
                 display: 'block',
                 marginTop: '4px',
-                font: "700 20px 'Space Grotesk'",
+                font: "700 20px var(--f-num)",
                 letterSpacing: '.01em',
               }}
             >
@@ -163,7 +163,7 @@ export function ShellAppSwitcher({
         <div
           style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '11px' }}
         >
-          <span style={{ font: "700 12px 'Noto Sans JP'", color: 'var(--tx1)' }}>
+          <span style={{ font: "700 12px var(--f-ui)", color: 'var(--tx1)' }}>
             ほかのアプリ
           </span>
           <span style={{ height: '1px', flex: 1, background: 'var(--line)' }}></span>
@@ -192,7 +192,7 @@ export function ShellAppSwitcher({
               </span>
               <span
                 style={{
-                  font: "700 13px 'Noto Sans JP'",
+                  font: "700 13px var(--f-ui)",
                   color: 'var(--tx0)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',

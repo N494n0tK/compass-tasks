@@ -12,7 +12,13 @@
  */
 
 import { daysUntil, type DateContext } from '../../lib/logic/dates';
-import type { Review, SizeKey } from '../../lib/model/types';
+import {
+  applyReviewCompletion,
+  nextReviewOf,
+  orderAfterCompletion,
+  selIdAfterCompletion,
+} from '../../lib/logic/reviews';
+import type { Review, ReviewGrade, SizeKey } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
 
 /**
@@ -27,7 +33,34 @@ export const SIZE_MIN: Readonly<Record<SizeKey, number>> = { XS: 5, S: 10, M: 20
  * **開くと同時に復習詳細ドロワーが閉じる**（`revSel:null`）。
  */
 export function openAsk(store: CompassStore, id: string): void {
-  store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revSel: null });
+  store.setState({ revAsk: id, revAskGrade: null, revAskSize: null, revAskReveal: false, revSel: null });
+}
+
+/**
+ * `confirmAsk` の副作用（HTML:3146-3185）を 1 か所にまとめたもの。
+ *
+ * 理解度モーダル（`ReviewAskModal`）と、ノートのドリル面（`NoteDrill`）の**両方**がここを通る。
+ * 遷移そのものは `lib/logic/reviews.ts` の `nextReviewOf` / `applyReviewCompletion` に任せる
+ * （フォーク禁止。docs/notebook/spec.md §11-4）。
+ *
+ * @returns `showToast` に渡す文言
+ */
+export function completeReview(
+  store: CompassStore,
+  review: Review,
+  grade: ReviewGrade,
+  size: SizeKey,
+  ctx: DateContext,
+): string {
+  const transition = nextReviewOf(review, grade, size, ctx);
+  const m = transition.mutations;
+  store.setState((s) => ({
+    reviews: applyReviewCompletion(s.reviews, transition),
+    studyLog: s.studyLog.concat([m.studyLog]),
+    order: orderAfterCompletion(s.order, m),
+    selId: selIdAfterCompletion(s.selId, m),
+  }));
+  return transition.message;
 }
 
 /** `statusOf(r)` の戻り（HTML:3260-3266） */

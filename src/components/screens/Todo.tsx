@@ -29,7 +29,7 @@ import { daysUntil, dayLabel } from '../../lib/logic/dates';
 import { toH } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Seg, SubTaskFields } from '../../lib/model/types';
-import { mutExtra, mutSeg } from '../parts/ShellActions';
+import { mutExtra, mutSeg, openNoteDrill } from '../parts/ShellActions';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
 import { SIZE_MIN, gl, orderedPlanIds, sizeChips, toggleItem } from '../parts/TodoActions';
@@ -222,12 +222,12 @@ export function Todo() {
             style={{
               width: '8px',
               height: '8px',
-              borderRadius: '99px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--acc)',
               boxShadow: 'var(--gAcc)',
             }}
           ></span>
-          <span style={{ font: "700 14px 'Noto Sans JP'", color: 'var(--tx0)' }}>今日のToDo</span>
+          <span style={{ font: "700 14px var(--f-ui)", color: 'var(--tx0)' }}>今日のToDo</span>
           <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--tx3)' }}>
             計画名でまとめて表示
           </span>
@@ -239,7 +239,7 @@ export function Todo() {
             alignItems: 'center',
             gap: '8px',
             padding: '8px 2px 2px',
-            font: "700 10.5px 'Noto Sans JP'",
+            font: "700 10.5px var(--f-ui)",
             color: 'var(--tx3)',
             letterSpacing: '.04em',
           }}
@@ -274,7 +274,7 @@ export function Todo() {
                     ? 'color-mix(in srgb, ' + sub.c + ' 14%, var(--bg3))'
                     : 'color-mix(in srgb, ' + sub.c + ' 7%, var(--bg2))',
                   border: '1px solid ' + (active ? sub.c : 'var(--line)'),
-                  borderRadius: '11px',
+                  borderRadius: 'var(--rad-s)',
                   cursor: 'pointer',
                   boxShadow: active
                     ? '0 0 0 1px color-mix(in srgb, ' +
@@ -297,11 +297,11 @@ export function Todo() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
                     style={{
-                      font: "700 10px 'Noto Sans JP'",
+                      font: "700 10px var(--f-ui)",
                       color: sub.c,
                       background: sub.bg,
                       border: '1px ' + (isTest ? 'solid' : 'dashed') + ' ' + sub.c,
-                      borderRadius: '5px',
+                      borderRadius: 'var(--rad-s)',
                       padding: '2px 7px',
                     }}
                   >
@@ -311,7 +311,7 @@ export function Todo() {
                     style={{
                       flex: 1,
                       minWidth: 0,
-                      font: "700 13.5px 'Noto Sans JP'",
+                      font: "700 13.5px var(--f-ui)",
                       color: 'var(--tx0)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -320,7 +320,7 @@ export function Todo() {
                   >
                     {pl.name}
                   </span>
-                  <span style={{ font: "700 11px 'Noto Sans JP'", color: sub.c }}>
+                  <span style={{ font: "700 11px var(--f-ui)", color: sub.c }}>
                     {todayRemain ? 'あと' + todayRemain + '個' : '今日分OK'}
                   </span>
                   <span style={{ color: 'var(--tx3)' }}>›</span>
@@ -342,7 +342,7 @@ export function Todo() {
                   style={{
                     height: '5px',
                     background: 'var(--line)',
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     marginTop: '8px',
                     overflow: 'hidden',
                   }}
@@ -369,7 +369,7 @@ export function Todo() {
             alignItems: 'center',
             gap: '8px',
             padding: '10px 2px 2px',
-            font: "700 10.5px 'Noto Sans JP'",
+            font: "700 10.5px var(--f-ui)",
             color: 'var(--tx3)',
             letterSpacing: '.04em',
           }}
@@ -402,7 +402,7 @@ export function Todo() {
                   borderRight: '1px solid ' + (active ? sub.c : 'var(--line)'),
                   borderBottom: '1px solid ' + (active ? sub.c : 'var(--line)'),
                   borderLeft: '3px solid ' + sub.c,
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   cursor: 'pointer',
                   opacity: it.done ? 0.5 : 1,
                   boxShadow: active
@@ -421,7 +421,7 @@ export function Todo() {
                     height: '18px',
                     flex: 'none',
                     border: '1.5px solid ' + (it.done ? 'var(--acc)' : 'var(--line2)'),
-                    borderRadius: '6px',
+                    borderRadius: 'var(--rad-s)',
                     background: it.done ? 'var(--acc)' : 'transparent',
                     color: 'var(--onAcc)',
                     display: 'flex',
@@ -436,7 +436,7 @@ export function Todo() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      font: "500 13px 'Noto Sans JP'",
+                      font: "500 13px var(--f-ui)",
                       color: 'var(--tx0)',
                       textDecoration: it.done ? 'line-through' : 'none',
                     }}
@@ -447,12 +447,33 @@ export function Todo() {
                     {it.min + '分 · ' + it.src}
                   </div>
                 </div>
+                {/* ノート由来の復習は、その授業の問題だけを並べたドリル面で解く（spec §8） */}
+                {it.noteId ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openNoteDrill(store, it.noteId as string);
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      border: '1px solid var(--ink)',
+                      borderRadius: 'var(--rad-s)',
+                      background: 'var(--inkBg)',
+                      color: 'var(--ink)',
+                      font: "700 10.5px var(--f-ui)",
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    ノートで復習
+                  </button>
+                ) : null}
                 <span
                   style={{
-                    font: "700 10px 'Noto Sans JP'",
+                    font: "700 10px var(--f-ui)",
                     color: sub.c,
                     background: sub.bg,
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '2px 8px',
                   }}
                 >
@@ -514,7 +535,7 @@ export function Todo() {
             >
               <span
                 style={{
-                  font: "700 26px 'Space Grotesk'",
+                  font: "700 26px var(--f-num)",
                   color: 'var(--tx0)',
                   lineHeight: 1,
                 }}
@@ -528,7 +549,7 @@ export function Todo() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div>
               <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>今日のノルマ</div>
-              <div style={{ font: "700 15px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+              <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
                 {todayItems.length + '件 · ' + toH(totals.totalMin) + ' をやり切る'}
               </div>
             </div>
@@ -544,10 +565,10 @@ export function Todo() {
               minWidth: '128px',
               padding: '11px 14px',
               border: '1px solid var(--acc)',
-              borderRadius: '11px',
+              borderRadius: 'var(--rad-s)',
               background: 'var(--accBg)',
               color: 'var(--acc)',
-              font: "700 12.5px 'Noto Sans JP'",
+              font: "700 12.5px var(--f-ui)",
               cursor: 'pointer',
               boxShadow: 'var(--gAcc)',
             }}
@@ -578,22 +599,22 @@ export function Todo() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    font: "700 10px 'Noto Sans JP'",
+                    font: "700 10px var(--f-ui)",
                     color: todoPlanC,
                     background: todoPlanBg,
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '3px 9px',
                   }}
                 >
                   {todoPlan ? (todoPlan.type === 'test' ? 'テスト' : '予習') : '計画'}
                 </span>
-                <span style={{ font: "700 16px 'Noto Sans JP'", color: 'var(--tx0)' }}>
+                <span style={{ font: "700 16px var(--f-ui)", color: 'var(--tx0)' }}>
                   {todoPlan ? todoPlan.name : '計画を選択'}
                 </span>
                 <span
                   style={{
                     marginLeft: 'auto',
-                    font: "700 11px 'Noto Sans JP'",
+                    font: "700 11px var(--f-ui)",
                     color: todoPlanC,
                   }}
                 >
@@ -623,15 +644,15 @@ export function Todo() {
                   marginTop: '12px',
                 }}
               >
-                <div style={{ padding: '9px 10px', background: 'var(--bg2)', borderRadius: '8px' }}>
+                <div style={{ padding: '9px 10px', background: 'var(--bg2)', borderRadius: 'var(--rad-s)' }}>
                   <div style={{ fontSize: '9.5px', color: 'var(--tx3)' }}>全体進捗</div>
-                  <b style={{ font: "700 14px 'Space Grotesk'", color: 'var(--tx0)' }}>
+                  <b style={{ font: "700 14px var(--f-num)", color: 'var(--tx0)' }}>
                     {todoPlanDone + ' / ' + todoPlanSegs.length}
                   </b>
                 </div>
-                <div style={{ padding: '9px 10px', background: 'var(--bg2)', borderRadius: '8px' }}>
+                <div style={{ padding: '9px 10px', background: 'var(--bg2)', borderRadius: 'var(--rad-s)' }}>
                   <div style={{ fontSize: '9.5px', color: 'var(--tx3)' }}>今日の進捗</div>
-                  <b style={{ font: "700 13px 'Noto Sans JP'", color: 'var(--acc)' }}>
+                  <b style={{ font: "700 13px var(--f-ui)", color: 'var(--acc)' }}>
                     {selectedTodaySegs.length
                       ? selectedTodayDone +
                         ' / ' +
@@ -642,9 +663,9 @@ export function Todo() {
                       : '今日分なし'}
                   </b>
                 </div>
-                <div style={{ padding: '9px 10px', background: 'var(--bg2)', borderRadius: '8px' }}>
+                <div style={{ padding: '9px 10px', background: 'var(--bg2)', borderRadius: 'var(--rad-s)' }}>
                   <div style={{ fontSize: '9.5px', color: 'var(--tx3)' }}>今日のノルマ</div>
-                  <b style={{ font: "700 12px 'Noto Sans JP'", color: todoPlanC }}>
+                  <b style={{ font: "700 12px var(--f-ui)", color: todoPlanC }}>
                     {quotaSegs.length
                       ? todoPlanSegs[quotaIdx].title + 'まで'
                       : '今日のノルマなし'}
@@ -696,7 +717,7 @@ export function Todo() {
                         border:
                           '1px solid ' +
                           (overdue ? 'var(--pink)' : today ? todoPlanC : 'var(--line)'),
-                        borderRadius: '8px',
+                        borderRadius: 'var(--rad-s)',
                         opacity: s.done ? 0.52 : 1,
                       }}
                     >
@@ -706,7 +727,7 @@ export function Todo() {
                           width: '17px',
                           height: '17px',
                           border: '1.5px solid ' + (s.done ? 'var(--acc)' : 'var(--line2)'),
-                          borderRadius: '5px',
+                          borderRadius: 'var(--rad-s)',
                           background: s.done ? 'var(--acc)' : 'transparent',
                           color: 'var(--onAcc)',
                           display: 'flex',
@@ -722,7 +743,7 @@ export function Todo() {
                       <span
                         style={{
                           minWidth: 0,
-                          font: "500 12.5px 'Noto Sans JP'",
+                          font: "500 12.5px var(--f-ui)",
                           color: 'var(--tx0)',
                           textDecoration: s.done ? 'line-through' : 'none',
                           whiteSpace: 'nowrap',
@@ -734,7 +755,7 @@ export function Todo() {
                       </span>
                       <span
                         style={{
-                          font: "700 9.5px 'Noto Sans JP'",
+                          font: "700 9.5px var(--f-ui)",
                           color: overdue
                             ? 'var(--pink)'
                             : today
@@ -747,7 +768,7 @@ export function Todo() {
                             : today
                               ? 'var(--accBg)'
                               : 'var(--bg3)',
-                          borderRadius: '5px',
+                          borderRadius: 'var(--rad-s)',
                           padding: '2px 7px',
                         }}
                       >
@@ -755,10 +776,10 @@ export function Todo() {
                       </span>
                       <span
                         style={{
-                          font: "700 10px 'Space Grotesk'",
+                          font: "700 10px var(--f-num)",
                           color: todoPlanC,
                           background: todoPlanBg,
-                          borderRadius: '5px',
+                          borderRadius: 'var(--rad-s)',
                           padding: '2px 7px',
                         }}
                       >
@@ -785,10 +806,10 @@ export function Todo() {
                         <span
                           style={{
                             padding: '4px 10px',
-                            borderRadius: '99px',
+                            borderRadius: 'var(--rad-s)',
                             background: 'var(--acc)',
                             color: 'var(--onAcc)',
-                            font: "700 10.5px 'Noto Sans JP'",
+                            font: "700 10.5px var(--f-ui)",
                             whiteSpace: 'nowrap',
                           }}
                         >
@@ -840,10 +861,10 @@ export function Todo() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    font: "700 10px 'Noto Sans JP'",
+                    font: "700 10px var(--f-ui)",
                     color: selC,
                     background: selBg,
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '3px 9px',
                   }}
                 >
@@ -851,10 +872,10 @@ export function Todo() {
                 </span>
                 <span
                   style={{
-                    font: "700 10px 'Noto Sans JP'",
+                    font: "700 10px var(--f-ui)",
                     color: selC,
                     background: selBg,
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '3px 9px',
                   }}
                 >
@@ -866,7 +887,7 @@ export function Todo() {
               </div>
               <div
                 style={{
-                  font: "700 17px 'Noto Sans JP'",
+                  font: "700 17px var(--f-ui)",
                   color: 'var(--tx0)',
                   marginTop: '10px',
                 }}
@@ -890,7 +911,7 @@ export function Todo() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ font: "700 11px 'Noto Sans JP'", color: 'var(--tx1)' }}>タスク</span>
+                <span style={{ font: "700 11px var(--f-ui)", color: 'var(--tx1)' }}>タスク</span>
                 <span style={{ fontSize: '10px', color: 'var(--tx3)' }}>
                   この1件だけを表示しています
                 </span>
@@ -905,7 +926,7 @@ export function Todo() {
                   padding: '12px',
                   background: 'color-mix(in srgb,' + selC + ' 7%,var(--bg2))',
                   border: '1px solid color-mix(in srgb,' + selC + ' 35%,var(--line))',
-                  borderRadius: '10px',
+                  borderRadius: 'var(--rad-s)',
                   cursor: 'pointer',
                   opacity: sel.done ? 0.55 : 1,
                 }}
@@ -915,7 +936,7 @@ export function Todo() {
                     width: '18px',
                     height: '18px',
                     border: '1.5px solid ' + (sel.done ? 'var(--acc)' : 'var(--line2)'),
-                    borderRadius: '6px',
+                    borderRadius: 'var(--rad-s)',
                     background: sel.done ? 'var(--acc)' : 'transparent',
                     color: 'var(--onAcc)',
                     display: 'flex',
@@ -930,7 +951,7 @@ export function Todo() {
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      font: "600 13px 'Noto Sans JP'",
+                      font: "600 13px var(--f-ui)",
                       color: 'var(--tx0)',
                       textDecoration: sel.done ? 'line-through' : 'none',
                       whiteSpace: 'nowrap',
@@ -948,10 +969,10 @@ export function Todo() {
                 </div>
                 <span
                   style={{
-                    font: "700 10px 'Space Grotesk'",
+                    font: "700 10px var(--f-num)",
                     color: selC,
                     background: selBg,
-                    borderRadius: '6px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '3px 8px',
                   }}
                 >
@@ -965,10 +986,10 @@ export function Todo() {
                   alignSelf: 'flex-start',
                   padding: '6px 10px',
                   border: '1px solid var(--line2)',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'none',
                   color: 'var(--tx3)',
-                  font: "500 11px 'Noto Sans JP'",
+                  font: "500 11px var(--f-ui)",
                   cursor: 'pointer',
                 }}
               >
@@ -999,7 +1020,7 @@ export function Todo() {
                           gap: '9px',
                           padding: '8px 10px',
                           background: 'var(--bg2)',
-                          borderRadius: '8px',
+                          borderRadius: 'var(--rad-s)',
                           cursor: 'pointer',
                         }}
                       >
@@ -1009,7 +1030,7 @@ export function Todo() {
                             height: '15px',
                             flex: 'none',
                             border: '1.5px solid ' + (dn ? 'var(--acc)' : 'var(--line2)'),
-                            borderRadius: '5px',
+                            borderRadius: 'var(--rad-s)',
                             background: dn ? 'var(--acc)' : 'transparent',
                             color: 'var(--onAcc)',
                             display: 'flex',
@@ -1035,10 +1056,10 @@ export function Todo() {
                         {sz ? (
                           <span
                             style={{
-                              font: "700 10px 'Space Grotesk'",
+                              font: "700 10px var(--f-num)",
                               color: 'var(--tx2)',
                               background: 'var(--bg3)',
-                              borderRadius: '5px',
+                              borderRadius: 'var(--rad-s)',
                               padding: '2px 7px',
                               flex: 'none',
                             }}
@@ -1057,7 +1078,7 @@ export function Todo() {
                             margin: '2px 2px 3px',
                             paddingTop: '7px',
                             borderTop: '1px dashed var(--acc)',
-                            font: "700 10.5px 'Noto Sans JP'",
+                            font: "700 10.5px var(--f-ui)",
                             color: 'var(--acc)',
                           }}
                         >
@@ -1088,11 +1109,11 @@ export function Todo() {
                           key={z.key}
                           onClick={() => store.setState({ todoNewSize: z.key })}
                           style={{
-                            font: "700 10.5px 'Space Grotesk'",
+                            font: "700 10.5px var(--f-num)",
                             color: z.c,
                             background: z.bg,
                             border: '1px solid ' + z.bd,
-                            borderRadius: '8px',
+                            borderRadius: 'var(--rad-s)',
                             padding: '4px 10px',
                             cursor: 'pointer',
                           }}
@@ -1115,10 +1136,10 @@ export function Todo() {
                           minWidth: 0,
                           padding: '8px 10px',
                           border: '1px solid var(--line2)',
-                          borderRadius: '8px',
+                          borderRadius: 'var(--rad-s)',
                           background: 'var(--bg2)',
                           color: 'var(--tx0)',
-                          font: "500 12px 'Noto Sans JP'",
+                          font: "500 12px var(--f-ui)",
                           outline: 'none',
                         }}
                       />
@@ -1127,10 +1148,10 @@ export function Todo() {
                         style={{
                           padding: '8px 13px',
                           border: 'none',
-                          borderRadius: '8px',
+                          borderRadius: 'var(--rad-s)',
                           background: 'var(--grad)',
                           color: 'var(--onAcc)',
-                          font: "700 11.5px 'Noto Sans JP'",
+                          font: "700 11.5px var(--f-ui)",
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
                           flex: 'none',

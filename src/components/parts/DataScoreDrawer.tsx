@@ -35,7 +35,7 @@ export interface DataScoreDrawerProps {
 
 const tileStyle: CSSProperties = {
   background: 'var(--bg2)',
-  borderRadius: '10px',
+  borderRadius: 'var(--rad-s)',
   padding: '9px 10px',
 };
 
@@ -160,10 +160,10 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span
             style={{
-              font: "700 11px 'Noto Sans JP'",
+              font: "700 11px var(--f-ui)",
               color: scSub.c,
               background: scSub.bg,
-              borderRadius: '99px',
+              borderRadius: 'var(--rad-s)',
               padding: '3px 10px',
               flex: 'none',
             }}
@@ -174,7 +174,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
             style={{
               flex: 1,
               minWidth: 0,
-              font: "700 14px 'Noto Sans JP'",
+              font: "700 14px var(--f-ui)",
               color: 'var(--tx0)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -190,7 +190,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
               width: '26px',
               height: '26px',
               border: '1px solid var(--line2)',
-              borderRadius: '7px',
+              borderRadius: 'var(--rad-s)',
               background: 'none',
               color: 'var(--tx2)',
               cursor: 'pointer',
@@ -206,7 +206,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
             <div style={tileLabelStyle}>最新</div>
             <div
               style={{
-                font: "700 16px 'Space Grotesk'",
+                font: "700 16px var(--f-num)",
                 color: scSub.c,
                 marginTop: '2px',
               }}
@@ -218,7 +218,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
           <div style={tileStyle}>
             <div style={tileLabelStyle}>前回比</div>
             <div
-              style={{ font: "700 15px 'Space Grotesk'", color: scDeltaC, marginTop: '3px' }}
+              style={{ font: "700 15px var(--f-num)", color: scDeltaC, marginTop: '3px' }}
             >
               {scDelta}
             </div>
@@ -226,7 +226,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
           <div style={tileStyle}>
             <div style={tileLabelStyle}>最高</div>
             <div
-              style={{ font: "700 16px 'Space Grotesk'", color: 'var(--tx0)', marginTop: '2px' }}
+              style={{ font: "700 16px var(--f-num)", color: 'var(--tx0)', marginTop: '2px' }}
             >
               {scBest}
               <span style={{ fontSize: '10px' }}>点</span>
@@ -235,14 +235,14 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
           <div style={tileStyle}>
             <div style={tileLabelStyle}>平均</div>
             <div
-              style={{ font: "700 16px 'Space Grotesk'", color: 'var(--tx0)', marginTop: '2px' }}
+              style={{ font: "700 16px var(--f-num)", color: 'var(--tx0)', marginTop: '2px' }}
             >
               {scAvg}
               <span style={{ fontSize: '10px' }}>点</span>
             </div>
           </div>
         </div>
-        <div style={{ background: 'var(--bg2)', borderRadius: '12px', padding: '12px 8px 6px' }}>
+        <div style={{ background: 'var(--bg2)', borderRadius: 'var(--rad)', padding: '12px 8px 6px' }}>
           <svg viewBox="0 0 360 200" style={{ width: '100%', height: 'auto' }}>
             <line x1="30" y1="14" x2="338" y2="14" stroke="var(--line)" strokeWidth="1" />
             <line x1="30" y1="92" x2="338" y2="92" stroke="var(--line)" strokeWidth="1" />
@@ -251,7 +251,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
               x="24"
               y="18"
               textAnchor="end"
-              style={{ font: "10px 'Space Grotesk'", fill: 'var(--tx3)' }}
+              style={{ font: "10px var(--f-num)", fill: 'var(--tx3)' }}
             >
               100
             </text>
@@ -259,7 +259,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
               x="24"
               y="96"
               textAnchor="end"
-              style={{ font: "10px 'Space Grotesk'", fill: 'var(--tx3)' }}
+              style={{ font: "10px var(--f-num)", fill: 'var(--tx3)' }}
             >
               50
             </text>
@@ -267,7 +267,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
               x="24"
               y="174"
               textAnchor="end"
-              style={{ font: "10px 'Space Grotesk'", fill: 'var(--tx3)' }}
+              style={{ font: "10px var(--f-num)", fill: 'var(--tx3)' }}
             >
               0
             </text>
@@ -280,7 +280,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
                   x={d.cx}
                   y={d.labelY}
                   textAnchor="middle"
-                  style={{ font: "700 10px 'Space Grotesk'", fill: scSub.c }}
+                  style={{ font: "700 10px var(--f-num)", fill: scSub.c }}
                 >
                   {d.label}
                 </text>
@@ -288,7 +288,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
                   x={d.cx}
                   y="188"
                   textAnchor="middle"
-                  style={{ font: "9px 'Space Grotesk'", fill: 'var(--tx3)' }}
+                  style={{ font: "9px var(--f-num)", fill: 'var(--tx3)' }}
                 >
                   {d.dayLabel}
                 </text>
@@ -318,7 +318,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
                 padding: '8px 10px',
                 background: 'var(--bg2)',
                 border: '1px solid var(--line)',
-                borderRadius: '8px',
+                borderRadius: 'var(--rad-s)',
               }}
             >
               <span
@@ -326,15 +326,15 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
                   flex: 1,
                   fontSize: '11.5px',
                   color: 'var(--tx2)',
-                  fontFamily: "'Space Grotesk'",
+                  fontFamily: "var(--f-num)",
                 }}
               >
                 {r.dayLabel}
               </span>
-              <span style={{ font: "700 10.5px 'Space Grotesk'", color: r.deltaC }}>
+              <span style={{ font: "700 10.5px var(--f-num)", color: r.deltaC }}>
                 {r.delta}
               </span>
-              <span style={{ font: "700 14px 'Space Grotesk'", color: 'var(--tx0)' }}>
+              <span style={{ font: "700 14px var(--f-num)", color: 'var(--tx0)' }}>
                 {r.score}
                 <span style={{ fontSize: '9px' }}>点</span>
               </span>
@@ -346,7 +346,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
                   width: '20px',
                   height: '20px',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: 'var(--rad-s)',
                   background: 'none',
                   color: 'var(--tx3)',
                   cursor: 'pointer',

@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { generatePrepTasks } from '../lib/logic/prepAutogen';
 import { overdueSegs } from '../lib/logic/schedule';
 import type { AppState, ViewId } from '../lib/model/types';
 import {
@@ -28,6 +29,7 @@ import {
   type SplashGate,
 } from '../lib/persistence';
 import { ReviewAskModal } from './parts/ReviewAskModal';
+import { addToOrder } from './parts/ShellActions';
 import { ShellAppSwitcher } from './parts/ShellAppSwitcher';
 import { ShellNav } from './parts/ShellNav';
 import { OverlayHostContext } from './parts/ShellOverlay';
@@ -42,9 +44,11 @@ import { ShellTopbar } from './parts/ShellTopbar';
 import { buildTodayItems } from './parts/ShellTodayItems';
 import { TestsEditorDrawer } from './parts/TestsEditorDrawer';
 import { TodoFocusOverlay } from './parts/TodoFocusOverlay';
+import { NotebookController, setNotebookController } from './parts/NotebookPersistence';
 import { AddTask } from './screens/AddTask';
 import { Cockpit } from './screens/Cockpit';
 import { DataScreen } from './screens/DataScreen';
+import { Notebook } from './screens/Notebook';
 import { Review } from './screens/Review';
 import { Tests } from './screens/Tests';
 import { Todo } from './screens/Todo';
@@ -74,6 +78,9 @@ function renderScreen(view: ViewId) {
       return <AddTask />;
     case 'review':
       return <Review />;
+    // レガシーに無い追加画面（docs/notebook/spec.md §8）
+    case 'notebook':
+      return <Notebook />;
   }
 }
 
@@ -82,6 +89,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   const [splashReady, setSplashReady] = useState(false);
   const [themeModeEl, setThemeModeEl] = useState<HTMLDivElement | null>(null);
   const saverRef = useRef<SaveController | null>(null);
+  /** 予習の自動生成をマウントごとに 1 回だけにする番人 */
+  const prepRanRef = useRef(false);
 
   const savePrefs = useMemo(() => () => writePrefs(store), []);
 
@@ -109,10 +118,16 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     // `this._dataRepaired` はインスタンスフィールドなのでクラウド読込まで残る（HTML:2308）
     if (localPatch.repaired) saver.markRepaired();
 
+    // 授業ノート（docs/notebook/spec.md §6）。`compass-ui-data` とは別系統の保存なので
+    // スプラッシュのゲートには参加させない（ノートの遅延で起動を止めない）。
+    const notebook = new NotebookController(store, persistence, uid);
+    setNotebookController(notebook);
+
     const ready = () => {
       saver.markReady();
       store.resetUndoBaseline();
       void saver.loadCloudState();
+      void notebook.boot();
     };
     if (Object.keys(initial).length || localPatch.plans) {
       store.update({ plans: localPatch.plans, state: initial }, ready);
@@ -123,11 +138,37 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     return () => {
       unsubscribe();
       saver.dispose();
+      notebook.dispose();
+      setNotebookController(null);
       gate.cancel();
       persistence.reset();
       saverRef.current = null;
     };
   }, [uid, email, preview]);
+
+  // ── 予習の自動生成（docs/notebook/spec.md §5 / ワークフロー手順 7）
+  //    クラウド読み込みが終わって `cloudStatus` が 'loading' を抜けた**最初の 1 回**だけ走る。
+  //    そこまで待たないと、保存済みの `prepGenLog` / `dayOverrides` / 設定が反映されず
+  //    同じ日のタスクを二重に積んでしまう。`useRef` でマウントごと 1 回に固定する。
+  useEffect(() => {
+    if (prepRanRef.current) return;
+    if (state.cloudStatus === 'loading') return;
+    prepRanRef.current = true;
+    const s = store.getState();
+    const result = generatePrepTasks({
+      today: dateCtx.today,
+      dayOverrides: s.dayOverrides,
+      settings: s.prepAutoGen,
+      genLog: s.prepGenLog,
+    });
+    if (!result.extras.length && result.genLog === s.prepGenLog) return;
+    store.setState((prev) => ({
+      extras: prev.extras.concat(result.extras),
+      prepGenLog: result.genLog,
+    }));
+    result.extras.forEach((e) => addToOrder(store, e.id));
+    if (result.message) store.showToast(result.message);
+  }, [state.cloudStatus]);
 
   // ── キーボードショートカット（`_key`, HTML:2117-2141 / spec §2.7）
   useEffect(() => {
@@ -160,14 +201,14 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         focusSearch();
         return;
       }
-      // 修飾キーなしのショートカット: 1–6で画面切替 / 「/」で検索 / n・f で追加・集中
+      // 修飾キーなしのショートカット: 1–7で画面切替 / 「/」で検索 / n・f で追加・集中
       if (!editingText && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (key === '/') {
           e.preventDefault();
           focusSearch();
           return;
         }
-        if (key >= '1' && key <= '6') {
+        if (key >= '1' && key <= '7') {
           const order = normalizeNavOrder(store.getState().navOrder);
           const view = order[Number(key) - 1];
           if (view) {
@@ -199,6 +240,7 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
           appSwitcherOpen: false,
           revSel: null,
           revAsk: null,
+          revAskReveal: false,
           scoreSel: null,
           focusOpen: false,
           focusRunning: false,

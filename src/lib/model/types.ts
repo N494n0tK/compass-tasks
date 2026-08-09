@@ -9,6 +9,8 @@
  * このファイルは純粋な型 + 2つのキー配列のみ。React / firebase を import しない。
  */
 
+import type { Note } from './notes';
+
 // ─────────────────────────────────────────────────────────────
 // プリミティブ・エイリアス
 // ─────────────────────────────────────────────────────────────
@@ -31,8 +33,11 @@ export type Theme = 'light' | 'dark' | 'note';
 /** `data-theme` 属性に流し込む正規化済みスキン名（architecture §4 / spec §3.2 Q19） */
 export type ThemeSkin = 'note' | 'neon' | 'light';
 
-/** 画面 ID（spec §2.6, HTML:2624-2631 相当） */
-export type ViewId = 'cockpit' | 'tests' | 'todo' | 'review' | 'add' | 'data';
+/**
+ * 画面 ID（spec §2.6, HTML:2624-2631 相当）。
+ * `'notebook'` はレガシーに無い追加画面（docs/notebook/spec.md §8）。
+ */
+export type ViewId = 'cockpit' | 'tests' | 'todo' | 'review' | 'add' | 'data' | 'notebook';
 
 /** タスクサイズ。`SIZE_MIN = { XS:5, S:10, M:20, L:30 }`（HTML:2037） */
 export type SizeKey = 'XS' | 'S' | 'M' | 'L';
@@ -119,8 +124,12 @@ export interface Extra extends SubTaskFields {
   timetableDate: ISODate | null;
 }
 
-/** 間隔反復のステージ（HTML:3129-3131） */
-export type ReviewStage = '翌日' | '3日後' | '1週間後' | '2週間後' | '定着 🎉';
+/**
+ * 間隔反復のステージ（HTML:3129-3131）。
+ * `'当日'` だけレガシーに無い追加で、**ノート取り込みで作られる初回の復習**が名乗る
+ * （授業当日に 1 回やる。docs/notebook/spec.md §4.1）。既存の 5 段はそのまま。
+ */
+export type ReviewStage = '当日' | '翌日' | '3日後' | '1週間後' | '2週間後' | '定着 🎉';
 
 /**
  * 実データには `stageDays` に無い未知の stage 文字列（データ破損 / 将来の legacy）が
@@ -209,6 +218,22 @@ export type DayOverrides = Record<ISODate, DayOverride>;
 /** `planQuota` — `{ [planId]: number }`（`todoPlanSegs` 内の 0 始まりインデックス。表示専用） */
 export type PlanQuota = Record<string, number>;
 
+/**
+ * 予習の自動生成の設定（docs/notebook/spec.md §5）。**レガシーに無い追加**。
+ * 既定は `{ enabled: true, offSubjects: [] }`。
+ */
+export interface PrepAutoGenSettings {
+  enabled: boolean;
+  /** 自動生成しない教科名（時間割上の表記） */
+  offSubjects: string[];
+}
+
+/**
+ * 予習の自動生成の重複防止ログ。**対象日**（翌登校日）→ その日ぶんに生成済みのコマ（1..7）。
+ * extras との突き合わせにしないのは、ユーザーが消したタスクを翌起動で復活させないため。
+ */
+export type PrepGenLog = Record<ISODate, number[]>;
+
 /** サイドバー・ドロワーの幅（localStorage `'compass-ui'` にも保存, spec §2.8 / §4.13） */
 export interface PanelW {
   nav: number;
@@ -258,11 +283,18 @@ export interface PersistentState {
   reviews: Review[];
   /** seg / extra / review の id が混在。日付をまたいでも一切クリアされない（spec §4.11） */
   order: string[];
+  // ↓ ここから先はレガシーに無い追加キー。**必ず末尾に足すこと**（並べ替え厳禁）
+  /** 予習の自動生成の設定（docs/notebook/spec.md §5） */
+  prepAutoGen: PrepAutoGenSettings;
+  /** 予習の自動生成の重複防止ログ */
+  prepGenLog: PrepGenLog;
 }
 
 /**
- * `persistentKeys()`（HTML:2159-2161）— 23キー。**この配列順が保存 JSON のキー順になる**ので
- * 並べ替え厳禁（spec §4.14 / architecture §5）。
+ * `persistentKeys()`（HTML:2159-2161）— レガシーの 23キー + 追加分。
+ * **この配列順が保存 JSON のキー順になる**ので並べ替え厳禁（spec §4.14 / architecture §5）。
+ * 新しい永続キーは**必ず末尾に追記**する（既存キーの間に差し込むと、内容が同じでも
+ * `JSON.stringify` の文字列が変わって無駄な PUT が飛ぶ）。
  */
 export const PERSISTENT_KEYS = [
   'theme',
@@ -288,6 +320,9 @@ export const PERSISTENT_KEYS = [
   'extras',
   'reviews',
   'order',
+  // ── ここから追加分（末尾追記のみ）
+  'prepAutoGen',
+  'prepGenLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -308,6 +343,9 @@ export const UNDO_KEYS = [
   'extras',
   'reviews',
   'order',
+  // 予習の自動生成ログ。`extras` と一緒に巻き戻さないと、Undo で消えた予習が
+  // 「生成済み」のまま二度と作られなくなる（docs/notebook/spec.md §5）
+  'prepGenLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type UndoKey = (typeof UNDO_KEYS)[number];
@@ -386,6 +424,13 @@ export type RevSort = 'due' | 'subj';
 
 /** データ画面の期間切替（保存しない, HTML:2071 `dataRange:'all'`） */
 export type DataRange = 'all' | 'week' | 'month';
+
+/**
+ * ノート画面のビュー切替。
+ * `note` = ノート全体 / `extract` = 全ノート横断の問題抽出 /
+ * `drill` = **その授業の今日ぶんの問題だけを解く面**（今日の ToDo から飛んでくる）
+ */
+export type NotebookMode = 'note' | 'extract' | 'drill';
 
 /** Add 画面の自動細分化モード（`addGeneratorChips`, HTML:3656-3659） */
 export type AddGenerator = 'manual' | 'duo' | 'chart';
@@ -500,6 +545,36 @@ export interface EphemeralState {
   focusPreset: number;
   cloudStatus: CloudStatus;
   cloudUser: string;
+  // ── ノート画面（docs/notebook/spec.md §8）。レガシーに無い追加。
+  //    `notes` を**一時 state に置く**のが肝: `PERSISTENT_KEYS` に入らないので
+  //    `compass-ui-data` が肥大せず、保存トリガ・Undo にも巻き込まれない。
+  //    実体は `users/{uid}/notes/{noteId}` と localStorage `compass-notes`。
+  /** 読み込み済みのノート（新しい授業日が先） */
+  notes: Note[];
+  /** クラウド or ローカルからの初回読み込みが終わったか */
+  notesLoaded: boolean;
+  /** 表示中のノート */
+  nbSelNoteId: string | null;
+  /** ノートビュー / 問題抽出ビュー */
+  nbMode: NotebookMode;
+  /** カレンダーが表示している月（その月の 1 日の iso） */
+  nbMonth: ISODate;
+  /** 教科の絞り込み（`null` = 全部） */
+  nbSubjFilter: string | null;
+  /** ノートの編集モード */
+  nbEdit: boolean;
+  nbImportOpen: boolean;
+  nbImportText: string;
+  /** 上書き取り込みの対象ノート id（`null` = 新規） */
+  nbImportTarget: string | null;
+  /** 解答の開閉。キーは `'r:'+noteId+':'+cardId` / `'e:'+noteId` / `'x:'+…`（v3 の `open` と同じ流儀） */
+  nbRevealed: Record<string, boolean>;
+  /** サイドバーの教科アコーディオン */
+  nbTreeOpen: Record<string, boolean>;
+  /** ドリル中に「ノートの全体（解説・演習・疑問）」を開いているか */
+  nbFullNote: boolean;
+  /** 理解度モーダルでカードの解答を表示しているか */
+  revAskReveal: boolean;
 }
 
 /** ストアが持つ state の全体（architecture §3） */

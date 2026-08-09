@@ -128,7 +128,7 @@ export function ShellTopbar({
         {S.searchOpen ? (
           <div className="app-search-popover">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ font: "700 12px 'Noto Sans JP'", color: 'var(--tx0)' }}>検索</span>
+              <span style={{ font: "700 12px var(--f-ui)", color: 'var(--tx0)' }}>検索</span>
               <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
                 入力と同時に絞り込みます
               </span>
@@ -153,11 +153,11 @@ export function ShellTopbar({
                     })
                   }
                   style={{
-                    font: "700 10.5px 'Noto Sans JP'",
+                    font: "700 10.5px var(--f-ui)",
                     color: s.c,
                     background: s.bg,
                     border: '1px solid ' + s.bd,
-                    borderRadius: '99px',
+                    borderRadius: 'var(--rad-s)',
                     padding: '4px 10px',
                     cursor: 'pointer',
                   }}
@@ -201,14 +201,14 @@ export function ShellTopbar({
                     gap: '9px',
                     padding: '9px 10px',
                     background: 'var(--bg2)',
-                    borderRadius: '9px',
+                    borderRadius: 'var(--rad-s)',
                   }}
                 >
                   <span
                     style={{
                       width: '6px',
                       height: '6px',
-                      borderRadius: '99px',
+                      borderRadius: 'var(--rad-s)',
                       background: r.c,
                       flex: 'none',
                     }}
@@ -216,7 +216,7 @@ export function ShellTopbar({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        font: "500 12px 'Noto Sans JP'",
+                        font: "500 12px var(--f-ui)",
                         color: 'var(--tx0)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -241,11 +241,11 @@ export function ShellTopbar({
                         }
                       }}
                       style={{
-                        font: "700 10.5px 'Noto Sans JP'",
+                        font: "700 10.5px var(--f-ui)",
                         color: 'var(--acc)',
                         background: 'var(--accBg)',
                         border: 'none',
-                        borderRadius: '99px',
+                        borderRadius: 'var(--rad-s)',
                         padding: '4px 10px',
                         cursor: 'pointer',
                         flex: 'none',
