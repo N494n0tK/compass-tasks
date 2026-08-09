@@ -20,10 +20,15 @@ import type { ISODate } from './types';
 /** 貼り付け JSON の `schema` フィールドに要求する値（spec §3.2） */
 export const NOTE_SCHEMA = 'compass-note@1';
 
-/** プロンプト B が選ぶ教科の候補。**制約ではない**（自由文字列も通す, spec §12-5） */
-export const NOTE_SUBJECTS = ['数学', '英語', '国語', '理科', '社会', 'その他'] as const;
-
-export type NoteSubjectSuggestion = (typeof NOTE_SUBJECTS)[number];
+/**
+ * 教科の候補は**時間割から取る**（`logic/timetable.ts` の `timetableSubjects()`）。
+ * ここで固定の一覧を持たない ―― 「数学・英語・国語・理科・社会」のような大分類を
+ * 持ってしまうと、AI が「社会」と答えて時間割の「歴総 / 地総」と食い違い、
+ * 教科の色も予習の突き合わせもズレる（実際に起きた）。
+ *
+ * 時間割に無い教科でも保存はできる（自由文字列。取り込み時に warning を出すだけ）。
+ */
+export const NOTE_SUBJECT_OTHER = 'その他';
 
 /**
  * 想起問題の出どころ。

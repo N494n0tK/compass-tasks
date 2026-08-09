@@ -18,8 +18,18 @@
  * この文字列にバックティックを入れないこと（String.raw では素直にエスケープできない）。
  */
 
-/** GPT に渡す唯一のプロンプト（文字起こし + 画像 → compass-note@1 JSON） */
-export const NOTE_PROMPT = String.raw`あなたは高校生の学習ノート作成アシスタントです。
+/**
+ * GPT に渡す唯一のプロンプト（文字起こし + 画像 → compass-note@1 JSON）。
+ *
+ * `subjects` は**時間割に出てくる教科名そのまま**（`timetableSubjects()`）。
+ * ここを「数学・英語・国語・理科・社会」のような大分類にしていたせいで、
+ * AI が「社会」と答えて時間割の「歴総 / 地総」と食い違っていた。
+ */
+export function noteMainPrompt(subjects: readonly string[]): string {
+  return NOTE_PROMPT_BODY.replace(/__SUBJECTS__/g, subjects.join('|'));
+}
+
+const NOTE_PROMPT_BODY = String.raw`あなたは高校生の学習ノート作成アシスタントです。
 これから渡す「授業の録音の文字起こし」と「その授業のノート／板書／授業スライドの画像」を読み、
 復習アプリ取り込み用の JSON を 1 個だけ出力してください。
 
@@ -39,7 +49,7 @@ export const NOTE_PROMPT = String.raw`あなたは高校生の学習ノート作
 {
   "schema": "compass-note@1",
   "date": "YYYY-MM-DD",
-  "subject": "数学|英語|国語|理科|社会|その他",
+  "subject": "__SUBJECTS__",
   "unit": "単元名",
   "recall": [
     { "q": "想起問題", "a": "解答", "guide": "方針(任意)", "src": "出典(任意)", "origin": "self|ai" }
@@ -59,7 +69,10 @@ export const NOTE_PROMPT = String.raw`あなたは高校生の学習ノート作
 
 # 各項目の作り方
 - date … 授業の日付。資料から読めなければ空文字 "" にする（アプリ側で今日の日付になる）。
-- subject … 6 つの候補から 1 つ選ぶ。
+- subject … **次の一覧から 1 つだけ**そのままコピーして書く: __SUBJECTS__
+  - 「社会」「理科」「国語」「英語」のような**大分類は使わない**。この一覧はその生徒の
+    時間割の科目名で、アプリ側の教科の色・予習の突き合わせがこの名前でつながっている。
+  - どれにも当てはまらない授業だったときだけ "その他" にする。勝手に新しい名前を作らない。
 - unit … その授業 1 回分を一言で表す単元名。長い説明にしない。
 - recall … **この JSON の主役**。合計 5 問（最低 3 問・最大 8 問）。
   - **まず、生徒がノートに自分で書いた問題を全部拾う。** ノートの余白・左端・
@@ -182,15 +195,17 @@ export const NOTE_PROMPT = String.raw`あなたは高校生の学習ノート作
 # 出力する前の自己チェック
 1. 最初が { で最後が } になっているか。コードブロックや説明文を付けていないか。
 2. "schema" は "compass-note@1" になっているか。
-3. recall は 3 個以上あり、どの q・a も空でないか。すべてに "origin" を付けたか。
-4. **生徒がノートに書いた問いを、1 問残らず origin:"self" で入れたか。**
-5. **doubt に、生徒が書いていない疑問を混ぜていないか。** 該当が無いなら "" のままか。
-6. keywords の term が、blocks の本文に**そのままの文字列で**存在するか。
+3. **"subject" は指定した一覧の文字列と完全一致しているか。**「社会」「理科」のような
+   大分類や、一覧に無い名前を書いていないか。
+4. recall は 3 個以上あり、どの q・a も空でないか。すべてに "origin" を付けたか。
+5. **生徒がノートに書いた問いを、1 問残らず origin:"self" で入れたか。**
+6. **doubt に、生徒が書いていない疑問を混ぜていないか。** 該当が無いなら "" のままか。
+7. keywords の term が、blocks の本文に**そのままの文字列で**存在するか。
    （1 語ずつ本文を検索して確かめる。無い語は消すか、本文の表記に合わせる）
-7. summary は 3〜5 行の地の文になっているか。
-8. LaTeX のバックスラッシュを 2 個重ねたか。
-9. blocks の qi が recall の範囲内（0 から数えて）か。対応が無ければ null にしたか。
-10. JSON.parse できる形か（末尾のカンマ・全角の引用符・コメントが無いか）。
+8. summary は 3〜5 行の地の文になっているか。
+9. LaTeX のバックスラッシュを 2 個重ねたか。
+10. blocks の qi が recall の範囲内（0 から数えて）か。対応が無ければ null にしたか。
+11. JSON.parse できる形か（末尾のカンマ・全角の引用符・コメントが無いか）。
 
 --- ここから下に、文字起こしとノート／スライドの画像を貼ってください ---
 `;
@@ -202,15 +217,20 @@ export interface PromptDef {
   text: string;
 }
 
-/** 取り込みモーダルのステップ 1 に置く（プロンプトは 1 本だけ） */
-export const NOTE_PROMPTS: readonly PromptDef[] = [
-  {
-    id: 'main',
-    label: 'プロンプト',
-    hint: '文字起こし + ノート/スライド画像 → 取り込み用JSON',
-    text: NOTE_PROMPT,
-  },
-];
+/**
+ * 取り込みモーダルのステップ 1 に置く（プロンプトは 1 本だけ）。
+ * `subjects` はその生徒の時間割の教科名（`timetableSubjects()`）。
+ */
+export function notePrompts(subjects: readonly string[]): readonly PromptDef[] {
+  return [
+    {
+      id: 'main',
+      label: 'プロンプト',
+      hint: '文字起こし + ノート/スライド画像 → 取り込み用JSON',
+      text: noteMainPrompt(subjects),
+    },
+  ];
+}
 
 /**
  * クリップボードへコピーする。`navigator.clipboard` が使えない環境

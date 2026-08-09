@@ -10,10 +10,12 @@
  * 検証結果はモーダル内で完結する一時値なので `useState`（`AppState` に置くほどの寿命が無い）。
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { parseNoteJson, type NoteImportIssue } from '../../lib/logic/noteImport';
+import { timetableSubjects } from '../../lib/logic/timetable';
+import { NOTE_SUBJECT_OTHER } from '../../lib/model/notes';
 import { commitNote } from './NotebookPersistence';
-import { NOTE_PROMPTS, copyText } from './NotePrompts';
+import { notePrompts, copyText } from './NotePrompts';
 import { ShellOverlay } from './ShellOverlay';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -36,6 +38,9 @@ export function NoteImportModal() {
   const { state: S } = useAppStore();
   const [issues, setIssues] = useState<NoteImportIssue[]>([]);
   const T = dateCtx.today;
+  // 教科の候補は時間割から取る。プロンプトにもこの一覧を埋め込む（spec §3.7）
+  const subjects = useMemo(() => timetableSubjects().concat([NOTE_SUBJECT_OTHER]), []);
+  const prompts = useMemo(() => notePrompts(subjects), [subjects]);
 
   if (!S.nbImportOpen) return null;
 
@@ -58,7 +63,7 @@ export function NoteImportModal() {
       setIssues([{ path: '$', message: 'JSONを貼り付けてください' }]);
       return;
     }
-    const res = parseNoteJson(text, { today: T, existing: target });
+    const res = parseNoteJson(text, { today: T, existing: target, knownSubjects: subjects });
     if (!res.ok) {
       setIssues(res.errors);
       return;
@@ -133,7 +138,7 @@ export function NoteImportModal() {
 
           {/* ステップ 1 — プロンプトのコピー（1 本だけ） */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {NOTE_PROMPTS.map((p) => (
+            {prompts.map((p) => (
               <div
                 key={p.id}
                 style={{

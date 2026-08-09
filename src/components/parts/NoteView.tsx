@@ -36,6 +36,7 @@ import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { fmtD, longDayLabel } from '../../lib/logic/dates';
 import { noteSeriesId } from '../../lib/logic/noteCards';
 import { assignCues, blockSearchText } from '../../lib/logic/noteKeywords';
+import { timetableSubjects } from '../../lib/logic/timetable';
 import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import {
@@ -43,7 +44,7 @@ import {
   NOTE_KEYWORD_MAX,
   NOTE_KEY_COLORS,
   NOTE_KEY_COLOR_MEANING,
-  NOTE_SUBJECTS,
+  NOTE_SUBJECT_OTHER,
   type Note,
   type NoteBlock,
   type NoteCard,
@@ -233,6 +234,15 @@ export function NoteView({ note }: NoteViewProps) {
   );
   const cues = useMemo(() => assignCues(note.blocks, note.keywords), [note.blocks, note.keywords]);
 
+  // 教科は時間割の名前に揃える。いま付いている名前が一覧に無ければ、それも候補に残す
+  // （選び直せないと直せなくなるため）
+  const subjectChoices = useMemo(() => {
+    const list = timetableSubjects().concat([NOTE_SUBJECT_OTHER]);
+    return list.indexOf(note.subject) < 0 && note.subject ? list.concat([note.subject]) : list;
+  }, [note.subject]);
+  const offTimetable = !!note.subject && timetableSubjects().indexOf(note.subject) < 0
+    && note.subject !== NOTE_SUBJECT_OTHER;
+
   // ── 付箋。DOM のクラスだけで開け閉めする（本文の HTML は作り直さない）
   //
   // ⚠ めくった枚数を `useState` に置くと、1 枚めくるたびに NoteView が再レンダーされ、
@@ -349,6 +359,15 @@ export function NoteView({ note }: NoteViewProps) {
           >
             {note.subject}
           </span>
+          {/* 時間割の教科名と食い違っていると、色も予習の突き合わせもズレる */}
+          {offTimetable ? (
+            <span
+              className="nb-badge nb-badge--warn"
+              title={'時間割の教科名（' + timetableSubjects().join(' / ') + '）に直すと、色と予習がそろいます'}
+            >
+              時間割にない教科
+            </span>
+          ) : null}
           <span style={{ flex: 1 }} />
           <button
             className="hv-acc-outline"
@@ -384,7 +403,7 @@ export function NoteView({ note }: NoteViewProps) {
         </div>
         {edit ? (
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '10px' }}>
-            {NOTE_SUBJECTS.map((s) => {
+            {subjectChoices.map((s) => {
               const on = note.subject === s;
               return (
                 <button

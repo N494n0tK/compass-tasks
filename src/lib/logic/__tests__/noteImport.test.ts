@@ -551,3 +551,35 @@ describe('parseNoteJson — まとめと疑問（N-100）', () => {
     expect(ok(parseNoteJson(minimal({ doubt: '' }), { today: T, ...IDS })).doubt).toBe('');
   });
 });
+
+describe('parseNoteJson — 教科は時間割の名前に揃える（N-111 / N-112）', () => {
+  const KNOWN = ['言語', '英コ', '数学', '歴総', '地総', 'その他'];
+
+  it('N-111 一覧にある教科なら警告を出さない', () => {
+    const res = parseNoteJson(minimal({ subject: '歴総' }), {
+      today: T,
+      knownSubjects: KNOWN,
+      ...IDS,
+    });
+    expect(ok(res).subject).toBe('歴総');
+    expect(res.ok && res.warnings).toEqual([]);
+  });
+
+  it('N-112 「社会」のような大分類は保存はするが警告する（候補を並べる）', () => {
+    const res = parseNoteJson(minimal({ subject: '社会' }), {
+      today: T,
+      knownSubjects: KNOWN,
+      ...IDS,
+    });
+    // 取り込み自体は通す。時間割に無い授業のノートも取れるべきなので
+    expect(ok(res).subject).toBe('社会');
+    const w = res.ok ? res.warnings.filter((x) => x.path === 'subject') : [];
+    expect(w).toHaveLength(1);
+    expect(w[0].message).toContain('歴総');
+  });
+
+  it('knownSubjects を渡さなければ何も言わない（純ロジックとして時間割を知らない）', () => {
+    const res = parseNoteJson(minimal({ subject: '社会' }), { today: T, ...IDS });
+    expect(res.ok && res.warnings).toEqual([]);
+  });
+});

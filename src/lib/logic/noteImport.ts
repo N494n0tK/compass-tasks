@@ -61,6 +61,11 @@ export interface NoteImportOptions {
   newNoteId?: () => string;
   /** カード ID の生成。`index` は recall 内の位置。既定は `'c' + base36 + index` */
   newCardId?: (index: number) => string;
+  /**
+   * 時間割に出てくる教科名（`timetableSubjects()`）。渡すと、これに無い教科で warning を出す。
+   * **エラーにはしない**（時間割に無い授業のノートも取れるべき）。
+   */
+  knownSubjects?: readonly string[];
 }
 
 /** 既定のノート ID。`noteRefOf` の正規表現 `^n[0-9a-z]+$` に収まる形にする */
@@ -191,7 +196,7 @@ function uniqueCardId(base: string, used: Set<string>): string {
 export function parseNoteJson(text: string, options: NoteImportOptions): NoteImportResult {
   const errors: NoteImportIssue[] = [];
   const warnings: NoteImportIssue[] = [];
-  const { today, existing = null } = options;
+  const { today, existing = null, knownSubjects = [] } = options;
   const newNoteId = options.newNoteId || defaultNoteId;
   const newCardId = options.newCardId || defaultCardId;
 
@@ -267,8 +272,21 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
   }
 
   // ── subject / unit
+  // 教科は時間割の名前（言語・英コ・歴総 …）に揃えたい。揃っていなくても保存はできるが、
+  // 揃っていないと教科の色も予習の突き合わせもズレるので、はっきり知らせる。
   const subject = asString(raw.subject).trim();
   if (!subject) errors.push({ path: 'subject', message: '教科を入力してください' });
+  else if (knownSubjects.length && knownSubjects.indexOf(subject) < 0) {
+    warnings.push({
+      path: 'subject',
+      message:
+        '教科「' +
+        subject +
+        '」は時間割にありません（' +
+        knownSubjects.join(' / ') +
+        '）。ノートの「編集」から選び直せます',
+    });
+  }
   const unit = asString(raw.unit).trim();
   if (!unit) errors.push({ path: 'unit', message: '単元名を入力してください' });
 
