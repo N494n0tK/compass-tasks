@@ -103,7 +103,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
           </span>
           <button
             className="hv-acc-outline"
-            onClick={() => store.setState({ nbMode: 'note' })}
+            onClick={() => store.setState({ view: 'notebook', nbMode: 'note' })}
             style={MINI_BTN}
           >
             ノートを開く

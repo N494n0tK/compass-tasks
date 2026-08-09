@@ -16,7 +16,7 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { daysUntil, fmtMD, type DateContext } from '../../lib/logic/dates';
 import type { AppState, Countdown, ViewId } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
-import { ALL_VIEW_IDS, NOTEBOOK_NAV, VIEWS, appModeDef, normalizeNavOrder } from './ShellTheme';
+import { ALL_VIEW_IDS, VIEWS, normalizeNavOrder } from './ShellTheme';
 
 /** `cloudStatusMap`（HTML:4097）。`login` は architecture §5 で到達不能だが表引きは残す */
 const CLOUD_STATUS_MAP: Readonly<Record<string, string>> = {
@@ -46,8 +46,6 @@ export interface ShellNavProps {
   overdueCount: number;
   savePrefs: () => void;
   onOpenAppSwitcher: () => void;
-  /** Shift + ロゴ。ポップアップを開かずにモードだけ入れ替える */
-  onToggleAppMode: () => void;
   onNavResize: (e: ReactMouseEvent) => void;
 }
 
@@ -58,15 +56,11 @@ export function ShellNav({
   overdueCount,
   savePrefs,
   onOpenAppSwitcher,
-  onToggleAppMode,
   onNavResize,
 }: ShellNavProps) {
   const S = state;
   const T = ctx.today;
   const navW = S.panelW.nav + 'px';
-
-  const notebookMode = S.appMode === 'notebook';
-  const mode = appModeDef(S.appMode);
 
   const orderedViews = normalizeNavOrder(S.navOrder)
     .map((id) => VIEWS.find((v) => v.id === id))
@@ -136,17 +130,15 @@ export function ShellNav({
           zIndex: 20,
         }}
       ></div>
-      {/* ロゴ = モードの切替口。Shift + クリックで直接トグル、ふつうのクリックでポップアップ */}
       <button
         type="button"
-        className={'compass-brand' + (notebookMode ? ' is-notebook' : '')}
-        onClick={(e) => (e.shiftKey ? onToggleAppMode() : onOpenAppSwitcher())}
-        aria-label={mode.name + 'を表示中。モードを切り替える'}
+        className="compass-brand"
+        onClick={onOpenAppSwitcher}
+        aria-label="Compassアプリ一覧を開く"
         aria-haspopup="dialog"
-        title="クリックでモード一覧 / Shift + クリックで直接切り替え"
         style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px 16px' }}
       >
-        <div className="compass-brand__mark" aria-label={mode.name}>
+        <div className="compass-brand__mark" aria-label="Compass">
           <img
             src="/compass-icon.svg?v=20260728-ink"
             alt=""
@@ -156,53 +148,14 @@ export function ShellNav({
           />
         </div>
         <div className="compass-brand__text">
-          <div className="compass-brand__name">{mode.name}</div>
-          <div className="compass-brand__tag">{mode.tag}</div>
+          <div className="compass-brand__name">Compass</div>
+          <div className="compass-brand__tag">学習コックピット</div>
         </div>
         <span className="compass-brand__chevron" aria-hidden="true">
-          ⇄
+          ↗
         </span>
       </button>
-      {/* Keel Notebook のナビ。中身は `nbMode`。並べ替えは無し（2 つしかない） */}
-      {notebookMode
-        ? NOTEBOOK_NAV.map((n, ni) => {
-            const active = S.nbMode === n.id || (n.id === 'note' && S.nbMode === 'drill');
-            return (
-              <button
-                key={n.id}
-                type="button"
-                className={'app-nav-item ' + (active ? 'is-active' : '')}
-                data-nav={n.id === 'note' ? 'notebook' : 'extract'}
-                onClick={() => store.setState({ nbMode: n.id })}
-                style={cssVars({
-                  '--nav-hue': 'var(--ink)',
-                  background: 'transparent',
-                  border: '1px solid transparent',
-                })}
-              >
-                <span
-                  className="nav-dot"
-                  style={{
-                    width: '7px',
-                    height: '7px',
-                    borderRadius: 'var(--rad-s)',
-                    background: 'var(--ink)',
-                  }}
-                ></span>
-                <span
-                  className="app-nav-item__label"
-                  style={{ flex: 1, color: active ? 'var(--ink)' : 'var(--tx2)' }}
-                >
-                  {n.label}
-                </span>
-                <span className="app-nav-item__key" aria-hidden="true">
-                  {String(ni + 1)}
-                </span>
-              </button>
-            );
-          })
-        : null}
-      {notebookMode ? null : orderedViews.map((v, vi) => {
+      {orderedViews.map((v, vi) => {
         const active = S.view === v.id;
         const dragClass =
           (S.dragNav === v.id ? 'is-dragging ' : '') + (S.navDragOver === v.id ? 'is-dragover' : '');
@@ -455,7 +408,7 @@ export function ShellNav({
         </div>
         <div className="nav-shortcuts" aria-hidden="true">
           <span>
-            <kbd>1</kbd>–<kbd>7</kbd> 画面
+            <kbd>1</kbd>–<kbd>8</kbd> 画面
           </span>
           <span>
             <kbd>/</kbd> 検索

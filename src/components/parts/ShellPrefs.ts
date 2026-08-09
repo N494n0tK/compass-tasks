@@ -22,13 +22,7 @@ export const LS_UI_DATA = 'compass-ui-data';
 export function savePrefs(store: CompassStore): void {
   try {
     const s = store.getState();
-    const prefs: UiPrefs = {
-      theme: s.theme,
-      themeVersion: 3,
-      panelW: s.panelW,
-      // 動作モード（Compass Tasks / Keel Notebook）も端末ごとの設定として一緒に置く
-      appMode: s.appMode,
-    };
+    const prefs: UiPrefs = { theme: s.theme, themeVersion: 3, panelW: s.panelW };
     localStorage.setItem(LS_UI, JSON.stringify(prefs));
   } catch {
     /* C-33 */
@@ -49,9 +43,6 @@ export function readPrefsPatch(defaults: PanelW): Partial<AppState> {
         ? 'note'
         : saved.theme) as Theme;
       initial.themeVersion = 3;
-    }
-    if (saved.appMode === 'tasks' || saved.appMode === 'notebook') {
-      initial.appMode = saved.appMode;
     }
     if (saved.panelW) {
       const pw: PanelW = { ...defaults };

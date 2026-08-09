@@ -38,13 +38,7 @@ import { readLocalData, readPrefsPatch, savePrefs as writePrefs } from './parts/
 import { makeResizer } from './parts/ShellResizer';
 import { ShellSplash } from './parts/ShellSplash';
 import { useSubjColors } from './parts/ShellSubjects';
-import {
-  NOTEBOOK_NAV,
-  STATIC_THEME_TOKENS,
-  THEME_ATTR,
-  buildThemeStyle,
-  normalizeNavOrder,
-} from './parts/ShellTheme';
+import { STATIC_THEME_TOKENS, THEME_ATTR, buildThemeStyle, normalizeNavOrder } from './parts/ShellTheme';
 import { ShellToast, ShellTooltip } from './parts/ShellToast';
 import { ShellTopbar } from './parts/ShellTopbar';
 import { buildTodayItems } from './parts/ShellTodayItems';
@@ -71,9 +65,6 @@ export interface CompassAppProps {
 
 /** テンプレート上の画面 DOM 順（Cockpit → Tests → ToDo → Data → Add → Review, spec Q25） */
 function renderScreen(state: AppState) {
-  // Keel Notebook モードでは、タスク側の `view` は保持したままノートだけを出す
-  // （モードを戻したときに元の画面へ帰れる）
-  if (state.appMode === 'notebook') return <Notebook />;
   switch (state.view) {
     case 'cockpit':
       return <Cockpit />;
@@ -88,9 +79,9 @@ function renderScreen(state: AppState) {
     case 'review':
       return <Review />;
     // レガシーに無い追加画面（docs/notebook/spec.md §8）。
-    // 通常は `appMode==='notebook'` の分岐で出るが、`view` が 'notebook' のまま
-    // 保存された古い端末のために残す
+    // どちらも `Notebook` が受けて、中で `view` を見て紙面を切り替える
     case 'notebook':
+    case 'extract':
       return <Notebook />;
   }
 }
@@ -126,12 +117,6 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
       today: dateCtx.today,
     });
     Object.assign(initial, localPatch.state);
-    // ノートが 7 つめのタブだったころの保存値の引き取り。`view:'notebook'` で保存されて
-    // いたら、タブではなく Keel Notebook モードとして開き直す（`view` は既定へ戻す）
-    if (initial.view === 'notebook' || store.getState().view === 'notebook') {
-      initial.view = 'cockpit';
-      if (initial.appMode === undefined) initial.appMode = 'notebook';
-    }
     // `this._dataRepaired` はインスタンスフィールドなのでクラウド読込まで残る（HTML:2308）
     if (localPatch.repaired) saver.markRepaired();
 
@@ -218,25 +203,16 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         focusSearch();
         return;
       }
-      // 修飾キーなしのショートカット: 1–7で画面切替 / 「/」で検索 / n・f で追加・集中
+      // 修飾キーなしのショートカット: 1–8で画面切替 / 「/」で検索 / n・f で追加・集中
       if (!editingText && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (key === '/') {
           e.preventDefault();
           focusSearch();
           return;
         }
-        if (key >= '1' && key <= '7') {
-          const st = store.getState();
-          if (st.appMode === 'notebook') {
-            // Keel Notebook のナビは 2 つ（ノート / 問題抽出）
-            const nb = NOTEBOOK_NAV[Number(key) - 1];
-            if (nb) {
-              e.preventDefault();
-              store.setState({ nbMode: nb.id });
-            }
-            return;
-          }
-          const order = normalizeNavOrder(st.navOrder);
+        // 1–8 で画面切替（ノート・問題抽出が増えて 8 つになった）
+        if (key >= '1' && key <= '8') {
+          const order = normalizeNavOrder(store.getState().navOrder);
           const view = order[Number(key) - 1];
           if (view) {
             e.preventDefault();
@@ -289,9 +265,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     [state.segs, plans]
   );
   const themeStyle = useMemo(
-    // ノートモードは 1 モード 1 色（`--ink`）。画面ごとに版を替えるのはタスク側だけ
-    () => buildThemeStyle(state.theme, state.appMode === 'notebook' ? 'notebook' : state.view),
-    [state.theme, state.view, state.appMode]
+    () => buildThemeStyle(state.theme, state.view),
+    [state.theme, state.view]
   );
   const onNavResize = useMemo(
     () => makeResizer(store, 'nav', 'right', savePrefs),
@@ -301,17 +276,6 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   const openAppSwitcher = () =>
     store.setState({ appSwitcherOpen: true, searchOpen: false, query: '' });
   const closeAppSwitcher = () => store.setState({ appSwitcherOpen: false });
-
-  /**
-   * モードの切替。**アプリは移動しない**（`APP_CATALOG` の外部アプリとは別）。
-   * `view` はそのままなので、ノートから戻ると元のタスク画面に帰る。
-   */
-  const setAppMode = (appMode: AppState['appMode']) =>
-    store.setState({ appMode, appSwitcherOpen: false, searchOpen: false, query: '' }, () =>
-      savePrefs(),
-    );
-  const toggleAppMode = () =>
-    setAppMode(store.getState().appMode === 'notebook' ? 'tasks' : 'notebook');
 
   return (
     <div className="compass-root">
@@ -343,7 +307,6 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
                 overdueCount={overdueCount}
                 savePrefs={savePrefs}
                 onOpenAppSwitcher={openAppSwitcher}
-                onToggleAppMode={toggleAppMode}
                 onNavResize={onNavResize}
               />
               <div
@@ -359,7 +322,6 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
                   todayItems={todayItems}
                   overdueCount={overdueCount}
                   onOpenAppSwitcher={openAppSwitcher}
-                  onToggleAppMode={toggleAppMode}
                 />
                 {renderScreen(state)}
               </div>
@@ -385,12 +347,7 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
             <ReviewAskModal />
             <TodoFocusOverlay state={state} store={store} todayItems={todayItems} />
             {state.appSwitcherOpen ? (
-              <ShellAppSwitcher
-                store={store}
-                appMode={state.appMode}
-                onSetAppMode={setAppMode}
-                onClose={closeAppSwitcher}
-              />
+              <ShellAppSwitcher store={store} onClose={closeAppSwitcher} />
             ) : null}
             {state.tooltip ? <ShellTooltip tooltip={state.tooltip} /> : null}
             {state.toast ? <ShellToast toast={state.toast} /> : null}

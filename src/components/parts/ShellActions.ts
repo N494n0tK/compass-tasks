@@ -40,13 +40,11 @@ export function addToOrder(store: CompassStore, id: string): void {
  * ノートのドリル（その授業の問題だけを解く面）へ飛ぶ。
  * 今日の ToDo / コックピットのノート復習カードから呼ぶ（docs/notebook/spec.md §8）。
  *
- * ノートは Keel Notebook モードにあるので、**モードごと移る**。
- * `view` はタスク側のまま残しておくので、ドリルを終えて戻ると元の画面に帰る
- * （`backToNoteDrillOrigin`）。
+ * ノートは 7 番目のタブなので、その画面へ移るだけ。
  */
 export function openNoteDrill(store: CompassStore, noteId: string): void {
   store.setState({
-    appMode: 'notebook',
+    view: 'notebook',
     nbMode: 'drill',
     nbSelNoteId: noteId,
     nbEdit: false,
@@ -56,7 +54,7 @@ export function openNoteDrill(store: CompassStore, noteId: string): void {
   });
 }
 
-/** ドリルから「今日のToDo」へ戻る。モードもタスク側に戻す */
+/** ドリルから「今日のToDo」へ戻る */
 export function closeNoteDrill(store: CompassStore): void {
-  store.setState({ appMode: 'tasks', view: 'todo', nbMode: 'note' });
+  store.setState({ view: 'todo', nbMode: 'note' });
 }

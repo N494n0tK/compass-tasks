@@ -23,7 +23,7 @@
  * `note`=夜の藍刷り（既定） / `light`=印刷したプリント / `dark`=深夜（OLED）。
  */
 
-import type { AppMode, NotebookMode, Theme, ThemeSkin, ViewId } from '../../lib/model/types';
+import type { Theme, ThemeSkin, ViewId } from '../../lib/model/types';
 
 // ─────────────────────────────────────────────────────────────
 // 構造トークン（テーマ非依存）
@@ -245,7 +245,10 @@ export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
   review: 'grn',
   add: 'org',
   data: 'blue',
+  // ノートと問題抽出は同じ紙の表裏（読む面と解く面）なので、版も同じ `--ink` を使う。
+  // ほかの 6 画面が 1 画面 1 色なのに対し、この 2 つだけは対で 1 色
   notebook: 'ink',
+  extract: 'ink',
 };
 
 /**
@@ -285,6 +288,10 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'review', label: '復習', dot: 'var(--grn)', g: 'var(--gGrn)' },
   { id: 'add', label: 'タスク追加', dot: 'var(--org)', g: 'none' },
   { id: 'data', label: 'データ', dot: 'var(--blue)', g: 'none' },
+  // レガシーに無い追加画面。既定順ではいちばん後ろの 7 番目・8 番目
+  // （`navOrder` はドラッグで変えられる）
+  { id: 'notebook', label: 'ノート', dot: 'var(--ink)', g: 'none' },
+  { id: 'extract', label: '問題抽出', dot: 'var(--ink)', g: 'none' },
 ];
 
 /** `views.map(v => v.id)`（HTML:2691）。`navViewOrder()` の `all` と同じ並び */
@@ -298,7 +305,8 @@ export const TITLES: Readonly<Record<ViewId, readonly [string, string]>> = {
   todo: ['今日のToDo', '今日のタスクを実行する'],
   add: ['タスク追加', 'タスク・復習・予習・テストを自由に追加'],
   data: ['学習データ', '勉強時間とテスト結果をふり返る'],
-  notebook: ['ノート', '授業ノートを取り込み、想起カードで復習する'],
+  notebook: ['ノート', '授業ノートを読み、想起問題で引き出す'],
+  extract: ['問題抽出', '全ノートの問題を、理解度の低い順に解き直す'],
 };
 
 /**
@@ -311,73 +319,3 @@ export function normalizeNavOrder(navOrder: unknown): ViewId[] {
     : [];
   return saved.concat(ALL_VIEW_IDS.filter((id) => saved.indexOf(id) < 0));
 }
-
-// ─────────────────────────────────────────────────────────────
-// 動作モード（Compass Tasks / Keel Notebook）
-// ─────────────────────────────────────────────────────────────
-
-/**
- * ノートは 7 つめのタブではなく**別モード**にした。
- *
- * タスク側の 6 画面は「今日なにをやるか」を決める道具で、ノートは「授業でなにを習ったか」を
- * 残す道具。混ぜると左ナビの並びの意味が二重になるし、ノート側は自前のサイドバー
- * （フォルダ / カレンダー）を持っているので、同じ左端に 2 段の階層ができてしまっていた。
- *
- * **アプリを移動するわけではない**（`APP_CATALOG` の外部アプリとは別物）。
- * URL も state もそのままで、ナビと本文だけが差し替わる。
- */
-export interface AppModeDef {
-  id: AppMode;
-  /** ロゴの下に出る名前 */
-  name: string;
-  /** その下の 1 行 */
-  tag: string;
-  /** ポップアップのタイル用のひとこと */
-  blurb: string;
-  /** そのモードの版（`--view` に使うトークン名） */
-  token: string;
-}
-
-export const APP_MODES: readonly AppModeDef[] = [
-  {
-    id: 'tasks',
-    name: 'Compass Tasks',
-    tag: '学習コックピット',
-    blurb: '今日やることを決める。復習・試験計画・学習データ',
-    token: 'acc',
-  },
-  {
-    id: 'notebook',
-    name: 'Keel Notebook',
-    tag: '授業ノート',
-    blurb: '授業ノートを取り込み、想起問題として引き出す',
-    token: 'ink',
-  },
-];
-
-export function appModeDef(mode: AppMode): AppModeDef {
-  return APP_MODES.find((m) => m.id === mode) || APP_MODES[0];
-}
-
-/**
- * Keel Notebook のナビ。中身は `nbMode`（ノート本体 / 問題抽出）。
- *
- * タスク側は 1 画面 1 色（`VIEW_TOKEN`）だが、こちらは**モードで 1 色**にしてある。
- * 別のアプリに入ったことが色でも分かる方が、モードの切り替わりが伝わる。
- */
-export interface NotebookNavDef {
-  id: NotebookMode;
-  label: string;
-}
-
-export const NOTEBOOK_NAV: readonly NotebookNavDef[] = [
-  { id: 'note', label: 'ノート' },
-  { id: 'extract', label: '問題抽出' },
-];
-
-/** Keel Notebook 側のヘッダ文言（タスク側の `TITLES` にあたるもの） */
-export const NOTEBOOK_TITLES: Readonly<Record<NotebookMode, readonly [string, string]>> = {
-  note: ['ノート', '授業ノートを読み、想起問題で引き出す'],
-  extract: ['問題抽出', '全ノートの問題を、理解度の低い順に解き直す'],
-  drill: ['今日の復習', 'この授業の、今日ぶんの問題だけを解く'],
-};

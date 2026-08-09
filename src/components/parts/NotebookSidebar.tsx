@@ -7,8 +7,9 @@
  * 上から「フォルダ / カレンダー」の探し方 → 一覧 → 教科の絞り込み → ＋ボタン。
  *
  * v2 の「ノート / 問題抽出」の切替はここではなく**左ナビ**にある。
- * ノートは 7 つめのタブではなく Keel Notebook という別モードになったので
- * （`AppMode`）、モード内の画面切替はアプリのナビが持つのが素直（`ShellNav`）。
+ * この 2 つはナビの 7 番目・8 番目のタブ（`view: 'notebook' | 'extract'`）で、
+ * 画面の切替はアプリのナビが持つのが素直だから。
+ * サイドバー自体は両方のタブで共通に出る（教科の絞り込みは問題抽出でも効く）。
  *
  * v2 との違いは 2 つだけ:
  *  - ＋ が「新規ノート」ではなく「JSONから取り込む」（Compass のワークフロー手順 3）
@@ -127,8 +128,9 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
     return map;
   }, [notes]);
 
+  /** 一覧からノートを選ぶ。問題抽出のタブにいたらノートのタブへ移る */
   const select = (note: Note) =>
-    store.setState({ nbSelNoteId: note.id, nbMode: 'note', nbEdit: false });
+    store.setState({ view: 'notebook', nbSelNoteId: note.id, nbMode: 'note', nbEdit: false });
 
   const prepSubjects = useMemo(() => timetableSubjects(), []);
   const prep = S.prepAutoGen;

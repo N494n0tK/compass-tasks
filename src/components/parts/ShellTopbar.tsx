@@ -25,7 +25,7 @@ import {
   searchAddReviewToast,
   searchAddSegToast,
 } from './ShellSearch';
-import { NOTEBOOK_TITLES, TITLES, appModeDef } from './ShellTheme';
+import { TITLES } from './ShellTheme';
 import { todayTotals, type TodayItem } from './ShellTodayItems';
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
@@ -40,8 +40,6 @@ export interface ShellTopbarProps {
   /** `overdue.length`（HTML:2689）。ナビのバッジと同じ数え方 */
   overdueCount: number;
   onOpenAppSwitcher: () => void;
-  /** Shift + ロゴ。ポップアップを開かずにモードだけ入れ替える */
-  onToggleAppMode: () => void;
 }
 
 export function ShellTopbar({
@@ -53,16 +51,18 @@ export function ShellTopbar({
   todayItems,
   overdueCount,
   onOpenAppSwitcher,
-  onToggleAppMode,
 }: ShellTopbarProps) {
   const S = state;
   const T = ctx.today;
   const matcher = makeSearchMatcher(S);
   const { q } = matcher;
   const totals = todayTotals(todayItems);
-  // 見出しはモードごと。Keel Notebook では `nbMode` が画面にあたる
-  const title = S.appMode === 'notebook' ? NOTEBOOK_TITLES[S.nbMode] : TITLES[S.view];
-  const mode = appModeDef(S.appMode);
+  // ノートのタブだけは中に 2 つの面がある（読む面 / その授業の今日ぶんを解くドリル面）。
+  // ドリルに入っているあいだは見出しもそれに合わせる
+  const title: readonly [string, string] =
+    S.view === 'notebook' && S.nbMode === 'drill'
+      ? ['今日の復習', 'この授業の、今日ぶんの問題だけを解く']
+      : TITLES[S.view];
   // `parseInt(T.slice(5,7),10)+'月'+parseInt(T.slice(8,10),10)+'日('+DAYS[0].dow+')'`（HTML:4130）
   const todayHeader =
     parseInt(T.slice(5, 7), 10) +
@@ -89,14 +89,12 @@ export function ShellTopbar({
         flex: 'none',
       }}
     >
-      {/* モバイルではここがロゴ。左ナビと同じく Shift + クリックで直接トグルする */}
       <button
         type="button"
         className="mobile-app-launcher"
-        onClick={(e) => (e.shiftKey ? onToggleAppMode() : onOpenAppSwitcher())}
-        aria-label={mode.name + 'を表示中。モードを切り替える'}
+        onClick={onOpenAppSwitcher}
+        aria-label="Compassアプリ一覧を開く"
         aria-haspopup="dialog"
-        title="タップでモード一覧 / Shift + クリックで直接切り替え"
       >
         <img src="/compass-icon.svg?v=20260728-ink" alt="" width="25" height="25" />
       </button>

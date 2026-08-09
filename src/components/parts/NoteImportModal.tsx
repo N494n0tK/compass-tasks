@@ -76,6 +76,7 @@ export function NoteImportModal() {
       nbImportOpen: false,
       nbImportText: '',
       nbImportTarget: null,
+      view: 'notebook',
       nbSelNoteId: res.note.id,
       nbMode: 'note',
       nbEdit: false,

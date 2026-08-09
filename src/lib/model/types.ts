@@ -35,21 +35,18 @@ export type ThemeSkin = 'note' | 'neon' | 'light';
 
 /**
  * 画面 ID（spec §2.6, HTML:2624-2631 相当）。
- * `'notebook'` はレガシーに無い追加画面（docs/notebook/spec.md §8）。
+ * `'notebook'`（ノート）と `'extract'`（問題抽出）はレガシーに無い追加画面で、
+ * ナビの 7 番目・8 番目に並ぶ（docs/notebook/spec.md §8）。
  */
-export type ViewId = 'cockpit' | 'tests' | 'todo' | 'review' | 'add' | 'data' | 'notebook';
-
-/**
- * 動作モード。**アプリは 1 つのまま、ナビと画面の中身だけを差し替える**。
- *
- *  - `tasks`    … Compass Tasks。コックピット / 試験計画 / ToDo / 復習 / 追加 / データ
- *  - `notebook` … Keel Notebook。授業ノートと問題抽出
- *
- * 切替は左上のロゴ（Shift + クリックで直接トグル / ふつうのクリックでポップアップ）。
- * `view`（タスク側で開いていた画面）は**モードをまたいでも保持する**ので、
- * ノートから戻ると元の画面に戻る。
- */
-export type AppMode = 'tasks' | 'notebook';
+export type ViewId =
+  | 'cockpit'
+  | 'tests'
+  | 'todo'
+  | 'review'
+  | 'add'
+  | 'data'
+  | 'notebook'
+  | 'extract';
 
 /** タスクサイズ。`SIZE_MIN = { XS:5, S:10, M:20, L:30 }`（HTML:2037） */
 export type SizeKey = 'XS' | 'S' | 'M' | 'L';
@@ -397,8 +394,6 @@ export interface UiPrefs {
   theme: Theme;
   themeVersion: number;
   panelW: PanelW;
-  /** 動作モード。端末ごとの見た目の設定なので、クラウドではなくここに置く */
-  appMode?: AppMode;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -440,9 +435,12 @@ export type RevSort = 'due' | 'subj';
 export type DataRange = 'all' | 'week' | 'month';
 
 /**
- * ノート画面のビュー切替。
- * `note` = ノート全体 / `extract` = 全ノート横断の問題抽出 /
- * `drill` = **その授業の今日ぶんの問題だけを解く面**（今日の ToDo から飛んでくる）
+ * ノート画面（`view: 'notebook'`）の中の切替。
+ * `note` = ノートを読む面 / `drill` = **その授業の今日ぶんの問題だけを解く面**
+ * （今日の ToDo から飛んでくる）。
+ *
+ * 問題抽出は独立した画面（`view: 'extract'`）なので、ここには含めない。
+ * `'extract'` は旧保存値との互換のためだけに型に残してある。
  */
 export type NotebookMode = 'note' | 'extract' | 'drill';
 
@@ -494,12 +492,6 @@ export type DragMiniPos = 'before' | 'after';
  * 単一ストアに同居させる（23キーに含まれないので自然に永続化されない）。
  */
 export interface EphemeralState {
-  /**
-   * 動作モード（`tasks` / `notebook`）。テーマや panelW と同じ端末ごとの設定なので、
-   * `PERSISTENT_KEYS`（= クラウドに載る学習データ）ではなく
-   * `localStorage['compass-ui']` に置く（`ShellPrefs`）。
-   */
-  appMode: AppMode;
   searchOpen: boolean;
   query: string;
   appSwitcherOpen: boolean;

@@ -349,34 +349,24 @@ firebase の import は `src/lib/persistence.ts` のみ（architecture §2）。
 
 ## 8. 画面
 
-### 8.0 モード（Keel Notebook）
+### 8.0 タブ 7・8
 
-ノートは **7 つめのタブではなく、別モード**として置く（`AppMode = 'tasks' | 'notebook'`）。
+ノートは 2 つのタブとして左ナビの後ろに並ぶ（`ViewId` に `'notebook'` と `'extract'` を追加）。
 
-| モード | 名前 | ナビ | 署名カラー |
+| # | ViewId | ナビ | ヘッダ |
 |---|---|---|---|
-| `tasks` | Compass Tasks | コックピット / 試験計画 / 今日のToDo / 復習 / タスク追加 / データ | 画面ごと（`VIEW_TOKEN`） |
-| `notebook` | Keel Notebook | ノート / 問題抽出 | モードで 1 色（`--ink`） |
+| 7 | `notebook` | ノート | ノート / 授業ノートを読み、想起問題で引き出す |
+| 8 | `extract` | 問題抽出 | 問題抽出 / 全ノートの問題を、理解度の低い順に解き直す |
 
-**アプリが変わるわけではない。** URL もデータもそのままで、左ナビと本文だけが入れ替わる
-（`ShellAppSwitcher` の「ほかのアプリ」は別サイトへの遷移で、こちらとは別物）。
-
-切替口は左上のロゴ 1 か所:
-
-- **クリック** … モード一覧のポップアップ（`ShellAppSwitcher` の「モード」節）
-- **Shift + クリック** … ポップアップを開かずに直接トグル
-
-分けた理由。タスク側の 6 画面は「今日なにをやるか」を決める道具、ノートは「授業でなにを
-習ったか」を残す道具で、並べると左ナビの並びの意味が二重になる。ノート側は自前のサイドバー
-（フォルダ / カレンダー）も持っているので、同じ左端に階層が 2 段できてしまっていた。
-
-- モードは `localStorage['compass-ui']`（`UiPrefs.appMode`）に持つ。テーマや panelW と同じ
-  **端末ごとの設定**なので、クラウドに載る学習データ（`PERSISTENT_KEYS`）には入れない。
-- `view`（タスク側で開いていた画面）はモードをまたいでも保持する。ノートから戻ると元の画面。
-- 今日の ToDo の「ノートで復習」は `openNoteDrill` でモードごと移り、
-  ドリルの「← 今日のToDo」（`closeNoteDrill`）でタスク側に帰る。
-- 旧バージョンで `view:'notebook'` を保存していた端末は、起動時に
-  `appMode:'notebook'` + `view:'cockpit'` へ読み替える（`CompassApp` の localPatch）。
+- 署名カラーは**どちらも `--ink`**。ほかの 6 画面は 1 画面 1 色だが、この 2 つは
+  同じ紙の表裏（読む面と解く面）なので対で 1 色にしてある。
+- 画面本体はどちらも `screens/Notebook.tsx` が受け、`view` で紙面を切り替える。
+  サイドバー（教科ツリー / カレンダー / 教科の絞り込み）は両方で共通。
+- キーボードは `1`–`8`（画面が 8 つに増えた）。並びは `navOrder` のドラッグで変えられる。
+- ノートを選ぶ動作（サイドバー・取り込み後・問題抽出の出典リンク・復習詳細の「ノートを開く」）は
+  いずれも `view:'notebook'` を伴う。問題抽出のタブにいてもノートのタブへ移る。
+- 今日の ToDo の「ノートで復習」は `openNoteDrill`（`view:'notebook'` + `nbMode:'drill'`）。
+  ドリルの「← 今日のToDo」は `closeNoteDrill`。
 
 | ファイル | 役割 |
 |---|---|
@@ -702,7 +692,7 @@ interface NoteAttempt { day: ISODate; grade: 'high' | 'mid' | 'low' }
 | N-041〜N-053（予習の自動生成） | `src/lib/logic/__tests__/prepAutogen.test.ts` | PASS |
 | N-071〜N-076（ToDo での束ね） | `src/components/parts/__tests__/ShellTodayItems.test.ts` | PASS |
 | N-077〜N-080（ドリル面） | ブラウザ: ToDo 1 枚 → ドリル 3 問 → 全問完了 → ノート全体を展開 | PASS |
-| N-061 ナビ・キー7 | ブラウザ: ナビに「ノート」、フッタの表示が `1–7 画面` | PASS |
+| N-061 ナビ・キー7/8 | ブラウザ: ナビに「ノート」(7) と「問題抽出」(8)、フッタの表示が `1–8 画面` | PASS |
 | N-062 プロンプトのコピー | ブラウザ: 「プロンプトをコピーしました」トースト | PASS |
 | N-081〜N-086（出力ゆらぎ） | `src/lib/logic/__tests__/noteImport.test.ts` | PASS |
 | N-063 不正JSONのエラー表示 | ブラウザ: `unit` / `recall[0].a` / `recall[1].q` の 3 件が赤リストに出て保存されない | PASS |

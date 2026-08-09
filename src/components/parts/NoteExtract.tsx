@@ -128,8 +128,9 @@ export function NoteExtract() {
       return { nbRevealed: next };
     });
 
+  /** 出典をクリック → ノートのタブへ移って、そのノートを開く */
   const jump = (note: Note) =>
-    store.setState({ nbMode: 'note', nbSelNoteId: note.id, nbEdit: false });
+    store.setState({ view: 'notebook', nbMode: 'note', nbSelNoteId: note.id, nbEdit: false });
 
   /**
    * 理解度を記録する。**復習の予定は動かさない** ―― ここは予定の外の解き直しなので、

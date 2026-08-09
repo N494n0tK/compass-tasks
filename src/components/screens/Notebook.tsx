@@ -3,8 +3,15 @@
 /**
  * Compass — ノート画面（docs/notebook/spec.md §8）
  *
- * レガシー Compass に無い 7 つめの画面。`CompassNotebook/チャートノート v2.dc.html` の
- * 2 ペイン構成（サイドバー + 本文）を Compass の画面規約に載せ替えたもの。
+ * レガシー Compass に無い 7・8 つめの画面（ノート / 問題抽出）。
+ * `CompassNotebook/チャートノート v2.dc.html` の 2 ペイン構成（サイドバー + 本文）を
+ * Compass の画面規約に載せ替えたもの。
+ *
+ * ナビの 2 タブはどちらもこのコンポーネントが受け、`view` で紙面を切り替える:
+ *  - `'notebook'` … ノートを読む面（`nbMode==='drill'` のときだけドリル面）
+ *  - `'extract'`  … 全ノート横断の問題抽出
+ * サイドバー（教科ツリー / カレンダー / 教科の絞り込み）は両方で共通。
+ * 問題抽出の絞り込みチップもここのサイドバーを使う。
  *
  * ワークフローとの対応:
  *  - 手順 3「JSONを貼る」 … サイドバーの「＋ JSONから取り込む」→ `NoteImportModal`
@@ -63,7 +70,7 @@ export function Notebook() {
 
       {/* 紙面。狭い画面では入れ子のスクロールをやめる（globals.css [E] の media） */}
       <div className="nb-main" style={{ flex: 1, minWidth: 0, overflow: 'auto', paddingRight: '2px' }}>
-        {S.nbMode === 'extract' ? (
+        {S.view === 'extract' ? (
           <NoteExtract />
         ) : S.nbMode === 'drill' && selected ? (
           <NoteDrill key={selected.id} note={selected} />

@@ -166,8 +166,6 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     theme: 'note',
     themeVersion: 3,
     view: 'cockpit',
-    // 動作モード。保存先は localStorage['compass-ui']（`ShellPrefs`）
-    appMode: 'tasks',
     searchOpen: false,
     query: '',
     appSwitcherOpen: false,
