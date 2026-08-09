@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { NOTE_SCHEMA, type Note } from '../../model/notes';
-import { diffCards, importSummary, parseNoteJson } from '../noteImport';
+import { diffCards, extractJsonObject, importSummary, parseNoteJson } from '../noteImport';
 
 /** 基準日。vitest は TZ=Asia/Tokyo 固定（vitest.config.ts） */
 const T = '2026-08-06';
@@ -125,6 +125,69 @@ describe('parseNoteJson — 正常系（N-001 / N-012 / N-013 / N-014 / N-015）
   });
 });
 
+describe('parseNoteJson — 生成AIの出力ゆらぎを吸収する（N-081〜N-086）', () => {
+  it('N-081 コードブロックで囲まれていても取り込める', () => {
+    const res = parseNoteJson('```json\n' + minimal() + '\n```', { today: T, ...IDS });
+    expect(ok(res).unit).toBe('三角比');
+    expect(res.ok && res.warnings.map((w) => w.path)).toEqual(['$']);
+  });
+
+  it('N-081 言語指定なしのコードブロックも剥がせる', () => {
+    expect(parseNoteJson('```\n' + minimal() + '\n```', { today: T, ...IDS }).ok).toBe(true);
+  });
+
+  it('N-082 前置き・後書きが付いていても取り込める', () => {
+    const text = '承知しました。以下がJSONです。\n\n' + minimal() + '\n\n必要なら修正します。';
+    const res = parseNoteJson(text, { today: T, ...IDS });
+    expect(ok(res).unit).toBe('三角比');
+    expect(res.ok && res.warnings[0].message).toContain('取り除いてから読み込みました');
+  });
+
+  it('N-082 素のJSONなら warning は出ない', () => {
+    const res = parseNoteJson(minimal(), { today: T, ...IDS });
+    expect(res.ok && res.warnings).toEqual([]);
+  });
+
+  it('N-083 schema 行が無ければ warning で通す（AIがよく忘れる）', () => {
+    const res = parseNoteJson(minimal({ schema: undefined }), { today: T, ...IDS });
+    expect(ok(res).unit).toBe('三角比');
+    expect(res.ok && res.warnings.map((w) => w.path)).toEqual(['schema']);
+  });
+
+  it('N-083 別アプリの schema はエラーのまま（N-002 を弱めない）', () => {
+    expect(paths(parseNoteJson(minimal({ schema: 'chartnote-v2' }), { today: T, ...IDS }))).toEqual(
+      ['schema'],
+    );
+  });
+
+  it('N-084 schema の前後に空白があっても通る', () => {
+    expect(parseNoteJson(minimal({ schema: '  compass-note@1 ' }), { today: T, ...IDS }).ok).toBe(
+      true,
+    );
+  });
+
+  it('N-085 date が空文字なら黙って今日にする（資料から読めなかった合図）', () => {
+    const res = parseNoteJson(minimal({ date: '' }), { today: T, ...IDS });
+    expect(ok(res).date).toBe(T);
+    expect(res.ok && res.warnings).toEqual([]);
+  });
+
+  it('N-086 qi が文字列でも数値として解決する', () => {
+    const res = parseNoteJson(
+      minimal({ blocks: [{ t: 'ex', qi: '0', guide: '', solution: 'x', caution: '' }] }),
+      { today: T, ...IDS },
+    );
+    expect(ok(res).blocks[0]).toMatchObject({ t: 'ex', cardId: 'c0' });
+    expect(res.ok && res.warnings).toEqual([]);
+  });
+
+  it('extractJsonObject は単体でも同じ結果', () => {
+    expect(extractJsonObject('```json\n{"a":1}\n```')).toEqual({ text: '{"a":1}', trimmed: true });
+    expect(extractJsonObject('{"a":1}')).toEqual({ text: '{"a":1}', trimmed: false });
+    expect(extractJsonObject('前置き {"a":1} 後書き')).toEqual({ text: '{"a":1}', trimmed: true });
+  });
+});
+
 describe('parseNoteJson — エラー（N-002〜N-008 / N-016）', () => {
   it('N-002 schema が違うと失敗し note を返さない', () => {
     const res = parseNoteJson(fixture('note-invalid-schema.json'), { today: T, ...IDS });
@@ -133,9 +196,10 @@ describe('parseNoteJson — エラー（N-002〜N-008 / N-016）', () => {
     expect(res).not.toHaveProperty('note');
   });
 
-  it('N-002 schema 欠落も失敗', () => {
+  it('N-002 schema 欠落は失敗にしない（N-083 で warning に緩めた）が、中身の不備は拾う', () => {
     const res = parseNoteJson(JSON.stringify({ subject: '数学' }), { today: T, ...IDS });
-    expect(paths(res)).toContain('schema');
+    expect(paths(res)).toEqual(['unit', 'recall']);
+    expect(paths(res)).not.toContain('schema');
   });
 
   it('N-003 JSON として壊れていると $ のエラー1件', () => {

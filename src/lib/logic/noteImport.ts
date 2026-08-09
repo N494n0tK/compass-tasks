@@ -82,6 +82,30 @@ function asString(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
+/**
+ * 生成 AI の出力から JSON 本体を取り出す。
+ *
+ * 「JSON だけを出せ」と指示しても、実際には
+ *  - コードブロック（```json … ```）で囲む
+ *  - 「以下が JSON です」などの前置き・後書きを付ける
+ *  - 全角の引用符を混ぜる（これは直せないのでエラーにする）
+ * が頻発する。前 2 つは**機械的に落とせる**のでここで吸収し、warning として報告する。
+ *
+ * @returns `text` … 抽出した JSON 文字列 / `trimmed` … 何か削ったか
+ */
+export function extractJsonObject(input: string): { text: string; trimmed: boolean } {
+  const raw = input.trim();
+  // ``` で始まるコードブロックを剥がす（言語指定 ```json / ```JSON にも対応）
+  const fenced = /^```[^\n]*\n([\s\S]*?)\n?```$/.exec(raw);
+  const body = (fenced ? fenced[1] : raw).trim();
+  // 最初の { から対応する } までを取り出す（前置き・後書きを落とす）
+  const start = body.indexOf('{');
+  const end = body.lastIndexOf('}');
+  if (start < 0 || end < start) return { text: body, trimmed: body !== raw };
+  const sliced = body.slice(start, end + 1);
+  return { text: sliced, trimmed: sliced !== raw };
+}
+
 /** ノート内で衝突しない `cardId` を確保する */
 function uniqueCardId(base: string, used: Set<string>): string {
   if (!used.has(base)) return base;
@@ -110,10 +134,11 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
   const newNoteId = options.newNoteId || defaultNoteId;
   const newCardId = options.newCardId || defaultCardId;
 
-  // ── JSON として読めるか
+  // ── JSON として読めるか。コードブロックや前置きは剥がしてから読む
+  const extracted = extractJsonObject(text);
   let raw: unknown;
   try {
-    raw = JSON.parse(text);
+    raw = JSON.parse(extracted.text);
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     return { ok: false, errors: [{ path: '$', message: 'JSONとして読み取れません: ' + reason }] };
@@ -124,26 +149,41 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
       errors: [{ path: '$', message: 'JSONのトップレベルはオブジェクトにしてください' }],
     };
   }
-
-  // ── schema
-  const schema = raw.schema;
-  if (schema !== NOTE_SCHEMA) {
-    errors.push({
-      path: 'schema',
-      message:
-        'schema は "' +
-        NOTE_SCHEMA +
-        '" にしてください（受信: ' +
-        (typeof schema === 'string' ? '"' + schema + '"' : String(schema)) +
-        '）',
+  if (extracted.trimmed) {
+    warnings.push({
+      path: '$',
+      message: 'コードブロックや前後の文章を取り除いてから読み込みました',
     });
   }
 
-  // ── date（直せるので warning）
+  // ── schema
+  // 前後の空白は落とす。**行そのものが無い**のは AI がよく忘れるだけなので warning で通し、
+  // **別の値が入っている**（別アプリ・別バージョンの JSON）ときだけエラーにする。
+  const schema = typeof raw.schema === 'string' ? raw.schema.trim() : raw.schema;
+  if (schema !== NOTE_SCHEMA) {
+    if (schema === undefined || schema === null || schema === '') {
+      warnings.push({
+        path: 'schema',
+        message: 'schema が無いので "' + NOTE_SCHEMA + '" として読み込みました',
+      });
+    } else {
+      errors.push({
+        path: 'schema',
+        message:
+          'schema は "' +
+          NOTE_SCHEMA +
+          '" にしてください（受信: ' +
+          (typeof schema === 'string' ? '"' + schema + '"' : String(schema)) +
+          '）',
+      });
+    }
+  }
+
+  // ── date（直せるので warning）。空文字は「資料から読めなかった」の合図なので黙って今日にする
   let date: ISODate = today;
-  if (typeof raw.date === 'string' && ISO_RE.test(raw.date)) {
-    date = raw.date;
-  } else if (raw.date !== undefined) {
+  if (typeof raw.date === 'string' && ISO_RE.test(raw.date.trim())) {
+    date = raw.date.trim();
+  } else if (raw.date !== undefined && raw.date !== null && raw.date !== '') {
     warnings.push({ path: 'date', message: 'date の形式が不正なので今日の日付にしました' });
   }
 
@@ -206,7 +246,11 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
       }
       if (item.t === 'ex') {
         let cardId: string | null = null;
-        const qi = item.qi;
+        // `"qi": "0"`（文字列）で来ることがあるので数値に寄せる
+        const qi =
+          typeof item.qi === 'string' && /^-?\d+$/.test(item.qi.trim())
+            ? parseInt(item.qi, 10)
+            : item.qi;
         if (typeof qi === 'number' && Number.isInteger(qi)) {
           if (qi >= 0 && qi < cards.length) {
             cardId = cards[qi].cardId;

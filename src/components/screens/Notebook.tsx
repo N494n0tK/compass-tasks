@@ -83,9 +83,9 @@ export function Notebook() {
               {S.notesLoaded ? 'ノートがまだありません' : 'ノートを読み込んでいます…'}
             </div>
             <div style={{ fontSize: '12px', marginTop: '8px', lineHeight: 1.9 }}>
-              授業を録音してノートを撮影 → 外部AIでプロンプトA・Bを通す → 出てきたJSONを貼るだけ。
+              授業を録音してノート・スライドを撮影 → AIにプロンプトと一緒に渡す → 返ってきたJSONを貼るだけ。
               <br />
-              想起問題1問ごとに復習カードが作られ、翌日から「今日の復習」に出ます。
+              想起問題ごとに復習カードが作られ、その日のうちに「今日のToDo」へ1枚積まれます。
             </div>
             <button
               onClick={() =>

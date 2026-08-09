@@ -127,13 +127,13 @@ export function NoteImportModal() {
             <div style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '5px' }}>
               {target
                 ? '「' + target.unit + '」を新しいJSONで置き換えます。想起問題の順番が同じなら復習の履歴は引き継がれます'
-                : '授業の文字起こしとノート写真を外部AIに渡し、出てきたJSONを貼り付けてください'}
+                : '授業の文字起こしとノート／スライドの写真をAIに渡し、返ってきたJSONを貼り付けてください。コードブロックや前置きが付いていても取り込めます'}
             </div>
           </div>
 
-          {/* ステップ 1・2 — プロンプトのコピー */}
+          {/* ステップ 1 — プロンプトのコピー（1 本だけ） */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {NOTE_PROMPTS.map((p, i) => (
+            {NOTE_PROMPTS.map((p) => (
               <div
                 key={p.id}
                 style={{
@@ -146,16 +146,16 @@ export function NoteImportModal() {
                   padding: '10px 12px',
                 }}
               >
-                <span style={STEP_BADGE}>{i + 1}</span>
+                <span style={STEP_BADGE}>1</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "500 12.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>
-                    {p.label.replace(' をコピー', '')}
+                    {p.label + 'をコピーして、AIに文字起こしと写真を渡す'}
                   </div>
                   <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{p.hint}</div>
                 </div>
                 <button
                   className="hv-acc-outline"
-                  onClick={() => void copy(p.label.replace(' をコピー', ''), p.text)}
+                  onClick={() => void copy(p.label, p.text)}
                   style={{
                     padding: '7px 12px',
                     border: '1px solid var(--line2)',
@@ -173,10 +173,10 @@ export function NoteImportModal() {
             ))}
           </div>
 
-          {/* ステップ 3 — JSON を貼る */}
+          {/* ステップ 2 — JSON を貼る */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '7px' }}>
-              <span style={STEP_BADGE}>3</span>
+              <span style={STEP_BADGE}>2</span>
               <div style={{ font: "500 12.5px 'Noto Sans JP'", color: 'var(--tx1)' }}>
                 出てきたJSONを貼り付ける
               </div>
