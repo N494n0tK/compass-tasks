@@ -20,7 +20,8 @@
  */
 
 import { generateNoteReviews, cascadeNoteRemoval, syncNoteReviews } from '../../lib/logic/noteCards';
-import type { Note } from '../../lib/model/notes';
+import { normalizeKeyColor } from '../../lib/logic/noteKeywords';
+import { NOTE_KEYWORD_MAX, type Note } from '../../lib/model/notes';
 import type { ISODate } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
@@ -61,6 +62,8 @@ export function sanitizeNotes(raw: unknown): Note[] {
         a: str(c.a),
         guide: str(c.guide),
         src: str(c.src),
+        // v0.11 以前のノートには無い。既存分は AI 作として読む
+        origin: c.origin === 'self' ? ('self' as const) : ('ai' as const),
       }));
     const blocks = (Array.isArray(n.blocks) ? (n.blocks as Record<string, unknown>[]) : [])
       .filter((b) => b && typeof b === 'object' && (b.t === 'def' || b.t === 'ex'))
@@ -75,6 +78,20 @@ export function sanitizeNotes(raw: unknown): Note[] {
               caution: str(b.caution),
             },
       );
+    // 重要語（v0.12 で追加）。壊れた行は落とし、語の重複だけ除く
+    const seenTerms = new Set<string>();
+    const keywords = (Array.isArray(n.keywords) ? n.keywords : [])
+      .map((k) => {
+        const item = k && typeof k === 'object' ? (k as Record<string, unknown>) : null;
+        const term = (typeof k === 'string' ? k : item ? str(item.term) : '').trim();
+        return { term, color: normalizeKeyColor(item?.color), note: item ? str(item.note) : '' };
+      })
+      .filter((k) => {
+        if (!k.term || seenTerms.has(k.term)) return false;
+        seenTerms.add(k.term);
+        return true;
+      })
+      .slice(0, NOTE_KEYWORD_MAX);
     const ex = n.exercise && typeof n.exercise === 'object' ? (n.exercise as Record<string, unknown>) : {};
     out.push({
       id: str(n.id),
@@ -84,6 +101,8 @@ export function sanitizeNotes(raw: unknown): Note[] {
       unit: str(n.unit),
       cards,
       blocks,
+      summary: str(n.summary),
+      keywords,
       exercise: { q: str(ex.q), a: str(ex.a) },
       doubt: str(n.doubt),
       notice: str(n.notice),

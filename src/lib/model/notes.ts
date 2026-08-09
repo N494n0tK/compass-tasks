@@ -25,6 +25,15 @@ export const NOTE_SUBJECTS = ['数学', '英語', '国語', '理科', '社会', 
 
 export type NoteSubjectSuggestion = (typeof NOTE_SUBJECTS)[number];
 
+/**
+ * 想起問題の出どころ。
+ *
+ * コーネル式では**問いを立てるのは自分**なので、ノートに自分で書いた問題を
+ * そのまま拾い上げる。AI が補ったものと見分けが付くようにしておき、
+ * 紙面では自作の問いを先に並べる（spec §3.6）。
+ */
+export type NoteCardOrigin = 'self' | 'ai';
+
 /** 想起問題 1 問 = 復習カード 1 枚（spec §2） */
 export interface NoteCard {
   /** `'c' + base36`。取り込み時に採番し、以後**不変**（復習の `seriesId` に埋め込まれる） */
@@ -37,7 +46,41 @@ export interface NoteCard {
   guide: string;
   /** 出典。空文字可 */
   src: string;
+  /** `'self'` = 自分がノートに書いた問い / `'ai'` = AI が補った問い */
+  origin: NoteCardOrigin;
 }
+
+/**
+ * 重要語の色。**5 色しか用意しない**のは、色に意味を持たせるため
+ * （spec §3.5 の対応表。プロンプトも同じ割り当てを指示する）。
+ */
+export const NOTE_KEY_COLORS = ['red', 'blue', 'green', 'orange', 'purple'] as const;
+
+export type NoteKeyColor = (typeof NOTE_KEY_COLORS)[number];
+
+/** 色の意味。キュー欄の凡例と、プロンプトの指示文で共有する */
+export const NOTE_KEY_COLOR_MEANING: Record<NoteKeyColor, string> = {
+  red: '用語・定義',
+  blue: '人物・固有名詞',
+  green: '年号・数値',
+  orange: '因果・変化',
+  purple: '対比・例外',
+};
+
+/**
+ * 重要語 1 語。コーネル式のキュー欄（左）に出て、本文では色が付く。
+ * 確認モードでは本文側が伏せられ、クリックでめくれる。
+ */
+export interface NoteKeyword {
+  /** 本文に現れる語そのもの。**本文と 1 文字も違えない**（一致検索で色を付けるため） */
+  term: string;
+  color: NoteKeyColor;
+  /** キュー欄に添える一言。空文字可 */
+  note: string;
+}
+
+/** 重要語の上限。キュー欄に収まる量（多すぎると全部が重要でなくなる） */
+export const NOTE_KEYWORD_MAX = 24;
 
 /** 解説欄の要素。`def` = 定義カード、`ex` = 想起問題に紐づく解説 */
 export type NoteBlock =
@@ -63,8 +106,16 @@ export interface Note {
   unit: string;
   cards: NoteCard[];
   blocks: NoteBlock[];
+  /**
+   * コーネル式の下段。授業 1 回を数行でまとめたもの。
+   * 想起問題（上）とキュー欄（左）に対する「自分の言葉での要約」にあたる。
+   */
+  summary: string;
+  /** 重要語。本文で色が付き、キュー欄に並び、確認モードで伏せられる */
+  keywords: NoteKeyword[];
   /** 仕上げの 1 問。**カードにはしない**（spec §2） */
   exercise: { q: string; a: string };
+  /** **自分がノートに書いた疑問だけ**。AI に作らせない（spec §3.6）。1 行 1 件 */
   doubt: string;
   notice: string;
   createdAt: ISODate;

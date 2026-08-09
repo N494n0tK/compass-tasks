@@ -572,6 +572,13 @@ export interface EphemeralState {
   nbSubjFilter: string | null;
   /** ノートの編集モード */
   nbEdit: boolean;
+  /**
+   * 確認モード。本文の重要語が付箋で伏せられ、クリックで剥がせる。
+   *
+   * 剥がした / 剥がしていないの状態は**ここに持たない**。DOM のクラスで持つので
+   * （`NoteView` の `peel`）、伏せ直しはこのフラグを 1 往復させるだけで済む。
+   */
+  nbCheck: boolean;
   nbImportOpen: boolean;
   nbImportText: string;
   /** 上書き取り込みの対象ノート id（`null` = 新規） */

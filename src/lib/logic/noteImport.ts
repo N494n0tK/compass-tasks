@@ -15,11 +15,15 @@
 
 import {
   NOTE_CARD_MAX,
+  NOTE_KEYWORD_MAX,
   NOTE_SCHEMA,
   type Note,
   type NoteBlock,
   type NoteCard,
+  type NoteCardOrigin,
+  type NoteKeyword,
 } from '../model/notes';
+import { normalizeKeyColor } from './noteKeywords';
 import type { ISODate } from '../model/types';
 
 /** `dates.ts` / `reviews.ts` と同じ日付形式の判定 */
@@ -80,6 +84,11 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 /** 文字列以外（数値・null・欠落）は空文字として扱う。必須判定は呼び出し側で */
 function asString(v: unknown): string {
   return typeof v === 'string' ? v : '';
+}
+
+/** `origin` は自己申告。`"self"` 以外はすべて AI 作として扱う（spec §3.6） */
+function asOrigin(v: unknown): NoteCardOrigin {
+  return v === 'self' ? 'self' : 'ai';
 }
 
 /**
@@ -295,6 +304,8 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
         a: asString(item.a),
         guide: asString(item.guide),
         src: asString(item.src),
+        // 指定が無ければ AI 作。「自分で書いた問い」は名乗り出た分だけ数える（spec §3.6）
+        origin: asOrigin(item.origin),
       });
     });
   }
@@ -347,6 +358,35 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     });
   }
 
+  // ── keywords（コーネル式のキュー欄。spec §3.5）
+  // 語そのものが本文と 1 文字も違わないことが命なので、trim 以外は触らない。
+  // 重複・空文字・上限超過は**黙って落とす**（内容の欠落ではないので warning にしない）。
+  const keywords: NoteKeyword[] = [];
+  if (raw.keywords !== undefined && !Array.isArray(raw.keywords)) {
+    warnings.push({ path: 'keywords', message: 'keywords を配列として読み取れないので空にしました' });
+  } else if (Array.isArray(raw.keywords)) {
+    const seen = new Set<string>();
+    raw.keywords.forEach((item) => {
+      // ただの文字列の配列で来ることがある（"keywords": ["産業革命", …]）
+      const term = (typeof item === 'string' ? item : isPlainObject(item) ? asString(item.term) : '')
+        .trim();
+      if (!term || seen.has(term)) return;
+      if (keywords.length >= NOTE_KEYWORD_MAX) return;
+      seen.add(term);
+      keywords.push({
+        term,
+        color: normalizeKeyColor(isPlainObject(item) ? item.color : undefined),
+        note: isPlainObject(item) ? asString(item.note).trim() : '',
+      });
+    });
+    if (raw.keywords.length > NOTE_KEYWORD_MAX) {
+      warnings.push({
+        path: 'keywords',
+        message: '重要語は' + NOTE_KEYWORD_MAX + '語までなので、先頭から採用しました',
+      });
+    }
+  }
+
   // ── exercise
   let exercise = { q: '', a: '' };
   if (isPlainObject(raw.exercise)) {
@@ -365,6 +405,8 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     unit,
     cards,
     blocks,
+    summary: asString(raw.summary).trim(),
+    keywords,
     exercise,
     doubt: asString(raw.doubt),
     notice: asString(raw.notice),

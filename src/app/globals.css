@@ -1223,6 +1223,156 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 /* 理解度モーダルのカード面 */
 .nb-ask-card .katex{color:inherit}
 
+/* ==========================================================================
+   [E-2] コーネル式の紙割り（spec §8.2）
+
+   Broadsheet は「枠で仕切らない」が基本だが、コーネル式ノートは**罫で割ること
+   そのもの**が方式なので、ここだけは罫を 2 本足す:
+
+     .nb-cornell の縦罫 … キュー欄（左）と本文（右）の境。段の切れ目で
+                           途切れないよう、行ではなく**面の背景**として引く。
+     .nb-summary の上罫 … 本文とまとめの境。紙面いっぱいに 1 本。
+
+   重要語の 5 色は、テーマが既に持っている差し色をそのまま借りる
+   （--pink / --blue / --grn / --org / --vio）。3 テーマぶんの明度調整が
+   済んでいるものを使い回すのが、独自の色を足すより確実に読める。
+   ========================================================================== */
+
+.compass-theme-mode{
+  /* キュー欄の幅と、本文との間 */
+  --nb-cue-w:148px;
+  --nb-cue-gap:22px;
+  /* 重要語。ベタ（--nb-k）と淡い面（--nb-k-bg）の対で持つ */
+  --nb-k-red:var(--pink);      --nb-k-red-bg:var(--pinkBg);
+  --nb-k-blue:var(--blue);     --nb-k-blue-bg:var(--blueBg);
+  --nb-k-green:var(--grn);     --nb-k-green-bg:var(--grnBg);
+  --nb-k-orange:var(--org);    --nb-k-orange-bg:var(--orgBg);
+  --nb-k-purple:var(--vio);    --nb-k-purple-bg:var(--vioBg);
+}
+/* 白い紙の上では、差し色をそのまま本文級数の文字に使うと 4.5:1 に届かない。
+   [E] の --nb-ink と同じ手当て（1 段深い版に沈める）を 5 色ぜんぶに施す */
+.compass-theme-mode[data-theme="light"]{
+  --nb-k-red:color-mix(in srgb,var(--pink) 74%,var(--tx0));
+  --nb-k-blue:color-mix(in srgb,var(--blue) 74%,var(--tx0));
+  --nb-k-green:color-mix(in srgb,var(--grn) 70%,var(--tx0));
+  --nb-k-orange:color-mix(in srgb,var(--org) 62%,var(--tx0));
+  --nb-k-purple:color-mix(in srgb,var(--vio) 74%,var(--tx0));
+}
+
+/* ── 紙割り。縦罫は背景で引くので、行間で途切れない */
+.nb-cornell{
+  display:grid;
+  grid-template-columns:var(--nb-cue-w) 1fr;
+  column-gap:var(--nb-cue-gap);
+  row-gap:30px;
+  align-items:start;
+  background:linear-gradient(var(--line2),var(--line2)) no-repeat;
+  background-size:1px 100%;
+  background-position:calc(var(--nb-cue-w) + var(--nb-cue-gap) / 2) 0;
+}
+
+/* 重要語がまだ 1 語も無いノート（v0.12 より前に取り込んだもの）。
+   空のキュー欄と縦罫だけが残ると壊れて見えるので、1 段組に畳む */
+.nb-cornell.is-flat{grid-template-columns:1fr;background:none}
+.nb-cornell.is-flat>.nb-cue{display:none}
+
+/* ── キュー欄。罫にぴったり寄せて右揃え（本文と視線がぶつからない） */
+.nb-cue{
+  display:flex;flex-direction:column;align-items:flex-end;gap:9px;
+  text-align:right;padding-top:2px;
+  min-height:1px;
+}
+.nb-cue-item{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.nb-cue-term{
+  font:700 12.5px/1.5 var(--f-ui);
+  color:var(--nb-k);
+  overflow-wrap:anywhere;
+}
+.nb-cue-note{font:400 10px/1.5 var(--f-ui);color:var(--tx3);overflow-wrap:anywhere}
+
+/* ── 重要語 5 色。`.nb-key--*` は本文の語（span）とキュー欄の語で共有する */
+.nb-key--red{--nb-k:var(--nb-k-red);--nb-k-bg:var(--nb-k-red-bg)}
+.nb-key--blue{--nb-k:var(--nb-k-blue);--nb-k-bg:var(--nb-k-blue-bg)}
+.nb-key--green{--nb-k:var(--nb-k-green);--nb-k-bg:var(--nb-k-green-bg)}
+.nb-key--orange{--nb-k:var(--nb-k-orange);--nb-k-bg:var(--nb-k-orange-bg)}
+.nb-key--purple{--nb-k:var(--nb-k-purple);--nb-k-bg:var(--nb-k-purple-bg)}
+
+/* 本文の中の重要語。蛍光ペンのように**下 3 分の 1 だけ**に淡い面を敷く */
+.nb-key{
+  color:var(--nb-k);font-weight:700;
+  background:linear-gradient(var(--nb-k-bg),var(--nb-k-bg)) no-repeat 0 92%/100% 36%;
+  border-radius:2px;padding:0 1px;
+  transition:color .2s ease,background-color .2s ease,box-shadow .2s ease;
+}
+
+/* ── 確認モードの付箋。上辺のテープ（::after）ごと剥がす見立て */
+.nb-key.is-hidden{
+  color:transparent;
+  background:var(--nb-k-bg);
+  box-shadow:inset 0 0 0 1px var(--nb-k);
+  border-radius:3px;padding:0 3px;
+  position:relative;cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+}
+.nb-key.is-hidden::after{
+  content:'';position:absolute;left:0;right:0;top:0;height:4px;
+  background:var(--nb-k);opacity:.45;border-radius:3px 3px 0 0;
+  transition:opacity .15s ease;
+}
+.nb-key.is-hidden:hover{box-shadow:inset 0 0 0 1px var(--nb-k),0 2px 7px rgba(0,0,0,.22)}
+.nb-key.is-hidden:hover::after{opacity:.8}
+.nb-key.is-hidden:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.nb-key,.nb-key.is-hidden::after{transition:none}}
+
+/* ── 確認モードの操作卓。ページ頭のすぐ下に貼り付く */
+.nb-checkbar{
+  position:sticky;top:0;z-index:2;
+  display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  margin-top:14px;padding:9px 12px;
+  background:var(--bg2);border:1px solid var(--line2);border-radius:var(--rad-s);
+}
+.nb-checkbar__count{
+  font:700 14px var(--f-num);color:var(--view);
+  font-variant-numeric:tabular-nums;
+}
+.nb-checkbar__text{font:400 11.5px var(--f-ui);color:var(--tx2)}
+
+/* ── 想起問題の出どころ。自作だけ版を張り、AI 作は輪郭だけ */
+.nb-origin{
+  display:inline-block;flex:none;
+  font:700 9.5px var(--f-ui);letter-spacing:.1em;
+  padding:2px 7px;border-radius:var(--rad-s);
+  border:1px solid var(--line2);color:var(--tx3);
+}
+.nb-origin--self{background:var(--nb-tint);border-color:transparent;color:var(--nb-ink)}
+
+/* ── まとめ。本文との境を紙面いっぱいの 1 本で切る */
+.nb-summary{
+  margin-top:34px;padding-top:18px;
+  border-top:1px solid var(--tx0);
+}
+.nb-summary__body{font-size:15.5px}
+
+/* ── 疑問。1 行 1 件の箇条書き（連絡欄はただの本文のまま） */
+.nb-doubt{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.nb-doubt>li{position:relative;padding-left:20px}
+.nb-doubt>li::before{
+  content:'?';position:absolute;left:0;top:1px;
+  font:700 12px var(--f-disp);color:var(--nb-warn);
+}
+
+/* ── 狭い画面ではキュー欄を本文の上へ回す（縦罫はやめる） */
+@media(max-width:700px){
+  .nb-cornell{grid-template-columns:1fr;background:none;row-gap:6px}
+  .nb-cue{
+    flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:12px;
+    text-align:left;margin-top:22px;padding-bottom:3px;
+    border-bottom:1px solid var(--line);
+  }
+  .nb-cue:empty{display:none}
+  .nb-cue-item{flex-direction:row;align-items:baseline;gap:5px}
+}
+
 /* ── 狭い画面ではサイドバーを上に畳む */
 @media(max-width:820px){
   [data-screen-label="Notebook"]{flex-direction:column;overflow:auto!important}

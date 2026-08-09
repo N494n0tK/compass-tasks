@@ -276,6 +276,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbMonth: today.slice(0, 8) + '01',
     nbSubjFilter: null,
     nbEdit: false,
+    nbCheck: false,
     nbImportOpen: false,
     nbImportText: '',
     nbImportTarget: null,

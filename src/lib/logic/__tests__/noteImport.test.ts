@@ -439,3 +439,115 @@ describe('importSummary', () => {
     expect(importSummary(note, 4)).toBe('数学 数列 ─ 漸化式と一般項 · カード4枚 · 復習4件を作成');
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// コーネル式で足したもの（spec §3.5 / §3.6、受け入れ N-094〜N-100）
+// ─────────────────────────────────────────────────────────────
+
+describe('parseNoteJson — 想起問題の出どころ（N-094 / N-095）', () => {
+  it('N-094 origin:"self" は自作として保つ', () => {
+    const note = ok(
+      parseNoteJson(
+        minimal({
+          recall: [
+            { q: '自分で立てた問い', a: 'A', origin: 'self' },
+            { q: 'AIが補った問い', a: 'A', origin: 'ai' },
+          ],
+        }),
+        { today: T, ...IDS },
+      ),
+    );
+    expect(note.cards.map((c) => c.origin)).toEqual(['self', 'ai']);
+  });
+
+  it('N-095 origin が無い / 変な値のときは AI 作として読む（取り込みは止めない）', () => {
+    const note = ok(
+      parseNoteJson(
+        minimal({ recall: [{ q: 'Q', a: 'A' }, { q: 'Q2', a: 'A2', origin: '自分' }] }),
+        { today: T, ...IDS },
+      ),
+    );
+    expect(note.cards.map((c) => c.origin)).toEqual(['ai', 'ai']);
+  });
+});
+
+describe('parseNoteJson — 重要語（N-096〜N-099）', () => {
+  it('N-096 term / color / note をそのまま取り込む', () => {
+    const note = ok(
+      parseNoteJson(
+        minimal({
+          keywords: [
+            { term: '産業革命', color: 'red', note: '18C英' },
+            { term: 'ワット', color: 'blue', note: '' },
+          ],
+        }),
+        { today: T, ...IDS },
+      ),
+    );
+    expect(note.keywords).toEqual([
+      { term: '産業革命', color: 'red', note: '18C英' },
+      { term: 'ワット', color: 'blue', note: '' },
+    ]);
+  });
+
+  it('N-097 ただの文字列の配列でも読める（AI がよくやる形）', () => {
+    const note = ok(
+      parseNoteJson(minimal({ keywords: ['産業革命', '囲い込み'] }), { today: T, ...IDS }),
+    );
+    expect(note.keywords.map((k) => k.term)).toEqual(['産業革命', '囲い込み']);
+    expect(note.keywords.every((k) => k.color === 'red')).toBe(true);
+  });
+
+  it('N-098 空文字・重複・知らない色は落として整える', () => {
+    const note = ok(
+      parseNoteJson(
+        minimal({
+          keywords: [
+            { term: ' 産業革命 ', color: 'gold' },
+            { term: '産業革命', color: 'blue' },
+            { term: '   ' },
+            42,
+          ],
+        }),
+        { today: T, ...IDS },
+      ),
+    );
+    expect(note.keywords).toEqual([{ term: '産業革命', color: 'red', note: '' }]);
+  });
+
+  it('N-099 keywords が無いノートも通る（旧プロンプトの出力）', () => {
+    const note = ok(parseNoteJson(minimal(), { today: T, ...IDS }));
+    expect(note.keywords).toEqual([]);
+    expect(note.summary).toBe('');
+  });
+
+  it('keywords が配列でなければ警告して空にする', () => {
+    const res = parseNoteJson(minimal({ keywords: '産業革命' }), { today: T, ...IDS });
+    expect(ok(res).keywords).toEqual([]);
+    expect(res.ok && res.warnings.map((w) => w.path)).toContain('keywords');
+  });
+
+  it('24 語を超えたら先頭から採用し、警告する', () => {
+    const many = Array.from({ length: 30 }, (_, i) => 'k' + i);
+    const res = parseNoteJson(minimal({ keywords: many }), { today: T, ...IDS });
+    expect(ok(res).keywords).toHaveLength(24);
+    expect(res.ok && res.warnings.map((w) => w.path)).toContain('keywords');
+  });
+});
+
+describe('parseNoteJson — まとめと疑問（N-100）', () => {
+  it('N-100 summary は前後の空白だけ落として保つ。doubt は書かれたまま', () => {
+    const note = ok(
+      parseNoteJson(
+        minimal({ summary: '  この授業では漸化式を扱った。\n3型に帰着させる。  ', doubt: '?が2つ\nもう1件' }),
+        { today: T, ...IDS },
+      ),
+    );
+    expect(note.summary).toBe('この授業では漸化式を扱った。\n3型に帰着させる。');
+    expect(note.doubt).toBe('?が2つ\nもう1件');
+  });
+
+  it('doubt が空でもエラーにしない（自分が書いていなければ空のまま）', () => {
+    expect(ok(parseNoteJson(minimal({ doubt: '' }), { today: T, ...IDS })).doubt).toBe('');
+  });
+});

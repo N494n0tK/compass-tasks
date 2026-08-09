@@ -3,37 +3,55 @@
 /**
  * Compass — ノート 1 冊の表示・編集（docs/notebook/spec.md §8）
  *
- * 紙面の下敷き: `CompassNotebook/チャートノート v2.dc.html`（Broadsheet DS）。
- * v2 の作りをそのまま引き継いでいる:
- *  - ページ頭は「太 3px + 細 1px」の 2 本組（`.nb-masthead`）。罫を刷るのはここだけ
- *  - 想起 / 解説 / 演習 / 疑問・連絡 の 4 セクションを**枠で囲わず余白で**分ける
- *  - 解答は伏せておき、`▸ 解答を見る` で下に伸ばす（`.nb-open` / `.nb-ans`）
- *  - 「方針 / 解答 / 注意」は小札 + 本文の 2 段組（`.nb-row` / `.nb-sub`）
+ * 紙割りは**コーネル式**（spec §8.2）。上から順に:
  *
- * レガシー（v3 の手書きノート）からの変更:
- *  - 罫線用紙・赤ペン・蛍光マーカー・赤シートをやめ、活字の紙面にした。
- *    ノートは「配られた問題集の紙面」として読む方が他画面と地続きになる。
- *  - 解説ブロックが想起問題を指すキーは `qi`（配列インデックス）ではなく
- *    `cardId`（安定 ID）。想起問題を消してもほかのブロックの対応がズレない。
- *  - 各カードに**復習カードの状態**（次回の日付・段階・「今日へ」）を出す。
- *    これがノートと Compass の復習エンジンをつなぐ唯一の可視面。
- *  - 保存は `commitNote`（ノート保存 + 復習の生成・同期・カスケードを 1 か所で）。
+ *   ┌ マストヘッド ───────────────────────────┐
+ *   │ 想起問題（この授業で答えられるようになる問い） │
+ *   ├─ キュー欄 ─┬─ 本文 ────────────────────┤
+ *   │ 重要語     │ 定義・例題の解説                │
+ *   │ （その語が │                               │
+ *   │  出てくる  │                               │
+ *   │  高さに）  │                               │
+ *   ├───────────┴───────────────────────────┤
+ *   │ まとめ（授業 1 回を自分の言葉で数行）        │
+ *   └────────────────────────────────────────┘
+ *
+ * コーネル式の 3 つの約束と、この画面での対応:
+ *  - **問いを立てるのは自分**  … `card.origin === 'self'` の想起問題を「自作」として先に出す。
+ *    AI が補った問いは控えめな版を張る（`NotePrompts` が自作を優先して拾う）。
+ *  - **疑問は自分のもの**      … `note.doubt` は自分がノートに書いた疑問だけ。AI に作らせない。
+ *  - **左を見て思い出す**      … 確認モード（`nbCheck`）で本文の重要語が付箋で伏せられる。
+ *    キュー欄だけを頼りに思い出し、クリックで 1 枚ずつ剥がす。
+ *
+ * 付箋の開閉は **DOM のクラス付け替えでやる**（`.nb-key.is-hidden` を外すだけ）。
+ * state に入れると重要語 1 枚めくるたびに本文の HTML を作り直すことになり、
+ * そのたび KaTeX が走る。逆に「全部伏せ直す」はクラスを付け直すだけで済む。
+ *
+ * 紙面の下敷きは `CompassNotebook/チャートノート v2.dc.html`（Broadsheet DS）のまま。
+ * 罫を刷るのはマストヘッド・キュー欄の縦罫・まとめの上罫の 3 か所だけに絞ってある。
  */
 
-import type { CSSProperties, ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { fmtD, longDayLabel } from '../../lib/logic/dates';
 import { noteSeriesId } from '../../lib/logic/noteCards';
+import { assignCues, blockSearchText } from '../../lib/logic/noteKeywords';
 import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import {
   NOTE_CARD_MAX,
+  NOTE_KEYWORD_MAX,
+  NOTE_KEY_COLORS,
+  NOTE_KEY_COLOR_MEANING,
   NOTE_SUBJECTS,
   type Note,
   type NoteBlock,
   type NoteCard,
+  type NoteKeyColor,
+  type NoteKeyword,
 } from '../../lib/model/notes';
 import type { Review } from '../../lib/model/types';
-import { NoteMath } from './NoteMath';
+import { NoteMath, NoteMathInline, type NoteMarkOptions } from './NoteMath';
 import { commitNote, removeNote } from './NotebookPersistence';
 import { addToOrder, mutReview } from './ShellActions';
 import { useSubjColors } from './ShellSubjects';
@@ -142,6 +160,8 @@ export function NoteView({ note }: NoteViewProps) {
   const ctx = dateCtx;
   const T = ctx.today;
   const edit = S.nbEdit;
+  // 編集中は伏せない（伏せた語を書き換えられない）
+  const check = S.nbCheck && !edit;
   const subjColor = subjectColorFor(subjColors, note.subject);
 
   /** ノートを書き換えて保存する（復習の生成・同期も `commitNote` が面倒を見る） */
@@ -202,6 +222,103 @@ export function NoteView({ note }: NoteViewProps) {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // ── 重要語。本文だけ伏せ、想起問題やまとめは色を付けるにとどめる
+  const markBody = useMemo<NoteMarkOptions | undefined>(
+    () => (note.keywords.length ? { keywords: note.keywords, mask: check } : undefined),
+    [note.keywords, check],
+  );
+  const markPlain = useMemo<NoteMarkOptions | undefined>(
+    () => (note.keywords.length ? { keywords: note.keywords } : undefined),
+    [note.keywords],
+  );
+  const cues = useMemo(() => assignCues(note.blocks, note.keywords), [note.blocks, note.keywords]);
+
+  // ── 付箋。DOM のクラスだけで開け閉めする（本文の HTML は作り直さない）
+  //
+  // ⚠ めくった枚数を `useState` に置くと、1 枚めくるたびに NoteView が再レンダーされ、
+  //   `dangerouslySetInnerHTML` が貼り直されて**さっき剥がした付箋が戻る**。
+  //   数えるのも表示も ref で行い、確認モード中は React を一切走らせない。
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const countRef = useRef<HTMLSpanElement | null>(null);
+  const hintRef = useRef<HTMLSpanElement | null>(null);
+  const tally = useRef({ peeled: 0, hidable: 0 });
+
+  const allKeys = useCallback(
+    (): HTMLElement[] =>
+      bodyRef.current ? Array.from(bodyRef.current.querySelectorAll<HTMLElement>('.nb-key')) : [],
+    [],
+  );
+
+  /** 操作卓の「3 / 13」と一言を書き換える（再レンダーを起こさない） */
+  const paintTally = useCallback(() => {
+    const { peeled, hidable } = tally.current;
+    if (countRef.current) countRef.current.textContent = peeled + ' / ' + hidable;
+    if (hintRef.current) {
+      hintRef.current.textContent =
+        hidable && peeled >= hidable
+          ? '全部めくりました。伏せ直してもう一周できます'
+          : 'キュー欄（左）を見て思い出してから、付箋をクリックしてめくる';
+    }
+  }, []);
+
+  // 確認モードに入る / 本文が変わるたびに数え直し、めくった枚数を 0 に戻す
+  useEffect(() => {
+    tally.current = { peeled: 0, hidable: check ? allKeys().length : 0 };
+    paintTally();
+  }, [check, note, allKeys, paintTally]);
+
+  const peelOne = (el: HTMLElement) => {
+    if (!el.classList.contains('is-hidden')) return;
+    el.classList.remove('is-hidden');
+    el.removeAttribute('role');
+    el.removeAttribute('tabindex');
+    tally.current.peeled += 1;
+    paintTally();
+  };
+
+  const onBodyClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!check) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.nb-key.is-hidden');
+    if (el) peelOne(el);
+  };
+
+  const onBodyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!check || (e.key !== 'Enter' && e.key !== ' ')) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.nb-key.is-hidden');
+    if (!el) return;
+    e.preventDefault();
+    peelOne(el);
+  };
+
+  const peelAll = () => {
+    allKeys().forEach(peelOne);
+  };
+
+  const hideAll = () => {
+    allKeys().forEach((el) => {
+      el.classList.add('is-hidden');
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-label', '伏せた重要語。開くにはクリック');
+    });
+    tally.current.peeled = 0;
+    paintTally();
+  };
+
+  const enterCheck = () => {
+    if (check) {
+      store.setState({ nbCheck: false });
+      return;
+    }
+    if (!note.keywords.length) {
+      store.showToast('このノートには重要語が登録されていません（編集から追加できます）');
+      return;
+    }
+    store.setState({ nbCheck: true, nbEdit: false });
+  };
+
+  const doubtLines = note.doubt.split('\n').map((l) => l.trim()).filter(Boolean);
+
   return (
     <article style={{ maxWidth: '880px', animation: 'fadeUp .22s ease' }}>
       {/* ── ページ頭。罫を刷るのはここだけ */}
@@ -233,12 +350,24 @@ export function NoteView({ note }: NoteViewProps) {
             {note.subject}
           </span>
           <span style={{ flex: 1 }} />
+          <button
+            className="hv-acc-outline"
+            onClick={enterCheck}
+            style={{
+              ...MINI_BTN,
+              ...(check ? { borderColor: 'var(--view)', color: 'var(--view)' } : null),
+            }}
+            title="本文の重要語を伏せて、キュー欄だけで思い出す"
+            aria-pressed={check}
+          >
+            {check ? '✓ 確認モード' : '確認モード'}
+          </button>
           <button className="hv-acc-outline" onClick={closeAll} style={MINI_BTN} title="解答をすべて閉じて復習">
             復習
           </button>
           <button
             className="hv-acc-outline"
-            onClick={() => store.setState({ nbEdit: !edit })}
+            onClick={() => store.setState({ nbEdit: !edit, nbCheck: false })}
             style={{
               ...MINI_BTN,
               ...(edit ? { borderColor: 'var(--view)', color: 'var(--view)' } : null),
@@ -290,9 +419,28 @@ export function NoteView({ note }: NoteViewProps) {
         )}
       </header>
 
-      {/* ── 想起 */}
+      {/* ── 確認モードの操作卓。伏せた枚数と、めくった枚数 */}
+      {check ? (
+        <div className="nb-checkbar" role="status" aria-live="polite">
+          <span className="nb-checkbar__count" ref={countRef} />
+          <span className="nb-checkbar__text" ref={hintRef} />
+          <span style={{ flex: 1 }} />
+          <button className="hv-acc-outline" onClick={peelAll} style={MINI_BTN}>
+            全部めくる
+          </button>
+          <button className="hv-acc-outline" onClick={hideAll} style={MINI_BTN}>
+            伏せ直す
+          </button>
+        </div>
+      ) : null}
+
+      {/* ── 想起（コーネル式の上段）。自分で立てた問いを先に */}
       <section style={{ marginTop: '30px' }}>
-        <SectionHead badge="想起" title="想起問題" hint="解答を隠したまま思い出してから開く" />
+        <SectionHead
+          badge="想起"
+          title="想起問題"
+          hint="解答を隠したまま思い出してから開く"
+        />
         <div style={{ display: 'grid', gap: '20px' }}>
           {note.cards.map((card, i) => {
             const key = 'r:' + note.id + ':' + card.cardId;
@@ -305,6 +453,40 @@ export function NoteView({ note }: NoteViewProps) {
                   {i + 1}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '3px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span
+                      className={'nb-origin' + (card.origin === 'self' ? ' nb-origin--self' : '')}
+                      title={
+                        card.origin === 'self'
+                          ? 'ノートに自分で書いた問い'
+                          : 'AIが授業から補った問い'
+                      }
+                    >
+                      {card.origin === 'self' ? '自作' : 'AI'}
+                    </span>
+                    {edit ? (
+                      <button
+                        className="nb-jump"
+                        onClick={() =>
+                          patch(
+                            (d) =>
+                              void (d.cards[i].origin =
+                                d.cards[i].origin === 'self' ? 'ai' : 'self'),
+                          )
+                        }
+                      >
+                        {card.origin === 'self' ? 'AI作にする' : '自作にする'}
+                      </button>
+                    ) : null}
+                  </div>
                   {edit ? (
                     <textarea
                       className="fc-acc"
@@ -314,7 +496,7 @@ export function NoteView({ note }: NoteViewProps) {
                       style={{ ...INPUT, minHeight: '52px' }}
                     />
                   ) : (
-                    <NoteMath className="nb-body" src={card.q} />
+                    <NoteMath className="nb-body" src={card.q} mark={markPlain} />
                   )}
 
                   <div
@@ -365,7 +547,11 @@ export function NoteView({ note }: NoteViewProps) {
                                 style={{ ...INPUT, minHeight: '44px' }}
                               />
                             ) : (
-                              <NoteMath className="nb-body nb-body--sm" src={card.guide} />
+                              <NoteMath
+                                className="nb-body nb-body--sm"
+                                src={card.guide}
+                                mark={markPlain}
+                              />
                             )}
                           </SubRow>
                         ) : null}
@@ -379,7 +565,7 @@ export function NoteView({ note }: NoteViewProps) {
                               style={{ ...INPUT, minHeight: '52px' }}
                             />
                           ) : (
-                            <NoteMath className="nb-body" src={card.a} />
+                            <NoteMath className="nb-body" src={card.a} mark={markPlain} />
                           )}
                         </SubRow>
                         {edit ? (
@@ -446,21 +632,43 @@ export function NoteView({ note }: NoteViewProps) {
                   a: '',
                   guide: '',
                   src: '',
+                  // 編集画面から足す問いは、当然「自分で立てた問い」
+                  origin: 'self',
                 });
               });
             }}
             style={{ ...MINI_BTN, marginTop: '15px' }}
           >
-            ＋ 想起問題
+            ＋ 自分で想起問題を足す
           </button>
         ) : null}
       </section>
 
-      {/* ── 解説 */}
+      {/* ── 重要語の編集（編集モードだけ。読むときはキュー欄がそれにあたる） */}
+      {edit ? <KeywordEditor note={note} onPatch={patch} /> : null}
+
+      {/* ── 本文。左のキュー欄と 1 本の縦罫で仕切る（コーネル式） */}
       {note.blocks.length || edit ? (
         <section style={{ marginTop: '30px' }}>
-          <SectionHead badge="解説" title="解説" hint="定義と、解けなかった想起問題の解説" />
-          <div style={{ display: 'grid', gap: '30px' }}>
+          <SectionHead
+            badge="本文"
+            title="ノート"
+            hint={
+              note.keywords.length
+                ? '左のキュー欄には、その場所で出てくる重要語'
+                : '定義と、想起問題の解説'
+            }
+          />
+          <div
+            ref={bodyRef}
+            className={
+              'nb-cornell' +
+              (note.keywords.length ? '' : ' is-flat') +
+              (check ? ' is-check' : '')
+            }
+            onClick={onBodyClick}
+            onKeyDown={onBodyKeyDown}
+          >
             {note.blocks.map((block, bi) => (
               <NoteBlockRow
                 key={bi}
@@ -469,8 +677,20 @@ export function NoteView({ note }: NoteViewProps) {
                 index={bi}
                 edit={edit}
                 onPatch={patch}
+                cueIndexes={cues.perBlock[bi] || []}
+                mark={markBody}
               />
             ))}
+            {cues.orphans.length ? (
+              <>
+                <div className="nb-cue">
+                  <CueList note={note} indexes={cues.orphans} />
+                </div>
+                <div className="nb-sec-hint" style={{ alignSelf: 'center' }}>
+                  本文には出てこない語（キュー欄だけに出す）
+                </div>
+              </>
+            ) : null}
           </div>
           {edit ? (
             <div style={{ display: 'flex', gap: '7px', marginTop: '15px' }}>
@@ -506,6 +726,27 @@ export function NoteView({ note }: NoteViewProps) {
         </section>
       ) : null}
 
+      {/* ── まとめ（コーネル式の下段）。紙面いっぱいの上罫で本文と切る */}
+      {note.summary || edit ? (
+        <section className="nb-summary">
+          <SectionHead
+            badge="まとめ"
+            hint="この授業 1 回を、自分の言葉で数行に"
+          />
+          {edit ? (
+            <textarea
+              className="fc-acc"
+              value={note.summary}
+              onChange={(e) => patch((d) => void (d.summary = e.target.value))}
+              placeholder="この授業でいちばん大事だったことを 3〜5 行で"
+              style={{ ...INPUT, minHeight: '92px' }}
+            />
+          ) : (
+            <NoteMath className="nb-body nb-summary__body" src={note.summary} mark={markPlain} />
+          )}
+        </section>
+      ) : null}
+
       {/* ── 演習 */}
       {note.exercise.q || edit ? (
         <section style={{ marginTop: '30px' }}>
@@ -519,7 +760,7 @@ export function NoteView({ note }: NoteViewProps) {
               style={{ ...INPUT, minHeight: '52px' }}
             />
           ) : (
-            <NoteMath className="nb-body" src={note.exercise.q} />
+            <NoteMath className="nb-body" src={note.exercise.q} mark={markPlain} />
           )}
           <RevealButton
             open={isOpen('e:' + note.id)}
@@ -537,7 +778,7 @@ export function NoteView({ note }: NoteViewProps) {
                     style={{ ...INPUT, minHeight: '60px' }}
                   />
                 ) : (
-                  <NoteMath className="nb-body" src={note.exercise.a} />
+                  <NoteMath className="nb-body" src={note.exercise.a} mark={markPlain} />
                 )}
               </div>
             </div>
@@ -556,41 +797,44 @@ export function NoteView({ note }: NoteViewProps) {
             gap: '30px',
           }}
         >
-          {(
-            [
-              {
-                key: 'doubt' as const,
-                label: '疑問',
-                hint: '自分が分からなかった点',
-                tone: 'warn' as const,
-                value: note.doubt,
-              },
-              {
-                key: 'notice' as const,
-                label: '連絡',
-                hint: '提出物・テスト範囲など',
-                tone: 'quiet' as const,
-                value: note.notice,
-              },
-            ]
-          ).map((s) =>
-            s.value || edit ? (
-              <div key={s.key}>
-                <SectionHead badge={s.label} hint={s.hint} tone={s.tone} />
-                {edit ? (
-                  <textarea
-                    className="fc-acc"
-                    value={s.value}
-                    onChange={(e) => patch((d) => void (d[s.key] = e.target.value))}
-                    placeholder={s.hint}
-                    style={{ ...INPUT, minHeight: '68px' }}
-                  />
-                ) : (
-                  <NoteMath className="nb-body nb-body--sm" src={s.value} />
-                )}
-              </div>
-            ) : null,
-          )}
+          {note.doubt || edit ? (
+            <div>
+              <SectionHead badge="疑問" hint="自分がノートに書いた疑問（1行1件）" tone="warn" />
+              {edit ? (
+                <textarea
+                  className="fc-acc"
+                  value={note.doubt}
+                  onChange={(e) => patch((d) => void (d.doubt = e.target.value))}
+                  placeholder={'授業中に引っかかったことを 1 行ずつ\n（ここはAIに書かせない欄）'}
+                  style={{ ...INPUT, minHeight: '68px' }}
+                />
+              ) : (
+                <ul className="nb-doubt">
+                  {doubtLines.map((line, i) => (
+                    <li key={i}>
+                      <NoteMath className="nb-body nb-body--sm" src={line} mark={markPlain} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+          {note.notice || edit ? (
+            <div>
+              <SectionHead badge="連絡" hint="提出物・テスト範囲など" tone="quiet" />
+              {edit ? (
+                <textarea
+                  className="fc-acc"
+                  value={note.notice}
+                  onChange={(e) => patch((d) => void (d.notice = e.target.value))}
+                  placeholder="提出物・テスト範囲など"
+                  style={{ ...INPUT, minHeight: '68px' }}
+                />
+              ) : (
+                <NoteMath className="nb-body nb-body--sm" src={note.notice} />
+              )}
+            </div>
+          ) : null}
         </section>
       ) : null}
     </article>
@@ -598,7 +842,129 @@ export function NoteView({ note }: NoteViewProps) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 解説ブロック 1 個
+// キュー欄（左段）
+// ─────────────────────────────────────────────────────────────
+
+/** キュー欄に並ぶ重要語。色は本文の色と同じ（`.nb-key--<color>` を共有する） */
+function CueList({ note, indexes }: { note: Note; indexes: readonly number[] }) {
+  return (
+    <>
+      {indexes.map((ki) => {
+        const kw = note.keywords[ki];
+        if (!kw) return null;
+        // 語にもひとことにも $…$ が入りうる（教科によっては記号そのものが重要語）
+        return (
+          <div key={ki} className="nb-cue-item">
+            <NoteMathInline className={'nb-cue-term nb-key--' + kw.color} src={kw.term} />
+            {kw.note ? <NoteMathInline className="nb-cue-note" src={kw.note} /> : null}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 重要語の編集
+// ─────────────────────────────────────────────────────────────
+
+function KeywordEditor({
+  note,
+  onPatch,
+}: {
+  note: Note;
+  onPatch: (fn: (draft: Note) => void) => void;
+}) {
+  const haystack = useMemo(() => note.blocks.map(blockSearchText).join('\n'), [note.blocks]);
+
+  const setKw = (i: number, fn: (kw: NoteKeyword) => void) =>
+    onPatch((d) => {
+      const kw = d.keywords[i];
+      if (kw) fn(kw);
+    });
+
+  return (
+    <section style={{ marginTop: '30px' }}>
+      <SectionHead
+        badge="重要語"
+        hint="本文で色が付き、キュー欄に並び、確認モードで伏せられる"
+        tone="quiet"
+      />
+      <div style={{ display: 'grid', gap: '8px' }}>
+        {note.keywords.map((kw, i) => {
+          const missing = !!kw.term && !haystack.includes(kw.term);
+          return (
+            <div
+              key={i}
+              style={{ display: 'flex', gap: '7px', alignItems: 'center', flexWrap: 'wrap' }}
+            >
+              <input
+                className="fc-acc"
+                value={kw.term}
+                onChange={(e) => setKw(i, (k) => void (k.term = e.target.value))}
+                placeholder="重要語(本文と1文字も違えない)"
+                style={{
+                  ...INPUT,
+                  flex: '1 1 180px',
+                  width: 'auto',
+                  font: '700 13px var(--f-ui)',
+                  borderColor: missing ? 'var(--pink)' : 'var(--line2)',
+                }}
+              />
+              <select
+                className="fc-acc"
+                value={kw.color}
+                onChange={(e) => setKw(i, (k) => void (k.color = e.target.value as NoteKeyColor))}
+                style={{ ...INPUT, width: 'auto', flex: 'none', font: '400 11.5px var(--f-ui)' }}
+              >
+                {NOTE_KEY_COLORS.map((c) => (
+                  <option key={c} value={c}>
+                    {NOTE_KEY_COLOR_MEANING[c]}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="fc-acc"
+                value={kw.note}
+                onChange={(e) => setKw(i, (k) => void (k.note = e.target.value))}
+                placeholder="ひとこと(任意)"
+                style={{ ...INPUT, flex: '1 1 140px', width: 'auto', font: '400 11.5px var(--f-ui)' }}
+              />
+              <button
+                className="hv-pink-text"
+                onClick={() => onPatch((d) => void d.keywords.splice(i, 1))}
+                style={{ ...MINI_BTN, flex: 'none' }}
+              >
+                削除
+              </button>
+              {missing ? (
+                <div style={{ flexBasis: '100%', font: '400 10.5px var(--f-ui)', color: 'var(--pink)' }}>
+                  本文に見当たりません（キュー欄には出ますが、色は付きません）
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <button
+        className="hv-acc-outline"
+        onClick={() => {
+          if (note.keywords.length >= NOTE_KEYWORD_MAX) {
+            store.showToast('重要語は' + NOTE_KEYWORD_MAX + '語までです');
+            return;
+          }
+          onPatch((d) => void d.keywords.push({ term: '', color: 'red', note: '' }));
+        }}
+        style={{ ...MINI_BTN, marginTop: '12px' }}
+      >
+        ＋ 重要語
+      </button>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 解説ブロック 1 個（キュー欄 + 本文の 2 セル）
 // ─────────────────────────────────────────────────────────────
 
 function NoteBlockRow({
@@ -607,12 +973,16 @@ function NoteBlockRow({
   index,
   edit,
   onPatch,
+  cueIndexes,
+  mark,
 }: {
   note: Note;
   block: NoteBlock;
   index: number;
   edit: boolean;
   onPatch: (fn: (draft: Note) => void) => void;
+  cueIndexes: readonly number[];
+  mark: NoteMarkOptions | undefined;
 }) {
   const card: NoteCard | null =
     block.t === 'ex' && block.cardId
@@ -629,49 +999,54 @@ function NoteBlockRow({
     });
 
   return (
-    <div data-block-card={block.t === 'ex' ? (block.cardId ?? undefined) : undefined}>
-      {edit ? (
-        <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end', marginBottom: '5px' }}>
-          {block.t === 'ex' ? (
-            <select
-              className="fc-acc"
-              value={block.cardId ?? ''}
-              onChange={(e) =>
-                onPatch((d) => {
-                  const b = d.blocks[index];
-                  if (b.t === 'ex') b.cardId = e.target.value || null;
-                })
-              }
-              style={{ ...INPUT, width: 'auto', padding: '4px 8px', font: '400 11px var(--f-ui)' }}
-            >
-              <option value="">対象なし</option>
-              {note.cards.map((c, i) => (
-                <option key={c.cardId} value={c.cardId}>
-                  {'問' + (i + 1)}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          <button className="hv-acc-outline" onClick={() => move(-1)} style={MINI_BTN} aria-label="上へ">
-            ↑
-          </button>
-          <button className="hv-acc-outline" onClick={() => move(1)} style={MINI_BTN} aria-label="下へ">
-            ↓
-          </button>
-          <button
-            className="hv-pink-text"
-            onClick={() => onPatch((d) => void d.blocks.splice(index, 1))}
-            style={MINI_BTN}
-          >
-            削除
-          </button>
-        </div>
-      ) : null}
+    <>
+      {/* 左段。この本文で初めて出てくる重要語だけを置く */}
+      <div className="nb-cue">
+        <CueList note={note} indexes={cueIndexes} />
+      </div>
 
-      {block.t === 'def' ? (
-        <div className="nb-row">
-          <span className="nb-badge nb-badge--quiet">定義</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+      {/* 右段（本文） */}
+      <div data-block-card={block.t === 'ex' ? (block.cardId ?? undefined) : undefined}>
+        {edit ? (
+          <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end', marginBottom: '5px' }}>
+            {block.t === 'ex' ? (
+              <select
+                className="fc-acc"
+                value={block.cardId ?? ''}
+                onChange={(e) =>
+                  onPatch((d) => {
+                    const b = d.blocks[index];
+                    if (b.t === 'ex') b.cardId = e.target.value || null;
+                  })
+                }
+                style={{ ...INPUT, width: 'auto', padding: '4px 8px', font: '400 11px var(--f-ui)' }}
+              >
+                <option value="">対象なし</option>
+                {note.cards.map((c, i) => (
+                  <option key={c.cardId} value={c.cardId}>
+                    {'問' + (i + 1)}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            <button className="hv-acc-outline" onClick={() => move(-1)} style={MINI_BTN} aria-label="上へ">
+              ↑
+            </button>
+            <button className="hv-acc-outline" onClick={() => move(1)} style={MINI_BTN} aria-label="下へ">
+              ↓
+            </button>
+            <button
+              className="hv-pink-text"
+              onClick={() => onPatch((d) => void d.blocks.splice(index, 1))}
+              style={MINI_BTN}
+            >
+              削除
+            </button>
+          </div>
+        ) : null}
+
+        {block.t === 'def' ? (
+          <div>
             {edit ? (
               <input
                 className="fc-acc"
@@ -704,56 +1079,57 @@ function NoteBlockRow({
                 style={{ ...INPUT, minHeight: '70px' }}
               />
             ) : (
-              <NoteMath className="nb-body" src={block.body} />
+              <NoteMath className="nb-body" src={block.body} mark={mark} />
             )}
           </div>
-        </div>
-      ) : (
-        <div className="nb-row">
-          <span className="nb-badge">{cardNo ? '問' + cardNo : '問?'}</span>
-          <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: '10px' }}>
-            {!edit ? (
-              <NoteMath
-                className="nb-body nb-body--dim"
-                src={card ? card.q : '(対象の想起問題が設定されていません)'}
-              />
-            ) : null}
-            {(
-              [
-                { key: 'guide', label: '方針', hair: false, warn: false },
-                { key: 'solution', label: '解答', hair: true, warn: false },
-                { key: 'caution', label: '注意', hair: false, warn: true },
-              ] as const
-            ).map((f) => {
-              const value = block[f.key];
-              if (!edit && !value) return null;
-              return (
-                <SubRow key={f.key} label={f.label} warn={f.warn}>
-                  {edit ? (
-                    <textarea
-                      className="fc-acc"
-                      value={value}
-                      onChange={(e) =>
-                        onPatch((d) => {
-                          const b = d.blocks[index];
-                          if (b.t === 'ex') b[f.key] = e.target.value;
-                        })
-                      }
-                      placeholder={f.label}
-                      style={{ ...INPUT, minHeight: '46px' }}
-                    />
-                  ) : (
-                    <NoteMath
-                      className={'nb-body' + (f.warn ? ' nb-body--sm' : '') + (f.hair ? ' nb-hair' : '')}
-                      src={value}
-                    />
-                  )}
-                </SubRow>
-              );
-            })}
+        ) : (
+          <div className="nb-row">
+            <span className="nb-badge">{cardNo ? '問' + cardNo : '問?'}</span>
+            <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: '10px' }}>
+              {!edit ? (
+                <NoteMath
+                  className="nb-body nb-body--dim"
+                  src={card ? card.q : '(対象の想起問題が設定されていません)'}
+                />
+              ) : null}
+              {(
+                [
+                  { key: 'guide', label: '方針', hair: false, warn: false },
+                  { key: 'solution', label: '解答', hair: true, warn: false },
+                  { key: 'caution', label: '注意', hair: false, warn: true },
+                ] as const
+              ).map((f) => {
+                const value = block[f.key];
+                if (!edit && !value) return null;
+                return (
+                  <SubRow key={f.key} label={f.label} warn={f.warn}>
+                    {edit ? (
+                      <textarea
+                        className="fc-acc"
+                        value={value}
+                        onChange={(e) =>
+                          onPatch((d) => {
+                            const b = d.blocks[index];
+                            if (b.t === 'ex') b[f.key] = e.target.value;
+                          })
+                        }
+                        placeholder={f.label}
+                        style={{ ...INPUT, minHeight: '46px' }}
+                      />
+                    ) : (
+                      <NoteMath
+                        className={'nb-body' + (f.warn ? ' nb-body--sm' : '') + (f.hair ? ' nb-hair' : '')}
+                        src={value}
+                        mark={mark}
+                      />
+                    )}
+                  </SubRow>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

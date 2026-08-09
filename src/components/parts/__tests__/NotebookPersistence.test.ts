@@ -25,10 +25,12 @@ function note(over: Partial<Note> = {}): Note {
     subject: '数学',
     unit: '数列',
     cards: [
-      { cardId: 'c0', q: 'Q1', a: 'A1', guide: '', src: '' },
-      { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '' },
+      { cardId: 'c0', q: 'Q1', a: 'A1', guide: '', src: '', origin: 'ai' },
+      { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '', origin: 'ai' },
     ],
     blocks: [],
+    summary: '',
+    keywords: [],
     exercise: { q: '', a: '' },
     doubt: '',
     notice: '',
@@ -97,7 +99,7 @@ describe('sanitizeNotes', () => {
     ]);
     expect(out).toHaveLength(1);
     expect(out[0].cards).toHaveLength(1);
-    expect(out[0].cards[0]).toEqual({ cardId: 'c0', q: 'Q', a: '', guide: '', src: '' });
+    expect(out[0].cards[0]).toEqual({ cardId: 'c0', q: 'Q', a: '', origin: 'ai', guide: '', src: '' });
     expect(out[0].blocks).toHaveLength(2);
     expect(out[0].exercise).toEqual({ q: 'E', a: '' });
     expect(out[0].createdAt).toBe('2026-08-01'); // 欠落時は date で埋める
