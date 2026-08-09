@@ -272,6 +272,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     notesLoaded: false,
     nbSelNoteId: null,
     nbMode: 'note',
+    nbSide: 'tree',
     nbMonth: today.slice(0, 8) + '01',
     nbSubjFilter: null,
     nbEdit: false,

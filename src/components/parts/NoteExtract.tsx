@@ -3,9 +3,12 @@
 /**
  * Compass — 問題抽出ビュー（docs/notebook/spec.md §8）
  *
- * 移植元: `CompassNotebook/チャートノート v3.dc.html` の `view:'extract'`。
+ * 下敷き: `CompassNotebook/チャートノート v2.dc.html` の `view:'extract'`。
  * 全ノートの想起問題と演習をフラットに並べ、解答は伏せたままドリルとして解く。
  * 出典行をクリックすると元のノートへ飛ぶ。
+ *
+ * v2 どおり**1 問 1 枚のカードにはしない**。枠を描くと問題どうしの切れ目が
+ * 強くなりすぎて、上から順に解いていく紙面にならない。区切りは余白だけ。
  */
 
 import { useMemo } from 'react';
@@ -13,6 +16,7 @@ import { longDayLabel } from '../../lib/logic/dates';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Note } from '../../lib/model/notes';
 import { NoteMath } from './NoteMath';
+import { RevealButton } from './NoteView';
 import { useSubjColors } from './ShellSubjects';
 import { store, useAppStore } from '../useStore';
 
@@ -25,7 +29,7 @@ interface DrillItem {
   guide: string;
 }
 
-/** ノート群 → ドリル項目。空の設問は落とす（v3 と同じ） */
+/** ノート群 → ドリル項目。空の設問は落とす（v2 と同じ） */
 export function buildDrillItems(notes: readonly Note[], subjFilter: string | null): DrillItem[] {
   const out: DrillItem[] = [];
   notes.forEach((note) => {
@@ -61,17 +65,14 @@ const MINI_BTN = {
   borderRadius: 'var(--rad-s)',
   background: 'none',
   color: 'var(--tx2)',
-  font: "500 11px var(--f-ui)",
+  font: '500 11px var(--f-ui)',
   cursor: 'pointer',
 } as const;
 
 export function NoteExtract() {
   const { state: S, plans } = useAppStore();
   const subjColors = useSubjColors(S, plans);
-  const items = useMemo(
-    () => buildDrillItems(S.notes, S.nbSubjFilter),
-    [S.notes, S.nbSubjFilter],
-  );
+  const items = useMemo(() => buildDrillItems(S.notes, S.nbSubjFilter), [S.notes, S.nbSubjFilter]);
 
   const setAll = (open: boolean) =>
     store.setState((s) => {
@@ -87,126 +88,97 @@ export function NoteExtract() {
     store.setState({ nbMode: 'note', nbSelNoteId: note.id, nbEdit: false });
 
   return (
-    <div style={{ animation: 'fadeUp .22s ease', display: 'grid', gap: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
-        <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>問題抽出</div>
-        <div style={{ fontSize: '11.5px', color: 'var(--tx3)' }}>
-          {'全ノートから ' + items.length + ' 問'}
+    <div style={{ maxWidth: '840px', animation: 'fadeUp .22s ease' }}>
+      {/* ノート本体と同じ太細 2 本組。ここが紙面の頭だという合図 */}
+      <div className="nb-masthead">
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+          <h1 style={{ margin: 0, font: '700 24px var(--f-disp)', color: 'var(--tx0)' }}>問題抽出</h1>
+          <span className="nb-sec-hint">
+            {'全ノートから ' + items.length + ' 問 ─ 解答は隠したまま順に'}
+          </span>
+          <span style={{ flex: 1 }} />
+          <button className="hv-acc-outline" onClick={() => setAll(true)} style={MINI_BTN}>
+            すべて開く
+          </button>
+          <button className="hv-acc-outline" onClick={() => setAll(false)} style={MINI_BTN}>
+            すべて閉じる
+          </button>
         </div>
-        <span style={{ flex: 1 }} />
-        <button className="hv-acc-outline" onClick={() => setAll(true)} style={MINI_BTN}>
-          すべて開く
-        </button>
-        <button className="hv-acc-outline" onClick={() => setAll(false)} style={MINI_BTN}>
-          すべて閉じる
-        </button>
       </div>
 
       {items.length === 0 ? (
-        <div
-          className="empty-note"
-          style={{
-            border: '1px dashed var(--line2)',
-            borderRadius: 'var(--rad)',
-            padding: '28px',
-            textAlign: 'center',
-            color: 'var(--tx3)',
-            fontSize: '12.5px',
-          }}
-        >
-          条件に合う問題がありません。ノートを取り込むとここに並びます。
-        </div>
+        <p style={{ marginTop: '20px', font: '400 13px var(--f-ui)', color: 'var(--tx3)' }}>
+          条件に合う問題がありません。教科の絞り込みを外すか、ノートを取り込んでください。
+        </p>
       ) : null}
 
-      {items.map((it, i) => {
-        const open = !!S.nbRevealed[it.key];
-        const color = subjectColorFor(subjColors, it.note.subject);
-        return (
-          <div
-            key={it.key}
-            style={{
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--rad)',
-              background: 'var(--bg1)',
-              padding: '13px 15px',
-              animation: 'fadeUp .22s ease',
-              animationDelay: Math.min(i * 0.04, 0.4) + 's',
-              animationFillMode: 'backwards',
-            }}
-          >
+      <div style={{ display: 'grid', gap: '30px', marginTop: '20px', paddingBottom: '40px' }}>
+        {items.map((it, i) => {
+          const open = !!S.nbRevealed[it.key];
+          const color = subjectColorFor(subjColors, it.note.subject);
+          return (
             <div
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}
-            >
-              <span
-                style={{
-                  font: "700 10px var(--f-ui)",
-                  color: it.kind === '想起' ? 'var(--view)' : 'var(--org)',
-                  background: it.kind === '想起' ? 'var(--viewBg)' : 'var(--orgBg)',
-                  borderRadius: 'var(--rad-s)',
-                  padding: '2px 9px',
-                }}
-              >
-                {it.kind}
-              </span>
-              <span
-                style={{
-                  font: "700 10px var(--f-ui)",
-                  color: color.c,
-                  background: color.bg,
-                  borderRadius: 'var(--rad-s)',
-                  padding: '2px 9px',
-                }}
-              >
-                {it.note.subject}
-              </span>
-              <span style={{ flex: 1 }} />
-              <span
-                onClick={() => jump(it.note)}
-                className="hv-acc-outline"
-                style={{
-                  fontSize: '10.5px',
-                  color: 'var(--tx3)',
-                  cursor: 'pointer',
-                  borderBottom: '1px dashed var(--line2)',
-                }}
-              >
-                {(it.note.date ? longDayLabel(it.note.date) + ' ／ ' : '') + it.note.unit}
-              </span>
-            </div>
-            <NoteMath src={it.q} style={{ color: 'var(--tx0)', fontSize: '14px' }} />
-            <div
-              onClick={() =>
-                store.setState((s) => ({ nbRevealed: { ...s.nbRevealed, [it.key]: !open } }))
-              }
+              key={it.key}
               style={{
-                font: "600 11px var(--f-ui)",
-                color: 'var(--view)',
-                cursor: 'pointer',
-                marginTop: '9px',
-                userSelect: 'none',
+                animation: 'fadeUp .22s ease',
+                animationDelay: Math.min(i * 0.04, 0.4) + 's',
+                animationFillMode: 'backwards',
               }}
             >
-              {open ? '▾ 解答を隠す' : '▸ 解答を見る'}
-            </div>
-            {open ? (
               <div
                 style={{
-                  paddingTop: '10px',
-                  marginTop: '10px',
-                  borderTop: '1px dashed var(--line)',
-                  display: 'grid',
-                  gap: '7px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '9px',
+                  marginBottom: '8px',
+                  flexWrap: 'wrap',
                 }}
               >
-                {it.guide ? (
-                  <NoteMath src={it.guide} style={{ color: 'var(--tx2)', fontSize: '12.5px' }} />
-                ) : null}
-                <NoteMath src={it.a} style={{ color: 'var(--tx1)', fontSize: '13.5px' }} />
+                <span className={'nb-badge' + (it.kind === '演習' ? ' nb-badge--quiet' : '')}>
+                  {it.kind}
+                </span>
+                <span
+                  style={{
+                    font: '700 10px var(--f-ui)',
+                    color: color.c,
+                    background: color.bg,
+                    borderRadius: 'var(--rad-s)',
+                    padding: '2px 9px',
+                  }}
+                >
+                  {it.note.subject}
+                </span>
+                <button className="nb-jump" onClick={() => jump(it.note)}>
+                  {(it.note.date ? longDayLabel(it.note.date) + ' ／ ' : '') + it.note.unit}
+                </button>
               </div>
-            ) : null}
-          </div>
-        );
-      })}
+              <NoteMath className="nb-body" src={it.q} />
+              <RevealButton
+                open={open}
+                onClick={() =>
+                  store.setState((s) => ({ nbRevealed: { ...s.nbRevealed, [it.key]: !open } }))
+                }
+              />
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateRows: open ? '1fr' : '0fr',
+                  transition: 'grid-template-rows .45s cubic-bezier(.22,1,.36,1)',
+                }}
+              >
+                <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                  <div className="nb-ans">
+                    {it.guide ? (
+                      <NoteMath className="nb-body nb-body--sm nb-body--dim" src={it.guide} />
+                    ) : null}
+                    <NoteMath className="nb-body" src={it.a} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

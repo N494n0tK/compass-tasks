@@ -7,7 +7,9 @@
      [A] 移行期のホスト UI(認証画面 / レガシー iframe シェル)
      [B] dc-runtime ベースラインの引き継ぎ(印刷 + ルート高さ)
      [C] レガシーアプリ本体 CSS(HTML:17-782 を 1:1 移植)
+     [C-2] Compass インターフェース ——「校内プリント」(2026-08 デザイン刷新)
      [D] style-hover / style-focus 相当のユーティリティ(support.js の擬似クラス生成の代替)
+     [E] ノート画面(チャートノート v2 = Broadsheet 由来の紙面)
 
    フォント: layout.tsx に Google Fonts の <link> が必要(css-notes.md §5 参照)。
    ============================================================================ */
@@ -426,8 +428,8 @@ html,body{margin:0;padding:0;height:100%}
      3. 蛍光オレンジ(`--pink`)は「いま」専用。今日のToDo・期限切れ・
         現在のコマにしか出さない。
 
-   書体は 4 つ。それぞれ「誰が書いた文字か」に対応する(FontStylesheet.tsx):
-     --f-disp 見出し / --f-ui 本文 / --f-num 数字 / --f-hand 生徒の手書き
+   書体は 3 つ。それぞれ「誰が刷った文字か」に対応する(FontStylesheet.tsx):
+     --f-disp 見出し / --f-ui 本文 / --f-num 数字
 
    カスケードの前提: このあとに [D](style-hover 相当)と [E](ノート)が続く。
    節の順序は変えないこと。
@@ -438,9 +440,11 @@ html,body{margin:0;padding:0;height:100%}
   --f-ui:"BIZ UDPGothic","Noto Sans JP",system-ui,-apple-system,sans-serif;
   --f-disp:"Zen Kaku Gothic New","BIZ UDPGothic",system-ui,sans-serif;
   --f-num:"Barlow Condensed","Zen Kaku Gothic New",system-ui,sans-serif;
-  --f-hand:"Klee One","Zen Kaku Gothic New",serif;
-  /* 旧名。コンポーネント側にまだ参照が残っていても壊れないようにしておく */
-  --font-hand:var(--f-hand);
+  /* 旧名。コンポーネント側にまだ参照が残っていても壊れないようにしておく。
+     `--f-hand`(Klee One)はノート画面の作り直しで使い手がいなくなったので、
+     読み込みごと落とした。ここは取りこぼしの保険 */
+  --f-hand:var(--f-ui);
+  --font-hand:var(--f-ui);
   --font-num:var(--f-num);
 }
 body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-family:var(--f-ui)}
@@ -1055,26 +1059,34 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 /* :focus — ミニタスク名のインライン編集(HTML:1616) */
 .fc-acc-underline:focus{border-bottom:1px dashed var(--acc)}
 
+
 /* ==========================================================================
    [E] ノート画面（docs/notebook/spec.md §8）
 
-   アプリの他の画面は「学校が配ったプリント」（[C-2] の方眼・ゴシック・直角）。
-   ここだけは「生徒が自分で書いたノート」にする。その対比が、
-   取り込んだ授業内容と Compass の仕組みを見分ける手がかりになる。
+   下敷き: `CompassNotebook/チャートノート v2.dc.html`（Broadsheet DS。
+   `CompassNotebook/_ds-broadsheet/readme.md` にその原典がある）。
 
-   道具立ては本物のノートから取った:
+   v2 の言い分はひとつ。**枠で仕切らない**。
+   セクションを分けるのは罫でも箱でもなく余白で、順位は級数と余白だけで作る。
+   罫を刷るのは 1 か所、ページ頭の「太 3px + 細 1px」の対だけ ―― 新聞の
+   マストヘッドと同じで、ここから下が本文だという合図に使う。
 
-     .nb-write   … 罫線の上に載る本文。行送り 30px = 罫のピッチ（`--nb-pitch`）
-     .nb-red     … 赤ペン。解答・注意・丸つけはここ
-     .nb-marker  … 蛍光マーカー。用語の帯
-     .nb-label   … 見出し。赤の波線（日本語の強調記法そのまま）
-     .nb-shield  … 赤シート。ドリル面で解答にかぶせ、ずらして答え合わせする
-     .nb-maru    … 丸つけの ◎○△
-     .nb-no      … 左余白にぶら下がる問番号
+   道具立て:
 
-   罫線は**用紙全体ではなく本文ブロックごとに**引く。ページ全体に引くと、
-   セクションの余白のぶんだけ文字が罫からずれてしまう（半端にずれた方が、
-   引いていないより悪い）。ブロックに持たせれば常にぴったり載る。
+     .nb-masthead … 太細 2 本組のページ頭。罫を引くのはここだけ
+     .nb-badge    … セクションの版（想起 / 解説 / 演習 / 連絡）。差し色のベタ
+     .nb-badge--quiet / --warn … 版を張らない見出し（疑問・補助）
+     .nb-no       … 想起問題の番号。差し色の淡い面に載る 26px 角
+     .nb-open     … 「▸ 解答を見る」。開閉はここだけが起点
+     .nb-ans      … 開いた解答。左の 2px 罫だけで括る（箱にしない）
+     .nb-sub      … 「方針」「解答」「注意」の小札
+     .nb-body     … 本文。15px / 1.95
+     .nb-jump     … 出典・元ノートへのリンク（下線）
+     .nb-maru     … ドリル面の丸つけ ◎○△
+
+   罫線ノート（v3 系の手書き用紙）はここでやめた。授業の内容は「配られた
+   問題集の紙面」として読む方が、Compass の他画面（校内プリント）と地続きになる。
+   手書き書体 `--f-hand` はこの画面では使わない。
 
    [D] より後ろに置くので、同詳細度なら後勝ちになる。
    ========================================================================== */
@@ -1083,162 +1095,131 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .app-nav-item[data-nav="notebook"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3h13v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z'/%3E%3Cpath d='M4 17h15M9 3v18M12 8h4'/%3E%3C/svg%3E")}
 
 .compass-theme-mode{
-  /* 罫のピッチ。本文の行送りと必ず同じにすること */
-  --nb-pitch:30px;
-  --nb-paper:color-mix(in srgb,var(--bg1) 82%,var(--tx0) 18%);
-  --nb-card:color-mix(in srgb,var(--bg1) 90%,var(--tx0) 10%);
-  --nb-rule:color-mix(in srgb,var(--tx0) 15%,transparent);
-  --nb-margin:color-mix(in srgb,var(--nb-red) 60%,transparent);
-  --nb-hole:var(--bg0);
-  /* 左は綴じ穴(11–23px) → 問番号(28–68px) → 赤マージン(69px) の順に空ける */
-  --nb-sheet-pad:26px 28px 34px 80px;
-  /* 赤ペン。暗い紙では蛍光寄り、白い紙では朱肉寄りにする */
-  --nb-red:#ff7d72;
-  --nb-marker:rgba(255,213,74,.34);
-  --nb-marker2:rgba(255,120,150,.42);
-  --nb-shield:#c4483d;
-  /* 暗い紙では蛍光ペンは「乗せる」= screen。白い紙では「透かす」= multiply */
-  --nb-marker-blend:screen;
+  /* 本文の行送り。数式・罫・小札の高さはすべてこれに合わせる */
+  --nb-lead:1.95;
+  /* 差し色の淡い面（番号・小札・解答の罫）。--viewBg より薄く、方眼が透ける濃さ */
+  --nb-tint:color-mix(in srgb,var(--view) 13%,transparent);
+  --nb-tint2:color-mix(in srgb,var(--view) 30%,transparent);
+  /* 文字に使うときの版。暗い紙では差し色そのまま */
+  --nb-ink:var(--view);
+  --nb-warn:var(--pink);
 }
+/* 白い紙の上では、差し色をそのまま小さい文字に使うと 4.5:1 に届かない
+   （--view/--nb-tint で 4.20、--pink/--pinkBg で 3.53）。
+   Broadsheet の指示どおり「文字に使うときは 1 段深い版を使う」に従って沈める */
 .compass-theme-mode[data-theme="light"]{
-  --nb-paper:#fffefb;
-  --nb-card:#ffffff;
-  --nb-rule:rgba(40,70,105,.16);
-  --nb-red:#c8281e;
-  --nb-marker:rgba(255,205,40,.62);
-  --nb-marker2:rgba(255,120,150,.5);
-  --nb-shield:#d43a2c;
-  --nb-marker-blend:multiply;
+  --nb-ink:color-mix(in srgb,var(--view) 70%,var(--tx0));
+  --nb-warn:color-mix(in srgb,var(--pink) 74%,var(--tx0));
 }
 
-/* ── 用紙。罫は本文側が持つので、ここは紙・赤マージン・綴じ穴だけ */
-.nb-sheet{
-  position:relative;
-  background:var(--nb-paper);
-  background-image:linear-gradient(to right,transparent 0,transparent 69px,var(--nb-margin) 69px,var(--nb-margin) 70px,transparent 70px);
-  border:1px solid var(--line2);
-  border-radius:var(--rad-s);
-  box-shadow:none;
-  overflow:hidden;
+/* ── ページ頭。ここだけ罫を刷る（太 3px / 細 1px） */
+.nb-masthead{
+  border-top:3px solid var(--tx0);
+  border-bottom:1px solid var(--tx0);
+  padding:10px 2px 12px;
 }
-.nb-sheet__body{padding:var(--nb-sheet-pad);position:relative;z-index:1}
-
-.nb-sheet__holes{
-  display:block;position:absolute;left:11px;top:0;bottom:0;width:12px;pointer-events:none;z-index:2;
-  background:
-    radial-gradient(circle at 6px 14%,var(--nb-hole) 5px,color-mix(in srgb,var(--line2) 80%,transparent) 5.8px,transparent 6.2px),
-    radial-gradient(circle at 6px 50%,var(--nb-hole) 5px,color-mix(in srgb,var(--line2) 80%,transparent) 5.8px,transparent 6.2px),
-    radial-gradient(circle at 6px 86%,var(--nb-hole) 5px,color-mix(in srgb,var(--line2) 80%,transparent) 5.8px,transparent 6.2px);
+/* 日付欄は活字の日付行。数字の書体で少し字間を開ける */
+.nb-dateline{
+  font:500 12.5px var(--f-num);
+  letter-spacing:.06em;
+  color:var(--tx2);
+  white-space:nowrap;
 }
-
-/* ── 手書き。アプリ内で Klee One が出るのはノート画面だけ */
-.nb-hand{font-family:var(--f-hand)!important;font-weight:600;letter-spacing:.02em}
-
-/* ── 罫線に載る本文。行送りとピッチが一致しているので必ず線の上に来る */
-.nb-write{
-  font:400 15px/var(--nb-pitch) var(--f-hand);
+.nb-title{
+  margin:10px 0 0;
+  font:700 27px/1.25 var(--f-disp);
   color:var(--tx0);
-  letter-spacing:.01em;
-  background-image:repeating-linear-gradient(
-    to bottom,transparent 0,transparent calc(var(--nb-pitch) - 1px),
-    var(--nb-rule) calc(var(--nb-pitch) - 1px),var(--nb-rule) var(--nb-pitch));
-}
-.nb-write--sm{font-size:13.5px}
-/* 赤ペン。解答・注意・添削はこれ */
-.nb-write--red,.nb-red{color:var(--nb-red)}
-/* 別行立ての数式も 2 行ぶんに収めて、罫のリズムを崩さない */
-.nb-write .katex-display{
-  margin:0;min-height:calc(var(--nb-pitch) * 2);
-  display:flex;align-items:center;justify-content:flex-start;
-}
-.nb-write .katex-display>.katex{text-align:left}
-
-/* ── 蛍光マーカー。帯を 2 本ずらして重ね、手で引いた線に見せる。
-      紙に「乗せる」ので、地の色と混ぜる（暗い紙は screen / 白い紙は multiply）。
-      混色させたいので背景ではなく擬似要素で描く（`isolation` を作らないこと） */
-.nb-marker{position:relative;padding:0 .2em}
-.nb-marker::before,.nb-marker::after{
-  content:"";position:absolute;z-index:-1;pointer-events:none;
-  background:var(--nb-marker);mix-blend-mode:var(--nb-marker-blend);
-}
-.nb-marker::before{left:0;right:0;top:16%;bottom:12%}
-.nb-marker::after{left:3%;right:1%;top:24%;bottom:20%}
-.nb-marker--pink{--nb-marker:var(--nb-marker2)}
-
-/* ── 見出しは赤の波線。日本語の強調記法をそのまま使う */
-.nb-label{
-  display:inline-block;margin:0 0 6px;
-  font:600 13px var(--f-hand);color:var(--nb-red);letter-spacing:.12em;
-  text-decoration:underline wavy var(--nb-red);
-  text-underline-offset:6px;text-decoration-thickness:1.5px;
+  letter-spacing:-.005em;
 }
 
-/* ── 赤マージンの外側にぶら下がる問番号 */
+/* ── セクションの版。差し色をベタで張るのはノートの中ではここだけ */
+.nb-badge{
+  display:inline-block;flex:none;
+  background:var(--view);color:var(--onAcc);
+  font:700 11.5px var(--f-disp);
+  letter-spacing:.18em;text-indent:.18em;
+  padding:4px 12px;border-radius:var(--rad-s);
+}
+/* 版を張らない見出し。自分で書き足した欄（疑問）と、本文中の小さな札 */
+.nb-badge--quiet{background:transparent;color:var(--tx2);border:1px solid var(--line2)}
+.nb-badge--warn{background:transparent;color:var(--nb-warn);border:1px solid var(--nb-warn)}
+.nb-sec-title{font:700 17px var(--f-disp);color:var(--tx0)}
+.nb-sec-hint{font:400 11.5px var(--f-ui);color:var(--tx2)}
+
+/* ── 想起問題の番号 */
 .nb-no{
-  float:left;width:40px;margin-left:-52px;
-  font:600 14px/var(--nb-pitch) var(--f-hand);color:var(--nb-red);text-align:right;
-  padding-right:12px;user-select:none;
+  flex:none;width:26px;height:26px;margin-top:3px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--nb-tint);color:var(--nb-ink);
+  font:700 13px var(--f-num);border-radius:var(--rad-s);
+  font-variant-numeric:tabular-nums;
 }
 
-/* ── 赤シート。解答の上にかぶせておいて、押すと右へずれる。
-      **不透明にすること。** 半透明だと下の明るい文字が透けて読めてしまい、
-      隠す道具として成立しない（本物の赤シートも、赤字は完全に消える）。
-      斜めの艶と右端のつまみで「板」に見せる */
-.nb-shield-wrap{position:relative}
-.nb-shield{
-  position:absolute;inset:-4px -10px;z-index:3;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  border:1px solid color-mix(in srgb,var(--nb-shield) 78%,black);
-  border-radius:2px;
-  background:
-    linear-gradient(112deg,rgba(255,255,255,.16) 0 20%,rgba(255,255,255,.04) 30%,transparent 42%),
-    var(--nb-shield);
-  color:rgba(255,255,255,.82);font:600 12px var(--f-hand);letter-spacing:.14em;
-  cursor:pointer;
-  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .3s ease;
-}
-/* 右端のつまみ。ここをつまんでずらす、という手がかり */
-.nb-shield::after{
-  content:"";position:absolute;right:6px;top:50%;transform:translateY(-50%);
-  width:3px;height:34px;border-radius:2px;background:rgba(255,255,255,.28);
-  box-shadow:6px 0 0 rgba(255,255,255,.28);
-}
-.nb-shield:hover{transform:translateX(7px)}
-.nb-shield:focus-visible{outline:2px solid var(--tx0);outline-offset:2px}
-.nb-shield.is-off{transform:translateX(103%) rotate(1.4deg);opacity:0;pointer-events:none}
-@media(prefers-reduced-motion:reduce){
-  .nb-shield,.nb-shield:hover{transition:opacity .01ms;transform:none}
-  .nb-shield.is-off{transform:none}
-}
+/* ── 本文 */
+.nb-body{font:400 15px/var(--nb-lead) var(--f-ui);color:var(--tx0);overflow-wrap:break-word}
+/* 別行立ての数式は左揃え。答案は左の罫（.nb-ans / .nb-hair）に沿わせたいので、
+   KaTeX 既定の中央揃えだと札から遠く離れて浮いてしまう */
+.nb-body .katex-display,.nb-body .katex-display>.katex{text-align:left}
+.nb-body--sm{font-size:13.5px}
+.nb-body--dim{color:var(--tx2)}
 
-/* ── 丸つけ。◎○△ は赤ペンで大きく */
+/* ── 開閉。v2 の `ansPack`：▸ が 90° 回って解答が下に伸びる */
+.nb-open{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:3px 0;margin-top:4px;
+  border:0;background:none;cursor:pointer;
+  font:600 12.5px var(--f-ui);color:var(--nb-ink);
+}
+.nb-open:hover{color:var(--tx0)}
+.nb-caret{display:inline-block;font-size:10px;transition:transform .3s ease}
+.nb-caret.is-open{transform:rotate(90deg)}
+@media(prefers-reduced-motion:reduce){.nb-caret{transition:none}}
+
+/* ── 開いた解答。箱で囲わず、左の 1 本だけで括る */
+.nb-ans{
+  border-left:2px solid var(--nb-tint2);
+  padding:4px 0 4px 15px;margin:7px 0 2px;
+  display:grid;gap:10px;
+}
+/* 解説の「解答」だけは、字の左に細い罫を引いて答案の体裁にする */
+.nb-hair{border-left:1px solid var(--line2);padding-left:15px}
+
+/* ── 「方針 / 解答 / 注意」の小札 */
+.nb-sub{
+  flex:none;margin-top:3px;
+  background:var(--nb-tint);color:var(--nb-ink);
+  font:700 11.5px var(--f-disp);letter-spacing:.06em;
+  padding:3px 10px;border-radius:var(--rad-s);
+}
+.nb-sub--warn{background:var(--pinkBg);color:var(--nb-warn)}
+/* 小札 + 本文の 2 段組。狭いときは札を上に落とす */
+.nb-row{display:flex;gap:12px;align-items:flex-start}
+@media(max-width:560px){.nb-row{flex-direction:column;gap:4px}}
+
+/* ── 出典・元ノートへ飛ぶリンク */
+.nb-jump{
+  border:0;background:none;padding:0;cursor:pointer;
+  font:400 12px var(--f-ui);color:var(--nb-ink);
+  text-decoration:underline;text-underline-offset:3px;
+}
+.nb-jump:hover{color:var(--tx0)}
+
+/* ── 丸つけ。◎○△（ドリル面の理解度） */
 .nb-maru{
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:8px 6px 9px;
+  padding:9px 6px 10px;
   border:1px solid var(--line2);border-radius:var(--rad-s);
   background:transparent;cursor:pointer;
   transition:background .13s ease,border-color .13s ease;
 }
 .nb-maru:hover{background:color-mix(in srgb,currentColor 10%,transparent);border-color:currentColor}
-.nb-maru__mark{font:400 26px/1 var(--f-hand)}
-.nb-maru__label{font:600 11px var(--f-hand);letter-spacing:.06em}
-.nb-maru__hint{font:400 9.5px var(--f-ui);color:var(--tx3);letter-spacing:.02em}
-
-/* ── 付箋 */
-.nb-sticky{
-  border:0;border-radius:0;
-  background:var(--nb-card);
-  color:var(--tx1);
-  padding:14px 16px;
-  box-shadow:2px 2px 0 color-mix(in srgb,var(--tx0) 10%,transparent);
-  font-family:var(--f-hand);
-}
-.nb-sticky--doubt{background:color-mix(in srgb,var(--pink) 26%,var(--nb-paper));color:var(--tx0);transform:rotate(-.7deg)}
-.nb-sticky--notice{background:color-mix(in srgb,var(--org) 26%,var(--nb-paper));color:var(--tx0);transform:rotate(.6deg)}
+.nb-maru__mark{font:400 24px/1 var(--f-disp)}
+.nb-maru__label{font:700 11.5px var(--f-ui);letter-spacing:.04em}
+.nb-maru__hint{font:400 9.5px var(--f-ui);color:var(--tx3)}
 
 /* ── KaTeX をテーマ色になじませる */
-.nb-sheet .katex,.nb-sticky .katex,[data-screen-label="Notebook"] .katex{color:inherit;font-size:1.05em}
-[data-screen-label="Notebook"] .katex-display{margin:.5em 0;overflow-x:auto;overflow-y:hidden}
+[data-screen-label="Notebook"] .katex{color:inherit;font-size:1.06em}
+[data-screen-label="Notebook"] .katex-display{margin:.55em 0 .35em;overflow-x:auto;overflow-y:hidden}
 /* 理解度モーダルのカード面 */
 .nb-ask-card .katex{color:inherit}
 
@@ -1250,8 +1231,8 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
     border-right:none!important;border-bottom:1px solid var(--line2);
     padding-right:0!important;padding-bottom:14px;
   }
-  .compass-theme-mode{--nb-sheet-pad:22px 16px 26px 60px}
-  .nb-sheet{background-image:linear-gradient(to right,transparent 0,transparent 51px,var(--nb-margin) 51px,var(--nb-margin) 52px,transparent 52px)}
-  .nb-sheet__holes{left:6px}
-  .nb-no{width:32px;margin-left:-42px;padding-right:10px}
+  /* 縦積みになったら紙面は自前でスクロールしない。入れ子のスクロール枠が
+     余った高さぶんの空白になってしまうため（画面ごと 1 本のスクロールにする） */
+  .nb-main{overflow:visible!important;flex:0 0 auto!important}
+  .nb-title{font-size:23px}
 }

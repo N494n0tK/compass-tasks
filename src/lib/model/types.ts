@@ -432,6 +432,13 @@ export type DataRange = 'all' | 'week' | 'month';
  */
 export type NotebookMode = 'note' | 'extract' | 'drill';
 
+/**
+ * ノート画面サイドバーの探し方（チャートノート v2 の `side`）。
+ * `tree` = 教科フォルダ / `cal` = 月カレンダー。**同時には出さない**
+ * （両方出すとサイドバーが縦に伸びて、ノート一覧がスクロールの外へ落ちる）
+ */
+export type NotebookSide = 'tree' | 'cal';
+
 /** Add 画面の自動細分化モード（`addGeneratorChips`, HTML:3656-3659） */
 export type AddGenerator = 'manual' | 'duo' | 'chart';
 
@@ -557,6 +564,8 @@ export interface EphemeralState {
   nbSelNoteId: string | null;
   /** ノートビュー / 問題抽出ビュー */
   nbMode: NotebookMode;
+  /** サイドバーの探し方（教科フォルダ / カレンダー） */
+  nbSide: NotebookSide;
   /** カレンダーが表示している月（その月の 1 日の iso） */
   nbMonth: ISODate;
   /** 教科の絞り込み（`null` = 全部） */

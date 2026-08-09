@@ -55,3 +55,8 @@ Thumbs.db
 
 # Restore snapshot taken before recovering the v0.8 working tree
 /.restore-backup-20260728-220104/
+
+# チャートノートのプロトタイプを丸ごと書き出したフォルダ。
+# 参照する 2 ファイルと Broadsheet の DS だけ CompassNotebook/ に置いてある
+# (11MB のインライン版 HTML と support.js までは要らない)
+/青チャート形式のノートアプリ*/
