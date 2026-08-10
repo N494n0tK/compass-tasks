@@ -558,7 +558,10 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     scans: existing?.scans || [],
     cards,
     sections,
-    summary: asString(raw.summary).trim(),
+    // まとめは**復習のときに自分で書く欄**（spec §3.6）。AI は常に空で返してくるので、
+    // 空を受け取ったら既存の文章を消さずに引き継ぐ ―― そうしないと、あとから JSON を
+    // 貼り直すたびに、自分で書いたまとめが黙って消える（写真と同じ扱い）
+    summary: asString(raw.summary).trim() || existing?.summary || '',
     keywords,
     exercise,
     doubt: asString(raw.doubt),

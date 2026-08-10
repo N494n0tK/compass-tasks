@@ -50,4 +50,12 @@ describe('noteMainPrompt の長さ（GPT ビルダーの上限）', () => {
     expect(prompt).toContain('compass-note@2');
     expect(prompt).not.toContain('compass-note@1');
   });
+
+  // まとめは復習のときに本人が書く欄。転記も禁じている（spec §3.6 / N-137）。
+  // 記入例の summary が埋まっていると、規則より見本のほうが強く効いてしまう
+  it('N-137 summary は常に空文字を要求し、記入例も空にしてある', () => {
+    expect(prompt).toContain('必ず空文字');
+    expect(prompt).toContain('"summary": ""');
+    expect(prompt).not.toContain('転記するだけ');
+  });
 });

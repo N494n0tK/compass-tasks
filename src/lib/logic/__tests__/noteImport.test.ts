@@ -416,6 +416,27 @@ describe('parseNoteJson — 上書き取り込み（N-017〜N-020）', () => {
     expect(note.updatedAt).toBe(T);
   });
 
+  // ── まとめは「復習のときに自分で書く欄」で、AI は常に空を送る（spec §3.6 / N-136）。
+  //    だから空の summary は「消せ」ではなく「触るな」の意味に取る。ここを取り違えると、
+  //    ノートを貼り直すたびに自分で書いたまとめが黙って消える。
+  it('N-136 上書き取り込みで空の summary を受けても、自分で書いたまとめは残る', () => {
+    const written: typeof base = { ...base, summary: '3型に帰着させれば解ける。$n=1$ は別に確認。' };
+    const res = parseNoteJson(fixture('note-math-valid.json'), {
+      today: T,
+      existing: written,
+      ...IDS,
+    });
+    expect(ok(res).summary).toBe('3型に帰着させれば解ける。$n=1$ は別に確認。');
+  });
+
+  it('N-136 JSON 側に空でない summary があるときはそちらで上書きされる', () => {
+    const written: typeof base = { ...base, summary: '前に書いたまとめ' };
+    const raw = JSON.parse(fixture('note-math-valid.json')) as Record<string, unknown>;
+    raw.summary = '手で JSON に書いたまとめ';
+    const res = parseNoteJson(JSON.stringify(raw), { today: T, existing: written, ...IDS });
+    expect(ok(res).summary).toBe('手で JSON に書いたまとめ');
+  });
+
   /** フィクスチャの件数を焼き付けないための別名 */
   const baseIds = base.cards.map((c) => c.cardId);
 
