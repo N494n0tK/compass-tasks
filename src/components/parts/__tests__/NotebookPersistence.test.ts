@@ -29,7 +29,7 @@ function note(over: Partial<Note> = {}): Note {
       { cardId: 'c0', q: 'Q1', a: 'A1', guide: '', src: '', origin: 'ai', attempts: [] },
       { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '', origin: 'ai', attempts: [] },
     ],
-    blocks: [],
+    sections: [],
     summary: '',
     keywords: [],
     exercise: { q: '', a: '' },
@@ -94,7 +94,7 @@ describe('sanitizeNotes', () => {
         subject: '英語',
         unit: '仮定法',
         cards: [{ cardId: 'c0', q: 'Q' }, { cardId: '' }, null],
-        blocks: [{ t: 'def', title: 'x' }, { t: 'zzz' }, { t: 'ex', cardId: 'c0' }],
+        sections: [{ heading: 'h', text: '本文' }, { heading: '空' }, 'x'],
         exercise: { q: 'E' },
       },
     ]);
@@ -109,7 +109,8 @@ describe('sanitizeNotes', () => {
       src: '',
       attempts: [],
     });
-    expect(out[0].blocks).toHaveLength(2);
+    // 中身のある区画だけ残る（見出しだけ・オブジェクトでない行は落とす）
+    expect(out[0].sections).toEqual([{ heading: 'h', text: '本文', ai: '' }]);
     expect(out[0].exercise).toEqual({ q: 'E', a: '' });
     expect(out[0].createdAt).toBe('2026-08-01'); // 欠落時は date で埋める
   });
@@ -117,6 +118,47 @@ describe('sanitizeNotes', () => {
   it('配列でなければ空', () => {
     expect(sanitizeNotes(null)).toEqual([]);
     expect(sanitizeNotes({ id: 'n1' })).toEqual([]);
+  });
+
+  it('旧 blocks の保存データを sections とカードの guide へ畳む', () => {
+    const out = sanitizeNotes([
+      {
+        id: 'n2',
+        date: '2026-08-01',
+        subject: '歴総',
+        unit: '産業革命',
+        cards: [{ cardId: 'c0', q: 'Q', a: 'A', guide: '' }],
+        blocks: [
+          { t: 'def', title: '産業革命', body: '18世紀のイギリス' },
+          { t: 'zzz' },
+          { t: 'ex', cardId: 'c0', solution: '綿工業から', caution: '年号に注意' },
+          { t: 'ex', cardId: 'cX', solution: '行き場のない解説' },
+        ],
+        keywords: [{ term: '1789年', color: 'green' }, { term: '対比', color: 'purple' }],
+      },
+    ]);
+    // def と、対応カードの無い ex が本文（AI だけの補足）として残る
+    expect(out[0].sections).toEqual([
+      { heading: '産業革命', text: '', ai: '18世紀のイギリス' },
+      { heading: '解説', text: '', ai: '解説: 行き場のない解説' },
+    ]);
+    // 対応カードのある ex はそのカードの guide へ
+    expect(out[0].cards[0].guide).toBe('解説: 綿工業から\n注意: 年号に注意');
+    // 旧 5 色は 3 色へ（green=年号 → blue / purple → blue）
+    expect(out[0].keywords.map((k) => k.color)).toEqual(['blue', 'blue']);
+  });
+
+  it('sections を持つ行は旧扱いしない（新しい green が青へ化けない）', () => {
+    const out = sanitizeNotes([
+      {
+        id: 'n3',
+        date: '2026-08-01',
+        cards: [],
+        sections: [],
+        keywords: [{ term: 'つながり', color: 'green' }],
+      },
+    ]);
+    expect(out[0].keywords[0].color).toBe('green');
   });
 });
 

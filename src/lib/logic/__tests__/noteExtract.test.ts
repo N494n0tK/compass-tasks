@@ -21,7 +21,7 @@ function note(over: Partial<Note> = {}): Note {
     unit: '数列',
     scans: [],
     cards: [card()],
-    blocks: [],
+    sections: [],
     summary: '',
     keywords: [],
     exercise: { q: '', a: '' },

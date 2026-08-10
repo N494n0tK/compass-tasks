@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react';
 import { parseNoteJson, type NoteImportIssue } from '../../lib/logic/noteImport';
 import { timetableSubjects } from '../../lib/logic/timetable';
-import { NOTE_SUBJECT_OTHER } from '../../lib/model/notes';
+import { NOTE_SCHEMA, NOTE_SUBJECT_OTHER } from '../../lib/model/notes';
 import { commitNote } from './NotebookPersistence';
 import { notePrompts, copyText } from './NotePrompts';
 import { ShellOverlay } from './ShellOverlay';
@@ -194,7 +194,7 @@ export function NoteImportModal() {
                 setIssues([]);
                 store.setState({ nbImportText: e.target.value });
               }}
-              placeholder={'{\n  "schema": "compass-note@1",\n  "date": "…",\n  …\n}'}
+              placeholder={'{\n  "schema": "' + NOTE_SCHEMA + '",\n  "date": "…",\n  "sections": [ … ],\n  …\n}'}
               spellCheck={false}
               style={{
                 width: '100%',

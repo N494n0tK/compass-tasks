@@ -9,7 +9,7 @@
  * 思い出す ―― という使い方をする。
  *
  * ここでやるのは 2 つだけ:
- *  1. 重要語が**本文のどのブロックで初めて出てくるか**を求める（`assignCues`）。
+ *  1. 重要語が**本文のどの区画で初めて出てくるか**を求める（`assignCues`）。
  *     キュー欄はその行に置かれるので、「出てくるタイミングで見せる」が成立する。
  *  2. 本文の文字列を「素の部分」と「重要語の部分」に切り分ける（`splitByKeywords`）。
  *     描画（`NoteMath`）はこの切れ目に色を塗り、確認モードでは伏せる。
@@ -23,26 +23,47 @@
 
 import {
   NOTE_KEY_COLORS,
-  type NoteBlock,
   type NoteKeyColor,
   type NoteKeyword,
+  type NoteSection,
 } from '../model/notes';
 
-/** 未知の色は `red`（既定色）に寄せる。取り込みと sanitize の両方から使う */
+/**
+ * 色を現行の 3 色に寄せる。取り込みと sanitize の**両方**から使う（規則をここ 1 か所に置く）。
+ *
+ * 旧 5 色からの畳み方:
+ *  - `orange`（因果・変化）→ `green`（つながり）
+ *  - `purple`（対比・例外）→ `blue`
+ *  - 未知の値・欠落 → `red`（既定色。取り込みを止めない）
+ *
+ * ⚠ 旧 `green` は「年号・数値」だったので本来 `blue` へ送りたいが、`green` は**新しい 3 色にも
+ * ある**。ここで一律に `blue` へ倒すと、新スキーマで付けた緑が読み込みのたびに青へ化ける。
+ * 旧データと分かっているときだけ {@link migrateLegacyKeyColor} を使うこと。
+ */
 export function normalizeKeyColor(v: unknown): NoteKeyColor {
+  if (v === 'orange') return 'green';
+  if (v === 'purple') return 'blue';
   return typeof v === 'string' && (NOTE_KEY_COLORS as readonly string[]).includes(v)
     ? (v as NoteKeyColor)
     : 'red';
 }
 
 /**
- * ブロック 1 個の「検索対象になる文字列」。
- * 見出し・本文・方針・解答・注意を全部つないだもの（重要語はどこに出てもよい）。
+ * 旧 5 色（`compass-note@1` の JSON / `blocks` を持つ保存データ）専用の畳み方。
+ *
+ * 旧 `green` は「年号・数値」＝いまの `blue`（事実）。新スキーマの `green`（つながり）とは
+ * 別物なので、**旧データと分かっている入口でだけ**こちらを通す。
  */
-export function blockSearchText(block: NoteBlock): string {
-  return block.t === 'def'
-    ? block.title + '\n' + block.body
-    : block.guide + '\n' + block.solution + '\n' + block.caution;
+export function migrateLegacyKeyColor(v: unknown): NoteKeyColor {
+  return v === 'green' ? 'blue' : normalizeKeyColor(v);
+}
+
+/**
+ * セクション 1 区画の「検索対象になる文字列」。
+ * 見出し・自分のノート本文・AI の添削を全部つないだもの（重要語はどこに出てもよい）。
+ */
+export function sectionSearchText(s: NoteSection): string {
+  return s.heading + '\n' + s.text + '\n' + s.ai;
 }
 
 /** 長い語が先。同じ長さなら元の並び順を保つ（安定ソート前提） */
@@ -54,33 +75,33 @@ function byLengthDesc(keywords: readonly NoteKeyword[]): { kw: NoteKeyword; inde
 }
 
 export interface CueAssignment {
-  /** `blocks` と同じ長さ。各ブロックのキュー欄に出す重要語のインデックス */
-  perBlock: number[][];
-  /** どのブロックにも出てこなかった重要語。キュー欄の先頭にまとめて出す */
+  /** `sections` と同じ長さ。各区画のキュー欄に出す重要語のインデックス */
+  perSection: number[][];
+  /** どの区画にも出てこなかった重要語。キュー欄の先頭にまとめて出す */
   orphans: number[];
 }
 
 /**
- * 重要語を「初めて出てくるブロック」に割り当てる。
+ * 重要語を「初めて出てくる区画」に割り当てる。
  *
  * 1 語は 1 か所にしか出さない。2 回目以降の出現でもキュー欄に並べると
  * 左段が同じ語で埋まって、キューとして機能しなくなるため。
  */
 export function assignCues(
-  blocks: readonly NoteBlock[],
+  sections: readonly NoteSection[],
   keywords: readonly NoteKeyword[],
 ): CueAssignment {
-  const perBlock: number[][] = blocks.map(() => []);
+  const perSection: number[][] = sections.map(() => []);
   const orphans: number[] = [];
   keywords.forEach((kw, i) => {
     if (!kw.term) return;
-    const at = blocks.findIndex((b) => blockSearchText(b).includes(kw.term));
+    const at = sections.findIndex((s) => sectionSearchText(s).includes(kw.term));
     if (at < 0) orphans.push(i);
-    else perBlock[at].push(i);
+    else perSection[at].push(i);
   });
-  // 各ブロック内は登録順（= プロンプトが出した順 = だいたい本文に出てくる順）
-  perBlock.forEach((list) => list.sort((a, b) => a - b));
-  return { perBlock, orphans };
+  // 各区画内は登録順（= プロンプトが出した順 = だいたい本文に出てくる順）
+  perSection.forEach((list) => list.sort((a, b) => a - b));
+  return { perSection, orphans };
 }
 
 /** `splitByKeywords` の 1 片。`keywordIndex` が `null` なら素のテキスト */

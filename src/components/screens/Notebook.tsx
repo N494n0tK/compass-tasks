@@ -103,8 +103,8 @@ export function Notebook() {
                 maxWidth: '440px',
               }}
             >
-              読み返すのは<strong style={{ color: 'var(--tx1)' }}>自分で書いたノートの写真</strong>。
-              AIが作るのは、その余白に足す補足と想起問題だけです。
+              読み返すのは<strong style={{ color: 'var(--tx1)' }}>自分が書いたノートそのもの</strong>。
+              AIがするのは、その各段への添削と想起問題を足すことだけです。
               <br />
               授業を録音 → ノートを撮る → AIにプロンプトと一緒に渡す → 返ってきたJSONを貼る。
               <br />

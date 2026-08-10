@@ -4,27 +4,57 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { NoteBlock, NoteKeyword } from '../../model/notes';
-import { assignCues, blockSearchText, normalizeKeyColor, splitByKeywords } from '../noteKeywords';
+import type { NoteKeyword, NoteSection } from '../../model/notes';
+import {
+  assignCues,
+  migrateLegacyKeyColor,
+  normalizeKeyColor,
+  sectionSearchText,
+  splitByKeywords,
+} from '../noteKeywords';
 
 function kw(term: string, color: NoteKeyword['color'] = 'red'): NoteKeyword {
   return { term, color, note: '' };
 }
 
-function def(title: string, body: string): NoteBlock {
-  return { t: 'def', title, body };
+/** 自分のノートの区画（本文だけ） */
+function sec(heading: string, text: string): NoteSection {
+  return { heading, text, ai: '' };
 }
 
 describe('normalizeKeyColor', () => {
-  it('5 色はそのまま通す', () => {
+  it('現行の 3 色はそのまま通す', () => {
+    expect(normalizeKeyColor('red')).toBe('red');
     expect(normalizeKeyColor('blue')).toBe('blue');
-    expect(normalizeKeyColor('purple')).toBe('purple');
+    expect(normalizeKeyColor('green')).toBe('green');
+  });
+
+  it('旧 5 色は 3 色へ畳む（orange→green / purple→blue）', () => {
+    expect(normalizeKeyColor('orange')).toBe('green');
+    expect(normalizeKeyColor('purple')).toBe('blue');
+  });
+
+  it('新スキーマの green は green のまま（読み込みのたびに青へ化けない）', () => {
+    expect(normalizeKeyColor('green')).toBe('green');
   });
 
   it('N-088 知らない色・欠落は red に寄せる（取り込みを止めない）', () => {
     expect(normalizeKeyColor('#ff0000')).toBe('red');
     expect(normalizeKeyColor(undefined)).toBe('red');
     expect(normalizeKeyColor(3)).toBe('red');
+  });
+});
+
+describe('migrateLegacyKeyColor', () => {
+  it('旧 green（年号・数値）は blue（事実）へ送る', () => {
+    expect(migrateLegacyKeyColor('green')).toBe('blue');
+  });
+
+  it('それ以外は normalizeKeyColor と同じ', () => {
+    expect(migrateLegacyKeyColor('orange')).toBe('green');
+    expect(migrateLegacyKeyColor('purple')).toBe('blue');
+    expect(migrateLegacyKeyColor('red')).toBe('red');
+    expect(migrateLegacyKeyColor('gold')).toBe('red');
   });
 });
 
@@ -64,36 +94,37 @@ describe('splitByKeywords', () => {
 });
 
 describe('assignCues', () => {
-  const blocks: NoteBlock[] = [
-    def('産業革命', '18世紀のイギリスで産業革命が起きた。'),
-    def('奴隷制', '南部では奴隷制が支えていた。'),
-    { t: 'ex', cardId: 'c0', guide: '', solution: 'ミズーリ協定を思い出す', caution: '' },
+  const sections: NoteSection[] = [
+    sec('産業革命', '18世紀のイギリスで産業革命が起きた。'),
+    sec('奴隷制', '南部では奴隷制が支えていた。'),
+    { heading: '', text: '', ai: 'ミズーリ協定を思い出す' },
   ];
 
-  it('N-091 重要語は「初めて出てくるブロック」に付く', () => {
-    const { perBlock } = assignCues(blocks, [kw('産業革命'), kw('奴隷制'), kw('ミズーリ協定')]);
-    expect(perBlock).toEqual([[0], [1], [2]]);
+  it('N-091 重要語は「初めて出てくる区画」に付く', () => {
+    const { perSection } = assignCues(sections, [kw('産業革命'), kw('奴隷制'), kw('ミズーリ協定')]);
+    expect(perSection).toEqual([[0], [1], [2]]);
   });
 
   it('2 回目以降の出現ではキューに並べない（左段が同じ語で埋まらない）', () => {
-    const twice: NoteBlock[] = [def('a', '綿工業'), def('b', '綿工業')];
-    expect(assignCues(twice, [kw('綿工業')]).perBlock).toEqual([[0], []]);
+    const twice: NoteSection[] = [sec('a', '綿工業'), sec('b', '綿工業')];
+    expect(assignCues(twice, [kw('綿工業')]).perSection).toEqual([[0], []]);
   });
 
   it('N-092 本文に無い語は orphans に落ちる（黙って消さない）', () => {
-    const { perBlock, orphans } = assignCues(blocks, [kw('産業革命'), kw('存在しない語')]);
-    expect(perBlock).toEqual([[0], [], []]);
+    const { perSection, orphans } = assignCues(sections, [kw('産業革命'), kw('存在しない語')]);
+    expect(perSection).toEqual([[0], [], []]);
     expect(orphans).toEqual([1]);
   });
 
-  it('同じブロック内は登録順に並ぶ', () => {
-    const one: NoteBlock[] = [def('h', 'BとA')];
-    expect(assignCues(one, [kw('A'), kw('B')]).perBlock).toEqual([[0, 1]]);
+  it('同じ区画内は登録順に並ぶ', () => {
+    const one: NoteSection[] = [sec('h', 'BとA')];
+    expect(assignCues(one, [kw('A'), kw('B')]).perSection).toEqual([[0, 1]]);
   });
 
-  it('N-093 ex ブロックは方針・解答・注意のどこに出ても拾う', () => {
-    const ex: NoteBlock[] = [{ t: 'ex', cardId: null, guide: '', solution: '', caution: '要注意語' }];
-    expect(blockSearchText(ex[0])).toContain('要注意語');
-    expect(assignCues(ex, [kw('要注意語')]).perBlock).toEqual([[0]]);
+  it('N-093 見出し・自分の本文・AI の添削のどこに出ても拾う', () => {
+    const s: NoteSection = { heading: '見出し語', text: '本文語', ai: '添削語' };
+    expect(sectionSearchText(s)).toBe('見出し語\n本文語\n添削語');
+    expect(assignCues([s], [kw('添削語')]).perSection).toEqual([[0]]);
+    expect(assignCues([s], [kw('見出し語')]).perSection).toEqual([[0]]);
   });
 });

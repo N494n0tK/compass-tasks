@@ -26,7 +26,7 @@ function note(over: Partial<Note> = {}): Note {
       { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '', origin: 'ai', attempts: [] },
       { cardId: 'c2', q: 'Q3', a: 'A3', guide: '', src: '', origin: 'ai', attempts: [] },
     ],
-    blocks: [],
+    sections: [],
     summary: '',
     keywords: [],
     exercise: { q: '', a: '' },

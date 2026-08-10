@@ -20,8 +20,16 @@
  */
 
 import { generateNoteReviews, cascadeNoteRemoval, syncNoteReviews } from '../../lib/logic/noteCards';
-import { normalizeKeyColor } from '../../lib/logic/noteKeywords';
-import { NOTE_KEYWORD_MAX, NOTE_SCAN_MAX, type Note } from '../../lib/model/notes';
+import { migrateLegacyBlocks } from '../../lib/logic/noteImport';
+import { migrateLegacyKeyColor, normalizeKeyColor } from '../../lib/logic/noteKeywords';
+import {
+  NOTE_KEYWORD_MAX,
+  NOTE_SCAN_MAX,
+  NOTE_SECTION_MAX,
+  type NoteCard,
+  type NoteSection,
+  type Note,
+} from '../../lib/model/notes';
 import type { ISODate, ReviewGrade } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
@@ -46,6 +54,11 @@ function str(v: unknown): string {
 /**
  * localStorage / Firestore から来た生データを `Note` として読む。
  * 壊れた行は**黙って捨てる**（`dataPatch` と同じ方針。起動を止めない）。
+ *
+ * v0.14 より前に保存したノートは `blocks`（AI の補足）＋ 5 色で入っている。
+ * ここで `sections`（自分のノートの再現 ＋ AI の添削）と 3 色へ畳む。
+ * 畳み方は取り込みと**同じ関数**（`migrateLegacyBlocks` / `migrateLegacyKeyColor`）を通す ――
+ * 2 か所で書くと、貼り直したノートと読み込んだノートで中身が変わってしまう。
  */
 export function sanitizeNotes(raw: unknown): Note[] {
   if (!Array.isArray(raw)) return [];
@@ -54,7 +67,12 @@ export function sanitizeNotes(raw: unknown): Note[] {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return;
     const n = item as Record<string, unknown>;
     if (!str(n.id) || !Array.isArray(n.cards)) return;
-    const cards = (n.cards as Record<string, unknown>[])
+    /**
+     * 旧形式か。`sections` が無い行だけを旧扱いにする（`sections: []` の新しい空ノートは
+     * 旧扱いしない ―― 旧 `green`＝年号を `blue` へ倒す規則が、新しい緑を毎回食ってしまう）。
+     */
+    const legacy = !Array.isArray(n.sections);
+    const cards: NoteCard[] = (n.cards as Record<string, unknown>[])
       .filter((c) => c && typeof c === 'object' && str(c.cardId))
       .map((c) => ({
         cardId: str(c.cardId),
@@ -76,26 +94,23 @@ export function sanitizeNotes(raw: unknown): Note[] {
           .map((t) => ({ day: String(t.day), grade: t.grade as ReviewGrade }))
           .sort((x, y) => x.day.localeCompare(y.day)),
       }));
-    const blocks = (Array.isArray(n.blocks) ? (n.blocks as Record<string, unknown>[]) : [])
-      .filter((b) => b && typeof b === 'object' && (b.t === 'def' || b.t === 'ex'))
-      .map((b) =>
-        b.t === 'def'
-          ? { t: 'def' as const, title: str(b.title), body: str(b.body) }
-          : {
-              t: 'ex' as const,
-              cardId: typeof b.cardId === 'string' ? b.cardId : null,
-              guide: str(b.guide),
-              solution: str(b.solution),
-              caution: str(b.caution),
-            },
-      );
+    // 本文（v0.14 で `blocks` から置き換え）。中身の無い区画は落とす
+    const sections: NoteSection[] = (
+      Array.isArray(n.sections) ? (n.sections as Record<string, unknown>[]) : []
+    )
+      .filter((s) => s && typeof s === 'object' && !Array.isArray(s))
+      .map((s) => ({ heading: str(s.heading), text: str(s.text), ai: str(s.ai) }))
+      .filter((s) => !!s.text || !!s.ai);
+    // 旧 `blocks` は `sections` とカードの `guide` へ畳む（警告は出せないので黙って直す）
+    if (legacy) sections.push(...migrateLegacyBlocks(n.blocks, cards, null));
     // 重要語（v0.12 で追加）。壊れた行は落とし、語の重複だけ除く
+    const keyColorOf = legacy ? migrateLegacyKeyColor : normalizeKeyColor;
     const seenTerms = new Set<string>();
     const keywords = (Array.isArray(n.keywords) ? n.keywords : [])
       .map((k) => {
         const item = k && typeof k === 'object' ? (k as Record<string, unknown>) : null;
         const term = (typeof k === 'string' ? k : item ? str(item.term) : '').trim();
-        return { term, color: normalizeKeyColor(item?.color), note: item ? str(item.note) : '' };
+        return { term, color: keyColorOf(item?.color), note: item ? str(item.note) : '' };
       })
       .filter((k) => {
         if (!k.term || seenTerms.has(k.term)) return false;
@@ -124,7 +139,7 @@ export function sanitizeNotes(raw: unknown): Note[] {
       unit: str(n.unit),
       scans,
       cards,
-      blocks,
+      sections: sections.slice(0, NOTE_SECTION_MAX),
       summary: str(n.summary),
       keywords,
       exercise: { q: str(ex.q), a: str(ex.a) },

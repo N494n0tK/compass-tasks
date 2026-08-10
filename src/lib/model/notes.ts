@@ -5,20 +5,36 @@
  * （`seed()` HTML:534-577 / `migrate()` 313-320）を土台に、docs/notebook/spec.md §3 で
  * **カード ID を明示する形**へ拡張したもの。
  *
- * 旧実装との違いは 1 点だけ:
- *  - 解説ブロックが想起問題を指すキーが `qi`（recall の配列インデックス）から
- *    `cardId`（安定 ID）に変わった。旧実装は想起問題を 1 つ削除すると全ブロックの `qi` が
- *    ずれる潜在バグがあり、復習カードとのリンクにも耐えられない。
- *    貼り付け JSON は互換のため `qi` のまま受け、取り込み時に `cardId` へ解決する
+ * 旧実装との違い:
+ *  - 想起問題を指すキーが `qi`（recall の配列インデックス）から `cardId`（安定 ID）に
+ *    変わった。旧実装は想起問題を 1 つ削除すると全ブロックの `qi` がずれる潜在バグがあり、
+ *    復習カードとのリンクにも耐えられない。
+ *    `@1` の貼り付け JSON は互換のため `qi` のまま受け、取り込み時に `cardId` へ解決する
  *    （`lib/logic/noteImport.ts`）。
+ *  - `@2` で解説ブロック（`NoteBlock`）そのものを廃止した。本文は `NoteSection` =
+ *    **自分のノートの再現**で、AI は各区画への添削として重なる。旧 `blocks` の中身は
+ *    取り込み・読み込みのときに `sections` とカードの `guide` へ畳む（同上）。
  *
  * このファイルは純粋な型と定数のみ。React / firebase を import しない。
  */
 
 import type { ISODate, ReviewGrade } from './types';
 
-/** 貼り付け JSON の `schema` フィールドに要求する値（spec §3.2） */
-export const NOTE_SCHEMA = 'compass-note@1';
+/**
+ * 貼り付け JSON の `schema` フィールドに要求する値（spec §3.2）。
+ *
+ * `@2` で**本文の意味が反転した**。`@1` は「AI がノートに書いていないことを補足する」
+ * `blocks` を持っていたが、`@2` の `sections` は**自分の手書きノートの再現**が本文で、
+ * AI はそこへの添削（`ai`）として重なる。取り込みは `@1` も受け続ける
+ * （既に貼った JSON を手元に持っている人がいるし、旧プロンプトの出力も救いたい）。
+ */
+export const NOTE_SCHEMA = 'compass-note@2';
+
+/** 旧スキーマ。取り込み時に `sections` へ読み替える（`lib/logic/noteImport.ts`） */
+export const NOTE_SCHEMA_V1 = 'compass-note@1';
+
+/** 受理する `schema` の一覧。先頭が現行版（エラーメッセージでの推奨値） */
+export const NOTE_SCHEMAS = [NOTE_SCHEMA, NOTE_SCHEMA_V1] as const;
 
 /**
  * 教科の候補は**時間割から取る**（`logic/timetable.ts` の `timetableSubjects()`）。
@@ -103,20 +119,22 @@ export function weaknessRank(card: Pick<NoteCard, 'attempts'>): number {
 }
 
 /**
- * 重要語の色。**5 色しか用意しない**のは、色に意味を持たせるため
- * （spec §3.5 の対応表。プロンプトも同じ割り当てを指示する）。
+ * 重要語の色。**3 色に絞る**（まとめノートの 3 色ルール）。
+ *
+ * 以前は 5 色（red/blue/green/orange/purple）用意していたが、
+ * 実際に使うと**5 色は見分けが付かない**（オレンジと赤、紫と青が紙面で溶ける）。
+ * 色数を増やすほど「どの色だったか」を思い出す手間が増え、色が意味を運ばなくなる。
+ * 旧 5 色のデータは `normalizeKeyColor` / `migrateLegacyKeyColor` でここへ畳む。
  */
-export const NOTE_KEY_COLORS = ['red', 'blue', 'green', 'orange', 'purple'] as const;
+export const NOTE_KEY_COLORS = ['red', 'blue', 'green'] as const;
 
 export type NoteKeyColor = (typeof NOTE_KEY_COLORS)[number];
 
 /** 色の意味。キュー欄の凡例と、プロンプトの指示文で共有する */
 export const NOTE_KEY_COLOR_MEANING: Record<NoteKeyColor, string> = {
-  red: '用語・定義',
-  blue: '人物・固有名詞',
-  green: '年号・数値',
-  orange: '因果・変化',
-  purple: '対比・例外',
+  red: '最重要（用語・定義）',
+  blue: '事実（人物・年号・固有名詞）',
+  green: 'つながり（因果・対比・例外）',
 };
 
 /**
@@ -162,17 +180,33 @@ export const NOTE_SCAN_MAX_BYTES = 8 * 1024 * 1024;
 /** 長辺の上限（px）。スマホの写真をそのまま入れると IndexedDB が膨らむので縮める */
 export const NOTE_SCAN_MAX_EDGE = 2000;
 
-/** 解説欄の要素。`def` = 定義カード、`ex` = 想起問題に紐づく解説 */
-export type NoteBlock =
-  | { t: 'def'; title: string; body: string }
-  | {
-      t: 'ex';
-      /** 対応する想起問題の `cardId`。未対応は `null`（旧 `qi: null` 相当） */
-      cardId: string | null;
-      guide: string;
-      solution: string;
-      caution: string;
-    };
+/**
+ * 自分のノートの再現 1 区画と、それへの AI の添削。
+ *
+ * `@1` の `NoteBlock` から**主役が入れ替わった**。旧構造は AI の補足が本文で、
+ * 自分のノートは写真でしか残らなかった。それだと「自分が何を書いたか」を
+ * 画面の中で読み返せず、AI の文章を読むだけになる（実際にそうなった）。
+ *
+ * いまは `text` が主役 ―― 録音とノート写真から GPT が**自分の手書きノートを再現**した
+ * 本文で、`ai` はその区画への添削（抜け・誤り・補足）として別色で重なる。
+ */
+export interface NoteSection {
+  /** 自分のノートの見出し（無ければ `''`） */
+  heading: string;
+  /**
+   * 自分のノート本文の再現。KaTeX `$…$` 可、`\n` 区切りの箇条書き行。
+   * `''` なら「ノートに無い、AI だけの補足」を表す（添削だけの区画）。
+   */
+  text: string;
+  /** このセクションへの AI の添削・補足（`''` なら無し） */
+  ai: string;
+}
+
+/**
+ * 1 冊のノートの区画数の上限。1 授業ぶんの見開きに収まる量。
+ * これを超えるのは AI が段落ごとに切り刻んだときで、内容が増えたわけではない。
+ */
+export const NOTE_SECTION_MAX = 24;
 
 /** ノート 1 件 = 授業 1 回分 = Firestore の 1 ドキュメント（`users/{uid}/notes/{id}`） */
 export interface Note {
@@ -191,13 +225,14 @@ export interface Note {
   scans: NoteScan[];
   cards: NoteCard[];
   /**
-   * AI の補足。**ノートに書いてあることの写しではなく、書いていないこと**
-   * （録音・スライドから分かった要点）と、想起問題の解答・解説だけを入れる（spec §3.8）。
+   * 本文。**自分の手書きノートの再現**を区画ごとに並べたもの。
+   * AI の言い分は各区画の `ai`（添削）に入り、本文とは別色で重なる（spec §3.8）。
    */
-  blocks: NoteBlock[];
+  sections: NoteSection[];
   /**
-   * コーネル式の下段。授業 1 回を数行でまとめたもの。
-   * 想起問題（上）とキュー欄（左）に対する「自分の言葉での要約」にあたる。
+   * コーネル式の下段。**自分が書く欄**（doubt と同じ原則。spec §3.6）。
+   * 取り込みでは「ノートに書いたまとめの転記」だけが入り、無ければ空のまま。
+   * AI に要約を作らせない ―― ここを自分の言葉で埋めるのが復習の仕上げだから。
    */
   summary: string;
   /** 重要語。本文で色が付き、キュー欄に並び、確認モードで伏せられる */
@@ -219,13 +254,3 @@ export function cardNoOf(note: Pick<Note, 'cards'>, cardId: string): number {
   return note.cards.findIndex((c) => c.cardId === cardId) + 1;
 }
 
-/** `cardId` から解説ブロックを引く（旧 `blocks.findIndex(b => b.t==='ex' && b.qi === i)` 相当） */
-export function exBlockOf(
-  note: Pick<Note, 'blocks'>,
-  cardId: string,
-): Extract<NoteBlock, { t: 'ex' }> | null {
-  for (const b of note.blocks) {
-    if (b.t === 'ex' && b.cardId === cardId) return b;
-  }
-  return null;
-}

@@ -1,9 +1,16 @@
 {
-  "schema": "compass-note@1",
+  "schema": "compass-note@2",
   "date": "2026-08-05",
   "subject": "英コ",
   "unit": "仮定法 ─ 過去・過去完了と if の省略",
   "recall": [
+    {
+      "q": "if を省略した仮定法では語順がどう変わるか。過去完了の例で示せ。",
+      "guide": "if を消した代わりに助動詞を主語の前へ出す（倒置）。",
+      "a": "Had + S + 過去分詞 …（例: Had I known the truth, I would have told you.）",
+      "src": "ノート右の余白",
+      "origin": "self"
+    },
     {
       "q": "仮定法過去の基本形（現在の事実に反する仮定）を、if 節と主節の動詞の形で答えよ。",
       "guide": "「時制を1つ過去へずらす」が原則。be 動詞は人称にかかわらず were。",
@@ -19,11 +26,45 @@
       "origin": "ai"
     },
     {
-      "q": "if を省略した仮定法では語順がどう変わるか。過去完了の例で示せ。",
-      "guide": "if を消した代わりに助動詞を主語の前へ出す（倒置）。",
-      "a": "Had + S + 過去分詞 …（例: Had I known the truth, I would have told you.）",
+      "q": "主節に will を使ってはいけないのはなぜか。",
+      "guide": "仮定法は「事実に反する」ことを形で示す。直説法と同じ助動詞では区別できない。",
+      "a": "will だと直説法（実際に起こりうる話）になり、事実に反する仮定であることが示せないから。",
       "src": "",
-      "origin": "self"
+      "origin": "ai"
+    },
+    {
+      "q": "倒置が起きるのはどの語のときか。3つ挙げよ。",
+      "guide": "did / do は倒置しない。助動詞的にふるまう3語だけ。",
+      "a": "were / had / should",
+      "src": "スライド p.7",
+      "origin": "ai"
+    }
+  ],
+  "sections": [
+    {
+      "heading": "仮定法過去",
+      "text": "仮定法過去 = 現在の事実に反する仮定\nIf + S + 過去形 …, S + would / could / might + 原形\nbe動詞は人称に関係なく was",
+      "ai": "ノートは was になっているが、仮定法では人称にかかわらず were。"
+    },
+    {
+      "heading": "仮定法過去完了",
+      "text": "仮定法過去完了 = 過去の事実に反する仮定\nIf + S + had + 過去分詞 …, S + would + have + 過去分詞\n過去よりもう1つ前へずらす",
+      "ai": "主節は would だけでなく could / might も使える（スライド p.6）。"
+    },
+    {
+      "heading": "if の省略",
+      "text": "if を落とす → 倒置\nHad I known the truth, I would have told you.\n倒置できるのは were / had / should",
+      "ai": "did / do では倒置しない。ここは小テストで狙うと先生が言っていた。"
+    },
+    {
+      "heading": "主節の助動詞",
+      "text": "主節は will ではなく would\n× If I had enough money, I will buy that guitar.\n○ If I had enough money, I would buy that guitar.",
+      "ai": ""
+    },
+    {
+      "heading": "実現可能性のある未来",
+      "text": "",
+      "ai": "録音のみ。起こりうる未来の仮定は if + S + should / were to で表す。ノートに書き取れていない。"
     }
   ],
   "keywords": [
@@ -33,19 +74,19 @@
       "note": "現在の事実に反する"
     },
     {
+      "term": "would",
+      "color": "blue",
+      "note": "主節はこれ"
+    },
+    {
       "term": "仮定法過去完了",
       "color": "red",
       "note": "過去の事実に反する"
     },
     {
       "term": "倒置",
-      "color": "orange",
+      "color": "red",
       "note": "if を落とす代わり"
-    },
-    {
-      "term": "would",
-      "color": "blue",
-      "note": "主節はこれ"
     },
     {
       "term": "were",
@@ -53,42 +94,21 @@
       "note": "人称によらず"
     },
     {
-      "term": "3つ",
-      "color": "green",
-      "note": "倒置できる語"
+      "term": "should",
+      "color": "blue",
+      "note": "倒置できる3つめ"
     },
     {
       "term": "will",
-      "color": "purple",
-      "note": "使わない側"
+      "color": "green",
+      "note": "直説法 ⇔ 仮定法"
     }
   ],
-  "blocks": [
-    {
-      "t": "def",
-      "title": "仮定法の時制のずらし方",
-      "body": "現在の事実に反する → 過去形（仮定法過去）\n過去の事実に反する → 過去完了形（仮定法過去完了）\n実現可能性のある未来 → if + S + should / were to"
-    },
-    {
-      "t": "ex",
-      "qi": 0,
-      "guide": "「今お金がない」→ 現在の事実に反するので仮定法過去。",
-      "solution": "If I had enough money, I would buy that guitar.\n（お金が十分にあれば、あのギターを買うのに）",
-      "caution": "主節を will にしないこと。would/could/might を使う。"
-    },
-    {
-      "t": "ex",
-      "qi": 2,
-      "guide": "if を落として Had を文頭へ。カンマの位置は変わらない。",
-      "solution": "If I had known the truth, I would have told you.\n→ Had I known the truth, I would have told you.",
-      "caution": "Did / Do では倒置しない。倒置できるのは were / had / should の3つ。"
-    }
-  ],
-  "summary": "この授業は仮定法の時制のずらし方が中心だった。現在の事実に反する仮定は動詞を1つ過去へずらして仮定法過去、過去の事実に反する仮定はさらに1つ前へずらして仮定法過去完了にする。\n主節では will ではなく would / could / might を使うのが決まりで、ここが最も間違えやすい。\nif は省略でき、その場合は助動詞を主語の前に出す倒置が起きる。倒置できるのは were / had / should の3つだけで、did や do では起きない。",
+  "summary": "",
   "exercise": {
     "q": "次の文を if を省略した形に書き換えよ: If it were not for your help, I could not finish this work.",
     "a": "Were it not for your help, I could not finish this work."
   },
-  "doubt": "",
+  "doubt": "were to と should の違いがまだ分からない",
   "notice": "・単語テスト範囲 Unit 9-10\n・来週月曜に和訳プリント提出"
 }

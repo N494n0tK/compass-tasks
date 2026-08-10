@@ -32,7 +32,7 @@ function note(over: Partial<Note> = {}): Note {
     unit: '数列',
     scans: [],
     cards: [card({ cardId: 'c0' }), card({ cardId: 'c1' }), card({ cardId: 'c2' })],
-    blocks: [],
+    sections: [],
     summary: '',
     keywords: [],
     exercise: { q: '', a: '' },

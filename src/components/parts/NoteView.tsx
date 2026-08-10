@@ -3,36 +3,36 @@
 /**
  * Compass — ノート 1 冊の表示・編集（docs/notebook/spec.md §8）
  *
- * **主役は自分で撮った手書きノートの写真**。AI が作った文章はその上に載っている
- * 補足にすぎない（spec §8.3）。読む順は上から:
+ * **主役は「自分の手書きノートを GPT が書き起こした本文」**（`Note.sections`）。
+ * 写真は本文の原本にすぎないので下へ畳んだ。読む順は上から:
  *
- *   ┌ マストヘッド ── 日付 / 教科 / 単元 ＋「自分のノートだけ」のスイッチ ┐
- *   │ 自分のノート（写真）           ← 影を落とす。ここが紙                │
- *   │ 想起問題                       ← 自作が先、AI が補った問いが後        │
- *   ├────────────────────────────────────────────────────────────────────┤
- *   │ AIの補足   ← 影を落とさない。畳んである。ノートに**書いていない**こと │
- *   │  キュー欄 │ 本文（コーネル式）                                      │
- *   ├────────────────────────────────────────────────────────────────────┤
- *   │ まとめ / 疑問（自分の言葉）                                          │
- *   └────────────────────────────────────────────────────────────────────┘
+ *   ┌ マストヘッド ── 日付 / 教科 / 単元 ＋ レンズ（自分のノートだけ⇄AIの添削も）┐
+ *   │ 想起問題                       ← 自作が先、AI が補った問いが後          │
+ *   ├──────────────────────────────────────────────────────────────────────┤
+ *   │  キュー欄 │ コーネル本文 ← 自分の手書きの再現。節ごとに AI の添削が挟まる │
+ *   ├──────────────────────────────────────────────────────────────────────┤
+ *   │ 演習（AI） / 疑問・連絡 / 元のノート（写真・畳んである）                │
+ *   │ まとめ ← **自分が書く欄**なので紙面のいちばん下、手書き書体で           │
+ *   └──────────────────────────────────────────────────────────────────────┘
  *
  * 3 つの約束:
  *  - **書体が著者を示す**。自分の言葉は `--f-hand`（Klee One）、AI は `--f-ui`。
- *    読む前に「これは誰が書いたか」が分かる。
+ *    読む前に「これは誰が書いたか」が分かる。添削はさらに紫インクで重ねる。
  *  - **影が層を示す**。写真には影、AI の面には影を落とさない。
  *  - **「自分のノートだけ」**（`nbOnlyMine`）で AI 由来をまるごと畳める。
  *    自分で書いたものを読み返すのがいちばん復習になる、という立場を操作にしたもの。
+ *    ただし**まとめは自分の言葉なので、このレンズでも畳まない**。
  *
- * 確認モード（`nbCheck`）は AI の本文に対して働く。付箋の開閉は **DOM のクラス
- * 付け替えでやる**（`.nb-key.is-hidden` を外すだけ）。state に入れると 1 枚めくる
- * たびに本文の HTML を作り直すことになり、剥がした付箋が戻ってしまう。
+ * 確認モード（`nbCheck`）は本文とキュー欄の重要語に対して働く。付箋の開閉は
+ * **DOM のクラス付け替えでやる**（`.nb-key.is-hidden` を外すだけ）。state に入れると
+ * 1 枚めくるたびに本文の HTML を作り直すことになり、剥がした付箋が戻ってしまう。
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { fmtD, fmtMD, longDayLabel } from '../../lib/logic/dates';
 import { noteSeriesId } from '../../lib/logic/noteCards';
-import { assignCues, blockSearchText } from '../../lib/logic/noteKeywords';
+import { assignCues, sectionSearchText } from '../../lib/logic/noteKeywords';
 import { timetableSubjects } from '../../lib/logic/timetable';
 import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
@@ -42,12 +42,13 @@ import {
   NOTE_KEYWORD_MAX,
   NOTE_KEY_COLORS,
   NOTE_KEY_COLOR_MEANING,
+  NOTE_SECTION_MAX,
   NOTE_SUBJECT_OTHER,
   type Note,
-  type NoteBlock,
   type NoteCard,
   type NoteKeyColor,
   type NoteKeyword,
+  type NoteSection,
   lastAttemptOf,
 } from '../../lib/model/notes';
 import type { Review } from '../../lib/model/types';
@@ -243,13 +244,9 @@ export function NoteView({ note }: NoteViewProps) {
     store.showToast('「' + r.title + '」を今日のToDoに追加しました');
   };
 
-  /** 想起問題 → その解説ブロックへ滑らかに送る（v2 の `goExplain`） */
-  const jumpToBlock = (cardId: string) => {
-    const el = document.querySelector('[data-block-card="' + cardId + '"]');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  // ── 重要語。本文だけ伏せ、想起問題やまとめは色を付けるにとどめる
+  // ── 重要語。コーネル本文とキュー欄だけ伏せ、想起問題やまとめは色を付けるにとどめる
+  //    （伏せる範囲を `.nb-cornell` の中に閉じるのは、めくった枚数を数える
+  //      `bodyRef` の走査範囲と一致させるため）
   const markBody = useMemo<NoteMarkOptions | undefined>(
     () => (note.keywords.length ? { keywords: note.keywords, mask: check } : undefined),
     [note.keywords, check],
@@ -258,7 +255,25 @@ export function NoteView({ note }: NoteViewProps) {
     () => (note.keywords.length ? { keywords: note.keywords } : undefined),
     [note.keywords],
   );
-  const cues = useMemo(() => assignCues(note.blocks, note.keywords), [note.blocks, note.keywords]);
+
+  // ── 紙面に出す節。レンズが「自分のノートだけ」のとき:
+  //   - `text` が空の節（= ノートに無い、AI だけの補足）は丸ごと出さない
+  //   - 残る節も `ai` を空にして、添削だけ降ろす
+  // 節を間引いたあとで `assignCues` を掛け直すのが肝心で、そうしないと
+  // 「畳んだ AI の中にしか出てこない語」がキュー欄に残ってしまう。
+  const shownSections = useMemo(() => {
+    const out: { section: NoteSection; index: number }[] = [];
+    note.sections.forEach((s, index) => {
+      if (onlyMine && !s.text) return;
+      out.push({ section: onlyMine ? { ...s, ai: '' } : s, index });
+    });
+    return out;
+  }, [note.sections, onlyMine]);
+
+  const cues = useMemo(
+    () => assignCues(shownSections.map((v) => v.section), note.keywords),
+    [shownSections, note.keywords],
+  );
 
   // 教科は時間割の名前に揃える。いま付いている名前が一覧に無ければ、それも候補に残す
   // （選び直せないと直せなくなるため）
@@ -452,7 +467,7 @@ export function NoteView({ note }: NoteViewProps) {
               className={'nb-lens__opt' + (onlyMine ? ' is-on' : '')}
               onClick={() => store.setState({ nbOnlyMine: true, nbCheck: false })}
               aria-pressed={onlyMine}
-              title="AIが作った補足・解答・まとめを畳んで、自分のノートだけにする"
+              title="AIの添削・解答・演習を畳んで、自分のノートの再現だけにする"
             >
               自分のノートだけ
             </button>
@@ -460,15 +475,16 @@ export function NoteView({ note }: NoteViewProps) {
               className={'nb-lens__opt' + (onlyMine ? '' : ' is-on')}
               onClick={() => store.setState({ nbOnlyMine: false })}
               aria-pressed={!onlyMine}
+              title="各節に AI の添削を重ねて見る"
             >
-              AIの補足も
+              AIの添削も
             </button>
           </div>
           <span style={{ flex: 1 }} />
           <button
             className={'nb-btn' + (check ? ' is-on' : '')}
             onClick={enterCheck}
-            title="AIの補足の重要語を伏せて、キュー欄だけで思い出す"
+            title="本文とキュー欄の重要語を伏せて、思い出してから 1 語ずつめくる"
             aria-pressed={check}
           >
             {check ? '✓ 確認モード' : '確認モード'}
@@ -494,17 +510,6 @@ export function NoteView({ note }: NoteViewProps) {
         </div>
       ) : null}
 
-      {/* ── 自分のノート。この紙面の主役なので、いちばん上・いちばん大きく */}
-      <NoteScanStrip
-        note={note}
-        edit={edit}
-        index={S.nbScanIx}
-        onIndex={(i) => store.setState({ nbScanIx: i })}
-        zoom={S.nbScanZoom}
-        onZoom={(id) => store.setState({ nbScanZoom: id })}
-        onPatch={patch}
-      />
-
       {/* ── 想起問題。自分で立てた問いが先、AI が補った問いが後 */}
       <section style={{ marginTop: '34px' }}>
         <SectionHead
@@ -521,7 +526,6 @@ export function NoteView({ note }: NoteViewProps) {
             const key = 'r:' + note.id + ':' + card.cardId;
             const open = isOpen(key);
             const { pending, done } = reviewOf(card.cardId);
-            const hasExplain = note.blocks.some((b) => b.t === 'ex' && b.cardId === card.cardId);
             return (
               <div key={card.cardId} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
                 <span className="nb-no" aria-hidden="true">
@@ -663,13 +667,6 @@ export function NoteView({ note }: NoteViewProps) {
                             {'出典: ' + card.src}
                           </div>
                         ) : null}
-                        {!edit && hasExplain ? (
-                          <div>
-                            <button className="nb-jump" onClick={() => jumpToBlock(card.cardId)}>
-                              解説へ ↓
-                            </button>
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -683,12 +680,7 @@ export function NoteView({ note }: NoteViewProps) {
                         return;
                       }
                       if (!window.confirm('この想起問題と、その復習カードを削除しますか？')) return;
-                      patch((d) => {
-                        d.cards.splice(i, 1);
-                        d.blocks = d.blocks.map((b) =>
-                          b.t === 'ex' && b.cardId === card.cardId ? { ...b, cardId: null } : b,
-                        );
-                      }, [card.cardId]);
+                      patch((d) => void d.cards.splice(i, 1), [card.cardId]);
                     }}
                   >
                     削除
@@ -729,45 +721,46 @@ export function NoteView({ note }: NoteViewProps) {
       {/* ── 重要語の編集（編集モードだけ。読むときはキュー欄がそれにあたる） */}
       {edit ? <KeywordEditor note={note} onPatch={patch} /> : null}
 
-      {/* ── AI の補足。**ノートに書いていないこと**と、想起問題の解答だけが入る。
-             紙（写真）ではないので影を落とさず、畳んでおける */}
-      {(note.blocks.length || edit) && !onlyMine ? (
-        <section style={{ marginTop: '34px' }} className="nb-ai">
+      {/* ── コーネル本文。**この紙面の主役**。
+             右段 = 自分の手書きノートの再現（Klee One）、左段 = キュー欄、
+             各節の直下に AI の添削が紫インクで挟まる（レンズが「AIの添削も」のとき） */}
+      {note.sections.length || edit ? (
+        <section style={{ marginTop: '34px' }}>
           <SectionHead
-            badge="AIの補足"
-            title="ノートに書いていないこと"
+            badge="本文"
+            title="自分のノート"
             hint={
-              note.keywords.length
-                ? '録音とスライドから。左のキュー欄はその場所で出てくる重要語'
-                : '録音とスライドから拾った要点と、想起問題の解説'
+              onlyMine
+                ? '授業で自分が書いたノートの再現。左のキュー欄はその高さで出てくる重要語'
+                : '自分が書いたノートの再現に、AI の添削（紫）を重ねている'
             }
           />
+          {note.keywords.length ? <KeyLegend /> : null}
           <div
             ref={bodyRef}
-            className={
-              'nb-cornell' +
-              (note.keywords.length ? '' : ' is-flat') +
-              (check ? ' is-check' : '')
-            }
+            className={'nb-cornell' + (note.keywords.length ? '' : ' is-flat')}
             onClick={onBodyClick}
             onKeyDown={onBodyKeyDown}
           >
-            {note.blocks.map((block, bi) => (
-              <NoteBlockRow
-                key={bi}
+            {shownSections.map((v, row) => (
+              <NoteSectionRow
+                key={v.index}
                 note={note}
-                block={block}
-                index={bi}
+                section={v.section}
+                index={v.index}
                 edit={edit}
                 onPatch={patch}
-                cueIndexes={cues.perBlock[bi] || []}
+                cueIndexes={cues.perSection[row] || []}
                 mark={markBody}
+                mask={check}
               />
             ))}
-            {cues.orphans.length ? (
+            {/* 本文のどこにも出てこない語。「自分のノートだけ」のときは出さない
+                ―― 畳んだ AI 側にしか無い語を、キュー欄からこぼすことになるため */}
+            {cues.orphans.length && !onlyMine ? (
               <>
                 <div className="nb-cue">
-                  <CueList note={note} indexes={cues.orphans} />
+                  <CueList note={note} indexes={cues.orphans} mask={check} />
                 </div>
                 <div className="nb-sec-hint" style={{ alignSelf: 'center' }}>
                   本文には出てこない語（キュー欄だけに出す）
@@ -776,55 +769,20 @@ export function NoteView({ note }: NoteViewProps) {
             ) : null}
           </div>
           {edit ? (
-            <div style={{ display: 'flex', gap: '7px', marginTop: '15px' }}>
-              <button
-                className="nb-btn"
-                onClick={() =>
-                  patch((d) => void d.blocks.push({ t: 'def', title: '定義', body: '' }))
+            <button
+              className="nb-btn"
+              style={{ marginTop: '15px' }}
+              onClick={() => {
+                if (note.sections.length >= NOTE_SECTION_MAX) {
+                  store.showToast('本文の区画は' + NOTE_SECTION_MAX + 'までです');
+                  return;
                 }
-              >
-                ＋ 定義
-              </button>
-              <button
-                className="nb-btn"
-                onClick={() =>
-                  patch(
-                    (d) =>
-                      void d.blocks.push({
-                        t: 'ex',
-                        cardId: d.cards[0]?.cardId ?? null,
-                        guide: '',
-                        solution: '',
-                        caution: '',
-                      }),
-                  )
-                }
-              >
-                ＋ 問の解説
-              </button>
-            </div>
+                patch((d) => void d.sections.push({ heading: '', text: '', ai: '' }));
+              }}
+            >
+              ＋ 節を足す
+            </button>
           ) : null}
-        </section>
-      ) : null}
-
-      {/* ── まとめ（コーネル式の下段）。紙面いっぱいの上罫で本文と切る */}
-      {(note.summary || edit) && !onlyMine ? (
-        <section className="nb-summary">
-          <SectionHead
-            badge="まとめ"
-            hint="この授業 1 回を、自分の言葉で数行に"
-          />
-          {edit ? (
-            <textarea
-              className="fc-acc"
-              value={note.summary}
-              onChange={(e) => patch((d) => void (d.summary = e.target.value))}
-              placeholder="この授業でいちばん大事だったことを 3〜5 行で"
-              style={{ ...INPUT, minHeight: '92px' }}
-            />
-          ) : (
-            <NoteMath className="nb-mine nb-summary__body" src={note.summary} mark={markPlain} />
-          )}
         </section>
       ) : null}
 
@@ -872,7 +830,6 @@ export function NoteView({ note }: NoteViewProps) {
         <section
           style={{
             marginTop: '30px',
-            paddingBottom: '40px',
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
             gap: '30px',
@@ -918,16 +875,79 @@ export function NoteView({ note }: NoteViewProps) {
           ) : null}
         </section>
       ) : null}
+
+      {/* ── 元のノート（写真）。本文が主役になったので原本は畳む。
+             `<details>` にしてあるので、閉じている間は 1 行の見出しだけ */}
+      <details className="nb-scanfold">
+        <summary className="nb-scanfold__summary">
+          <span className="nb-scanfold__caret" aria-hidden="true">
+            ▸
+          </span>
+          元のノート（写真）
+          <span className="nb-scanfold__count">
+            {note.scans.length ? note.scans.length + '枚' : '未登録'}
+          </span>
+        </summary>
+        <NoteScanStrip
+          note={note}
+          edit={edit}
+          index={S.nbScanIx}
+          onIndex={(i) => store.setState({ nbScanIx: i })}
+          zoom={S.nbScanZoom}
+          onZoom={(id) => store.setState({ nbScanZoom: id })}
+          onPatch={patch}
+        />
+      </details>
+
+      {/* ── まとめ。**自分が書く欄**なので紙面のいちばん下に置き、手書き書体で組む。
+             AI 由来ではないので「自分のノートだけ」レンズでも畳まない */}
+      <section className="nb-summary">
+        <SectionHead badge="まとめ" hint="この授業 1 回を、自分の言葉で数行に" />
+        {edit ? (
+          <textarea
+            className="fc-acc"
+            value={note.summary}
+            onChange={(e) => patch((d) => void (d.summary = e.target.value))}
+            placeholder="この授業でいちばん大事だったことを 3 行以内で"
+            style={{ ...INPUT, minHeight: '92px', font: '400 15.5px var(--f-hand)' }}
+          />
+        ) : note.summary ? (
+          <NoteMath className="nb-mine nb-summary__body" src={note.summary} mark={markPlain} />
+        ) : (
+          <p className="nb-summary__empty">
+            自分の言葉で、3 行以内のまとめを書く場所です（「編集」から書けます）
+          </p>
+        )}
+      </section>
     </article>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// キュー欄（左段）
+// キュー欄（左段）と色の凡例
 // ─────────────────────────────────────────────────────────────
 
-/** キュー欄に並ぶ重要語。色は本文の色と同じ（`.nb-key--<color>` を共有する） */
-function CueList({ note, indexes }: { note: Note; indexes: readonly number[] }) {
+/**
+ * キュー欄に並ぶ重要語。色は本文の色と同じ（`.nb-key--<color>` を共有する）。
+ *
+ * `mask`（確認モード）のとき、語そのものを本文と同じ付箋にする。キュー欄に
+ * 答えが見えていたら「キューだけを見て思い出す」が成立しないため。
+ * **付箋のクラスは初期描画で当てるだけ**で、剥がすのは本文と同じ
+ * イベントデリゲーション（`.nb-cornell` の onClick → classList から外す）。
+ * ここで useState を持つと、1 枚めくるたびに本文まで作り直されてしまう。
+ *
+ * ひとこと（`kw.note`）は伏せない ―― 語を隠したあと、思い出すための
+ * 手がかりとして残るのがコーネル式のキュー欄の役目だから。
+ */
+function CueList({
+  note,
+  indexes,
+  mask,
+}: {
+  note: Note;
+  indexes: readonly number[];
+  mask: boolean;
+}) {
   return (
     <>
       {indexes.map((ki) => {
@@ -936,12 +956,36 @@ function CueList({ note, indexes }: { note: Note; indexes: readonly number[] }) 
         // 語にもひとことにも $…$ が入りうる（教科によっては記号そのものが重要語）
         return (
           <div key={ki} className="nb-cue-item">
-            <NoteMathInline className={'nb-cue-term nb-key--' + kw.color} src={kw.term} />
+            <span
+              className={
+                'nb-cue-term nb-key nb-key--' + kw.color + (mask ? ' is-hidden' : '')
+              }
+              data-nb-key={ki}
+              role={mask ? 'button' : undefined}
+              tabIndex={mask ? 0 : undefined}
+              aria-label={mask ? '伏せた重要語。開くにはクリック' : undefined}
+            >
+              <NoteMathInline src={kw.term} />
+            </span>
             {kw.note ? <NoteMathInline className="nb-cue-note" src={kw.note} /> : null}
           </div>
         );
       })}
     </>
+  );
+}
+
+/** 3 色の意味。色に意味を持たせている以上、紙面の中で 1 度だけ言っておく */
+function KeyLegend() {
+  return (
+    <div className="nb-keylegend" aria-label="重要語の色の意味">
+      {NOTE_KEY_COLORS.map((c) => (
+        <span key={c} className={'nb-keylegend__item nb-key--' + c}>
+          <span className="nb-keylegend__swatch" aria-hidden="true" />
+          {NOTE_KEY_COLOR_MEANING[c]}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -956,7 +1000,10 @@ function KeywordEditor({
   note: Note;
   onPatch: (fn: (draft: Note) => void) => void;
 }) {
-  const haystack = useMemo(() => note.blocks.map(blockSearchText).join('\n'), [note.blocks]);
+  const haystack = useMemo(
+    () => note.sections.map(sectionSearchText).join('\n'),
+    [note.sections],
+  );
 
   const setKw = (i: number, fn: (kw: NoteKeyword) => void) =>
     onPatch((d) => {
@@ -968,7 +1015,7 @@ function KeywordEditor({
     <section style={{ marginTop: '30px' }}>
       <SectionHead
         badge="重要語"
-        hint="本文で色が付き、キュー欄に並び、確認モードで伏せられる"
+        hint="3色（最重要 / 事実 / つながり）。本文で色が付き、キュー欄に並び、確認モードで伏せられる"
         tone="quiet"
       />
       <div style={{ display: 'grid', gap: '8px' }}>
@@ -1044,71 +1091,76 @@ function KeywordEditor({
 }
 
 // ─────────────────────────────────────────────────────────────
-// 解説ブロック 1 個（キュー欄 + 本文の 2 セル）
+// コーネル本文の 1 節（キュー欄 + 本文の 2 セル）
 // ─────────────────────────────────────────────────────────────
 
-function NoteBlockRow({
+/**
+ * `$$…$$`（別行立ての数式）は改行をまたぐので、行に割ってはいけない。
+ * 含まれていたら 1 かたまりのまま描く。
+ */
+function bulletLines(text: string): string[] | null {
+  if (text.includes('$$')) return null;
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  return lines.length > 1 ? lines : null;
+}
+
+/**
+ * 1 節 = キュー欄（左）＋ 本文（右）。
+ *
+ * 右段の中身は 3 つで、**誰が書いたかが書体と色で分かれている**:
+ *   heading … 自分のノートの見出し（Klee One）
+ *   text    … 自分のノート本文の再現（Klee One・地の墨）。`\n` 区切りは箇条書き
+ *   ai      … この節への AI の添削（BIZ UDPGothic・紫インク・「AI」チップ）
+ *
+ * `text` が空の節は「ノートに無い、AI だけの補足」。呼び出し側（NoteView）が
+ * レンズに応じて間引くので、ここでは素直に ai だけを描く。
+ */
+function NoteSectionRow({
   note,
-  block,
+  section,
   index,
   edit,
   onPatch,
   cueIndexes,
   mark,
+  mask,
 }: {
   note: Note;
-  block: NoteBlock;
+  section: NoteSection;
   index: number;
   edit: boolean;
   onPatch: (fn: (draft: Note) => void) => void;
   cueIndexes: readonly number[];
   mark: NoteMarkOptions | undefined;
+  mask: boolean;
 }) {
-  const card: NoteCard | null =
-    block.t === 'ex' && block.cardId
-      ? note.cards.find((c) => c.cardId === block.cardId) || null
-      : null;
-  const cardNo = card ? note.cards.indexOf(card) + 1 : null;
-
   const move = (delta: number) =>
     onPatch((d) => {
       const to = index + delta;
-      if (to < 0 || to >= d.blocks.length) return;
-      const [b] = d.blocks.splice(index, 1);
-      d.blocks.splice(to, 0, b);
+      if (to < 0 || to >= d.sections.length) return;
+      const [s] = d.sections.splice(index, 1);
+      d.sections.splice(to, 0, s);
     });
+
+  const setField = (key: keyof NoteSection, value: string) =>
+    onPatch((d) => {
+      const s = d.sections[index];
+      if (s) s[key] = value;
+    });
+
+  const lines = bulletLines(section.text);
 
   return (
     <>
-      {/* 左段。この本文で初めて出てくる重要語だけを置く */}
+      {/* 左段。この節で初めて出てくる重要語だけを置く */}
       <div className="nb-cue">
-        <CueList note={note} indexes={cueIndexes} />
+        <CueList note={note} indexes={cueIndexes} mask={mask} />
       </div>
 
       {/* 右段（本文） */}
-      <div data-block-card={block.t === 'ex' ? (block.cardId ?? undefined) : undefined}>
+      <div>
         {edit ? (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end', marginBottom: '5px' }}>
-            {block.t === 'ex' ? (
-              <select
-                className="fc-acc"
-                value={block.cardId ?? ''}
-                onChange={(e) =>
-                  onPatch((d) => {
-                    const b = d.blocks[index];
-                    if (b.t === 'ex') b.cardId = e.target.value || null;
-                  })
-                }
-                style={{ ...INPUT, width: 'auto', padding: '4px 8px', font: '400 11px var(--f-ui)' }}
-              >
-                <option value="">対象なし</option>
-                {note.cards.map((c, i) => (
-                  <option key={c.cardId} value={c.cardId}>
-                    {'問' + (i + 1)}
-                  </option>
-                ))}
-              </select>
-            ) : null}
             <button className="nb-btn" onClick={() => move(-1)} aria-label="上へ">
               ↑
             </button>
@@ -1117,97 +1169,65 @@ function NoteBlockRow({
             </button>
             <button
               className="nb-btn nb-btn--danger"
-              onClick={() => onPatch((d) => void d.blocks.splice(index, 1))}
+              onClick={() => onPatch((d) => void d.sections.splice(index, 1))}
             >
               削除
             </button>
           </div>
         ) : null}
 
-        {block.t === 'def' ? (
-          <div>
-            {edit ? (
-              <input
-                className="fc-acc"
-                value={block.title}
-                onChange={(e) =>
-                  onPatch((d) => {
-                    const b = d.blocks[index];
-                    if (b.t === 'def') b.title = e.target.value;
-                  })
-                }
-                placeholder="見出し"
-                style={{ ...INPUT, font: '700 15px var(--f-disp)', marginBottom: '6px' }}
-              />
-            ) : (
-              <div style={{ font: '700 16px var(--f-disp)', color: 'var(--tx0)', marginBottom: '5px' }}>
-                {block.title || '定義'}
-              </div>
-            )}
-            {edit ? (
-              <textarea
-                className="fc-acc"
-                value={block.body}
-                onChange={(e) =>
-                  onPatch((d) => {
-                    const b = d.blocks[index];
-                    if (b.t === 'def') b.body = e.target.value;
-                  })
-                }
-                placeholder="本文(数式は $...$ / $$...$$)"
-                style={{ ...INPUT, minHeight: '70px' }}
-              />
-            ) : (
-              <NoteMath className="nb-body" src={block.body} mark={mark} />
-            )}
-          </div>
+        {edit ? (
+          <input
+            className="fc-acc"
+            value={section.heading}
+            onChange={(e) => setField('heading', e.target.value)}
+            placeholder="見出し（ノートに書いてあれば）"
+            style={{ ...INPUT, font: '700 16px var(--f-hand)', marginBottom: '6px' }}
+          />
+        ) : section.heading ? (
+          <h3 className="nb-cornell__heading">{section.heading}</h3>
+        ) : null}
+
+        {edit ? (
+          <textarea
+            className="fc-acc"
+            value={section.text}
+            onChange={(e) => setField('text', e.target.value)}
+            placeholder={'自分のノートの本文（1 行 1 項目 / 数式は $...$）\n空にすると「AI だけの補足」の節になります'}
+            style={{ ...INPUT, minHeight: '112px', font: '400 14px var(--f-hand)', lineHeight: 2 }}
+          />
+        ) : lines ? (
+          <ul className="nb-cornell__list">
+            {lines.map((line, li) => (
+              <li key={li}>
+                <NoteMath className="nb-mine nb-cornell__text" src={line} mark={mark} />
+              </li>
+            ))}
+          </ul>
         ) : (
-          <div className="nb-row">
-            <span className="nb-badge">{cardNo ? '問' + cardNo : '問?'}</span>
-            <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: '10px' }}>
-              {!edit ? (
-                <NoteMath
-                  className="nb-body nb-body--dim"
-                  src={card ? card.q : '(対象の想起問題が設定されていません)'}
-                />
-              ) : null}
-              {(
-                [
-                  { key: 'guide', label: '方針', hair: false, warn: false },
-                  { key: 'solution', label: '解答', hair: true, warn: false },
-                  { key: 'caution', label: '注意', hair: false, warn: true },
-                ] as const
-              ).map((f) => {
-                const value = block[f.key];
-                if (!edit && !value) return null;
-                return (
-                  <SubRow key={f.key} label={f.label} warn={f.warn}>
-                    {edit ? (
-                      <textarea
-                        className="fc-acc"
-                        value={value}
-                        onChange={(e) =>
-                          onPatch((d) => {
-                            const b = d.blocks[index];
-                            if (b.t === 'ex') b[f.key] = e.target.value;
-                          })
-                        }
-                        placeholder={f.label}
-                        style={{ ...INPUT, minHeight: '46px' }}
-                      />
-                    ) : (
-                      <NoteMath
-                        className={'nb-body' + (f.warn ? ' nb-body--sm' : '') + (f.hair ? ' nb-hair' : '')}
-                        src={value}
-                        mark={mark}
-                      />
-                    )}
-                  </SubRow>
-                );
-              })}
-            </div>
-          </div>
+          <NoteMath className="nb-mine nb-cornell__text" src={section.text} mark={mark} />
         )}
+
+        {/* AI の添削。赤ペンで挟まれた別人の筆 ―― 書体（活字）と色（紫）で切る */}
+        {edit ? (
+          <div className="nb-aiedit">
+            <span className="nb-aiedit__chip">AI</span>
+            <textarea
+              className="fc-acc"
+              value={section.ai}
+              onChange={(e) => setField('ai', e.target.value)}
+              placeholder="この節への AI の添削・補足（空なら添削なし）"
+              style={{ ...INPUT, minHeight: '56px', flex: 1 }}
+            />
+          </div>
+        ) : section.ai ? (
+          <aside className="nb-aiedit">
+            <span className="nb-aiedit__chip" title="AI が足した添削・補足">
+              AI
+            </span>
+            <NoteMath className="nb-aiedit__body" src={section.ai} mark={mark} />
+          </aside>
+        ) : null}
       </div>
     </>
   );

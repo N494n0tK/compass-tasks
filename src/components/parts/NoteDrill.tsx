@@ -22,7 +22,7 @@ import { fmtD, fmtMD } from '../../lib/logic/dates';
 import { dueCardsOfNote, type DueCard } from '../../lib/logic/noteCards';
 import { sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
-import { NOTE_GRADE_META, exBlockOf, type Note } from '../../lib/model/notes';
+import { NOTE_GRADE_META, type Note } from '../../lib/model/notes';
 import type { ReviewGrade } from '../../lib/model/types';
 import { NoteMath } from './NoteMath';
 import { NoteView, RevealButton } from './NoteView';
@@ -129,7 +129,6 @@ export function NoteDrill({ note }: NoteDrillProps) {
           const card = note.cards.find((c) => c.cardId === dc.cardId) || null;
           const key = 'd:' + note.id + ':' + dc.cardId;
           const open = !!S.nbRevealed[key];
-          const ex = card ? exBlockOf(note, card.cardId) : null;
           const done = dc.review.done;
           return (
             <div
@@ -238,26 +237,9 @@ export function NoteDrill({ note }: NoteDrillProps) {
                             />
                           </div>
                         ) : null}
-                        {ex && ex.solution ? (
-                          <div className="nb-row">
-                            <span className="nb-sub">解説</span>
-                            <NoteMath
-                              className="nb-body nb-body--sm nb-hair"
-                              style={{ flex: 1, minWidth: 0 }}
-                              src={ex.solution}
-                            />
-                          </div>
-                        ) : null}
-                        {ex && ex.caution ? (
-                          <div className="nb-row">
-                            <span className="nb-sub nb-sub--warn">注意</span>
-                            <NoteMath
-                              className="nb-body nb-body--sm"
-                              style={{ flex: 1, minWidth: 0 }}
-                              src={ex.caution}
-                            />
-                          </div>
-                        ) : null}
+                        {/* 旧・解説ブロックの「解説 / 注意」はスキーマ @2 で無くなり、
+                            取り込み時にカードの `guide` へ畳まれた（model/notes.ts）。
+                            ドリル面が見るのはカード 1 枚だけで完結する */}
                       </div>
                     </div>
                   </div>

@@ -280,7 +280,9 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbSubjFilter: null,
     nbEdit: false,
     nbCheck: false,
-    nbOnlyMine: false,
+    // 既定は「自分のノートだけ」。本文は自分の手書きの再現で、AI の添削は
+    // スイッチで重ねる（先に AI の文章が目に入ると、自分のノートを読み返さなくなる）
+    nbOnlyMine: true,
     nbScanIx: 0,
     nbScanZoom: null,
     nbImportOpen: false,

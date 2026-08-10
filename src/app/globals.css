@@ -1231,54 +1231,61 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 /* ==========================================================================
    [E-2] コーネル式の紙割り（spec §8.2）
 
-   Broadsheet は「枠で仕切らない」が基本だが、コーネル式ノートは**罫で割ること
-   そのもの**が方式なので、ここだけは罫を 2 本足す:
+   紙面の主役は **GPT が再現した自分の手書きノート**（`Note.sections[].text`）で、
+   AI が足したことは各節に挟まる**添削**（`sections[].ai`）として重なる。
+   罫は 3 本しか引かない:
 
      .nb-cornell の縦罫 … キュー欄（左）と本文（右）の境。段の切れ目で
                            途切れないよう、行ではなく**面の背景**として引く。
-     .nb-summary の上罫 … 本文とまとめの境。紙面いっぱいに 1 本。
+     .nb-aiedit の左罫  … 添削の紫。自分の手書きに挟まった「別人の筆」
+     .nb-summary の上罫 … 紙面のいちばん下、自分の言葉のまとめとの境
 
-   重要語の 5 色は、テーマが既に持っている差し色をそのまま借りる
-   （--pink / --blue / --grn / --org / --vio）。3 テーマぶんの明度調整が
-   済んでいるものを使い回すのが、独自の色を足すより確実に読める。
+   ── 重要語を「5 色の帯」から「3 色の色文字 + 下線」へ ───────────────
+   旧版は *色を文字ではなく帯に持たせ*、半透明の蛍光ペンを語の下 4 割に敷いた。
+   本文の可読性を守る狙いだったが、実際の利用者に
+   **「色合いが絶妙すぎて、どれが重要語かわからない」**と言われた。
+   半透明の帯は紙の地色に溶ける。しかも 5 色あると 1 色ずつの差まで消える。
+
+   そこで:
+     - 色は 3 色だけ（red 最重要 / blue 事実 / green つながり）
+     - 帯をやめ、**文字そのものに色を載せ、同色 2px の下線を敷く**（weight 700）
+     - 色はテーマの差し色を借りず、**この用途のために選び直した実測値**を置く。
+       借り物では light で --pink 3.41:1 / --grn 4.26:1 / --org 3.72:1 しかなく、
+       「見えない」の直接の原因だった（色を深く mix して逃げていた）。
+
+   コントラスト比は地 = --bg0 だけでなく、**AI 添削の淡い紫地に重なった場合**も
+   測って最小値を採った（下の数値はその最小値）:
+     dark(note / neon)  red #ff8a6b 6.53:1 / blue #5ec6ff 7.89:1 / green #48e39b 9.14:1
+                        ai  #c3a8ff 7.44:1
+     light              red #b3200d 4.60:1 / blue #144a91 5.95:1 / green #0f5f3c 5.28:1
+                        ai  #5b2fb0 5.80:1
    ========================================================================== */
 
 .compass-theme-mode{
   /* キュー欄の幅と、本文との間 */
   --nb-cue-w:148px;
   --nb-cue-gap:22px;
-  /* 重要語。--nb-k は「色そのもの」（キュー欄の語と付箋の輪郭）、
-     --nb-k-bg は本文に敷く蛍光ペンの帯。帯は必ず半透明にして、
-     紙の地色（明るい紙／暗い紙）の上で同じ濃さに見えるようにする */
-  --nb-k-red:var(--pink);
-  --nb-k-blue:var(--blue);
-  --nb-k-green:var(--grn);
-  --nb-k-orange:var(--org);
-  --nb-k-purple:var(--vio);
-  --nb-k-red-bg:color-mix(in srgb,var(--pink) 34%,transparent);
-  --nb-k-blue-bg:color-mix(in srgb,var(--blue) 34%,transparent);
-  --nb-k-green-bg:color-mix(in srgb,var(--grn) 30%,transparent);
-  --nb-k-orange-bg:color-mix(in srgb,var(--org) 32%,transparent);
-  --nb-k-purple-bg:color-mix(in srgb,var(--vio) 36%,transparent);
+  /* 重要語 3 色。--nb-k は `.nb-key--*` が選んだ「この語の色」で、
+     本文の語・キュー欄の語・付箋の輪郭のすべてがこれ 1 本を見る。
+     半透明の帯（旧 --nb-k-*-bg）は廃止した ―― 上のコメント参照 */
+  --nb-k-red:#ff8a6b;
+  --nb-k-blue:#5ec6ff;
+  --nb-k-green:#48e39b;
+  /* AI の添削インク。3 色のどれとも色相が離れた紫（--vio の系統を、
+     淡い紫地の上でも 4.5:1 を保つところまで持ち上げたもの） */
+  --nb-ai-ink:#c3a8ff;
   /* 机。自分のノートの写真（白い紙）を暗い画面の上に置くと目に刺さるので、
      写真の下だけ一段明るい面を敷いて落差を減らす */
   --nb-desk:color-mix(in srgb,var(--tx0) 7%,var(--bg1));
   --nb-paper-shadow:0 10px 34px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.4);
 }
-/* 白い紙の上では、差し色をそのまま本文級数の文字に使うと 4.5:1 に届かない。
-   [E] の --nb-ink と同じ手当て（1 段深い版に沈める）を 5 色ぜんぶに施す */
+/* 明るい紙の上では同じ色が使えない（明るい珊瑚色は白地で 2:1 も出ない）。
+   暗い紙は「明るい版」、明るい紙は「深い版」と、色相だけ揃えて明度を裏返す */
 .compass-theme-mode[data-theme="light"]{
-  --nb-k-red:color-mix(in srgb,var(--pink) 74%,var(--tx0));
-  --nb-k-blue:color-mix(in srgb,var(--blue) 74%,var(--tx0));
-  --nb-k-green:color-mix(in srgb,var(--grn) 70%,var(--tx0));
-  --nb-k-orange:color-mix(in srgb,var(--org) 62%,var(--tx0));
-  --nb-k-purple:color-mix(in srgb,var(--vio) 74%,var(--tx0));
-  /* 明るい紙では帯を薄く。濃いと墨が沈んで読みにくくなる */
-  --nb-k-red-bg:color-mix(in srgb,var(--pink) 26%,transparent);
-  --nb-k-blue-bg:color-mix(in srgb,var(--blue) 26%,transparent);
-  --nb-k-green-bg:color-mix(in srgb,var(--grn) 44%,transparent);
-  --nb-k-orange-bg:color-mix(in srgb,var(--org) 48%,transparent);
-  --nb-k-purple-bg:color-mix(in srgb,var(--vio) 26%,transparent);
+  --nb-k-red:#b3200d;
+  --nb-k-blue:#144a91;
+  --nb-k-green:#0f5f3c;
+  --nb-ai-ink:#5b2fb0;
   --nb-desk:color-mix(in srgb,var(--tx0) 6%,var(--bg2));
   --nb-paper-shadow:0 8px 26px rgba(30,45,65,.16),0 1px 3px rgba(30,45,65,.14);
 }
@@ -1300,6 +1307,48 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .nb-cornell.is-flat{grid-template-columns:1fr;background:none}
 .nb-cornell.is-flat>.nb-cue{display:none}
 
+/* ── 自分のノートの見出し。本文と同じ手書き書体のまま、級数だけ上げる
+   （版（.nb-badge）を張ると「アプリが付けた見出し」になってしまう） */
+.nb-cornell__heading{
+  margin:0 0 5px;
+  font:700 18px/1.5 var(--f-hand);
+  color:var(--tx0);
+}
+/* 本文。自分の手書きの再現なので Klee One（= .nb-mine と同じ筆） */
+.nb-cornell__text{overflow-wrap:break-word}
+/* `\n` 区切りの行は箇条書きとして立てる。ノートは文章ではなく行の集まり */
+.nb-cornell__list{margin:0;padding:0;list-style:none;display:grid;gap:1px}
+.nb-cornell__list>li{position:relative;padding-left:16px}
+.nb-cornell__list>li::before{
+  content:'・';position:absolute;left:-1px;top:0;
+  color:var(--tx3);font:400 var(--nb-size)/2.05 var(--f-hand);
+}
+
+/* ── AI の添削。赤ペン先生が自分のノートに書き込んだ体裁にする。
+   自分の手書き（Klee One・地の墨）との差は**書体と色の 2 つ**で付ける。
+   どちらか片方だけだと、拾い読みしているときに取り違える */
+.nb-aiedit{
+  display:flex;gap:9px;align-items:flex-start;
+  margin:9px 0 2px;padding:8px 12px 9px;
+  border-left:2px solid var(--nb-ai-ink);
+  border-radius:0 var(--rad-s) var(--rad-s) 0;
+  background:color-mix(in srgb,var(--nb-ai-ink) 9%,transparent);
+}
+.nb-aiedit__chip{
+  flex:none;margin-top:3px;
+  font:700 9.5px var(--f-num);letter-spacing:.16em;text-indent:.16em;
+  color:var(--nb-ai-ink);
+  border:1px solid color-mix(in srgb,var(--nb-ai-ink) 55%,transparent);
+  border-radius:var(--rad-s);padding:1px 6px;
+}
+.nb-aiedit__body{
+  flex:1;min-width:0;
+  font:400 calc(var(--nb-size) - 1.5px)/1.85 var(--f-ui);
+  color:var(--nb-ai-ink);
+  overflow-wrap:break-word;
+}
+.nb-aiedit__body .katex-display,.nb-aiedit__body .katex-display>.katex{text-align:left}
+
 /* ── キュー欄。罫にぴったり寄せて右揃え（本文と視線がぶつからない） */
 .nb-cue{
   display:flex;flex-direction:column;align-items:flex-end;gap:9px;
@@ -1308,47 +1357,69 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 .nb-cue-item{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .nb-cue-term{
-  font:600 13.5px/1.55 var(--f-hand);
+  font:700 14px/1.55 var(--f-hand);
   color:var(--nb-k);
   overflow-wrap:anywhere;
 }
+/* キュー欄の語には下線を敷かない。1 語ずつ独立して並ぶ列なので、
+   「本文の流れの中で目を止めさせる」ための下線はここでは騒がしいだけ */
+.nb-cue-term.nb-key{text-decoration:none}
 .nb-cue-note{font:400 11px/1.6 var(--f-ui);color:var(--tx2);overflow-wrap:anywhere}
 
-/* ── 重要語 5 色。`.nb-key--*` は本文の語（span）とキュー欄の語で共有する */
-.nb-key--red{--nb-k:var(--nb-k-red);--nb-k-bg:var(--nb-k-red-bg)}
-.nb-key--blue{--nb-k:var(--nb-k-blue);--nb-k-bg:var(--nb-k-blue-bg)}
-.nb-key--green{--nb-k:var(--nb-k-green);--nb-k-bg:var(--nb-k-green-bg)}
-.nb-key--orange{--nb-k:var(--nb-k-orange);--nb-k-bg:var(--nb-k-orange-bg)}
-.nb-key--purple{--nb-k:var(--nb-k-purple);--nb-k-bg:var(--nb-k-purple-bg)}
-
-/* 本文の中の重要語。
-   **色は文字ではなく帯が持つ。** 語を差し色で塗ると、10 語も並んだ時点で
-   本文が読めなくなる（実際にそうなった）。地の文と同じ墨のまま太らせ、
-   下 4 割に蛍光ペンの帯を敷いて、色は「どの系統の語か」だけを示す */
-.nb-key{
-  color:var(--tx0);font-weight:700;
-  background:linear-gradient(var(--nb-k-bg),var(--nb-k-bg)) no-repeat 0 90%/100% 42%;
-  border-radius:2px;padding:0 1.5px;
-  box-decoration-break:clone;-webkit-box-decoration-break:clone;
-  transition:color .2s ease,background-color .2s ease,box-shadow .2s ease;
+/* ── 3 色の凡例。色に意味を持たせている以上、紙面の中で 1 度だけ言う */
+.nb-keylegend{
+  display:flex;flex-wrap:wrap;gap:5px 16px;
+  margin:0 0 16px;
+  padding-left:calc(var(--nb-cue-w) + var(--nb-cue-gap));
+}
+.nb-keylegend__item{
+  display:inline-flex;align-items:center;gap:7px;
+  font:400 11px var(--f-ui);color:var(--tx2);
+}
+/* 見本は本文と同じ「2px の下線」そのもの。四角い色見本にすると、
+   本文に出てくる姿と別物になって照合できない */
+.nb-keylegend__swatch{
+  flex:none;width:16px;height:0;
+  border-bottom:2px solid var(--nb-k);
 }
 
-/* ── 確認モードの付箋。上辺のテープ（::after）ごと剥がす見立て */
+/* ── 重要語 3 色。`.nb-key--*` は本文の語（span）とキュー欄の語で共有する */
+.nb-key--red{--nb-k:var(--nb-k-red)}
+.nb-key--blue{--nb-k:var(--nb-k-blue)}
+.nb-key--green{--nb-k:var(--nb-k-green)}
+
+/* 本文の中の重要語。**色は文字が持ち、下線が量を持つ。**
+   薄い帯（旧版）をやめた理由は [E-2] 冒頭に書いた。下線を 2px にしてあるのは、
+   1px だと Klee One の払いに紛れて「線が引いてある」ことに気づけないため */
+.nb-key{
+  color:var(--nb-k);font-weight:700;
+  text-decoration:underline;
+  text-decoration-color:var(--nb-k);
+  text-decoration-thickness:2px;
+  text-underline-offset:3px;
+  text-decoration-skip-ink:none;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone;
+  transition:color .2s ease,box-shadow .2s ease;
+}
+
+/* ── 確認モードの付箋。上辺のテープ（::after）ごと剥がす見立て。
+   地は**不透明**にする ―― 半透明だと方眼や下の字が透けて、
+   「まだ読めるのでは」と目が探しに行ってしまい、思い出す邪魔になる */
 .nb-key.is-hidden{
-  color:transparent;
-  background:var(--nb-k-bg);
-  box-shadow:inset 0 0 0 1px var(--nb-k);
-  border-radius:3px;padding:0 3px;
+  color:transparent;text-decoration:none;
+  background:color-mix(in srgb,var(--nb-k) 24%,var(--bg0));
+  box-shadow:inset 0 0 0 1.5px var(--nb-k);
+  border-radius:3px;padding:0 4px;
   position:relative;cursor:pointer;
   user-select:none;-webkit-user-select:none;
 }
 .nb-key.is-hidden::after{
   content:'';position:absolute;left:0;right:0;top:0;height:4px;
-  background:var(--nb-k);opacity:.45;border-radius:3px 3px 0 0;
+  background:var(--nb-k);opacity:.5;border-radius:3px 3px 0 0;
   transition:opacity .15s ease;
 }
-.nb-key.is-hidden:hover{box-shadow:inset 0 0 0 1px var(--nb-k),0 2px 7px rgba(0,0,0,.22)}
-.nb-key.is-hidden:hover::after{opacity:.8}
+.nb-key.is-hidden:hover{box-shadow:inset 0 0 0 1.5px var(--nb-k),0 2px 7px rgba(0,0,0,.22)}
+.nb-key.is-hidden:hover::after{opacity:.85}
 .nb-key.is-hidden:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){.nb-key,.nb-key.is-hidden::after{transition:none}}
 
@@ -1365,12 +1436,37 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 .nb-checkbar__text{font:400 11.5px var(--f-ui);color:var(--tx2)}
 
-/* ── まとめ。本文との境を紙面いっぱいの 1 本で切る */
+/* ── まとめ。**AI ではなく自分が書く欄**なので、紙面のいちばん下に置き、
+   手書き書体（.nb-mine）で組む。上罫を紙面いっぱいの 1 本にして、
+   「ここから先は自分の言葉」と切り替える */
 .nb-summary{
-  margin-top:34px;padding-top:18px;
+  margin-top:34px;padding-top:18px;padding-bottom:40px;
   border-top:1px solid var(--tx0);
 }
 .nb-summary__body{font-size:15.5px}
+/* まだ書いていないとき。ここが「何を書く場所か」を静かに言うだけ */
+.nb-summary__empty{
+  font:400 13px/1.9 var(--f-ui);color:var(--tx3);
+}
+
+/* ── 元のノート（写真）。紙面の主役が本文に移ったので、原本は畳んで下に置く。
+   捨てるのではなく「必要なときだけ開く原本」に降格させた */
+.nb-scanfold{
+  margin-top:30px;padding-top:14px;
+  border-top:1px solid var(--line2);
+}
+.nb-scanfold__summary{
+  display:flex;align-items:center;gap:9px;
+  list-style:none;cursor:pointer;
+  font:600 12px var(--f-ui);color:var(--tx2);
+}
+.nb-scanfold__summary::-webkit-details-marker{display:none}
+.nb-scanfold__summary:hover{color:var(--tx0)}
+.nb-scanfold__summary:focus-visible{outline:2px solid var(--view);outline-offset:3px}
+.nb-scanfold__caret{display:inline-block;font-size:10px;transition:transform .25s ease}
+.nb-scanfold[open] .nb-scanfold__caret{transform:rotate(90deg)}
+.nb-scanfold__count{font:600 11px var(--f-num);letter-spacing:.06em;color:var(--tx3)}
+@media(prefers-reduced-motion:reduce){.nb-scanfold__caret{transition:none}}
 
 /* ── 疑問。1 行 1 件の箇条書き（連絡欄はただの本文のまま） */
 .nb-doubt{margin:0;padding:0;list-style:none;display:grid;gap:8px}
@@ -1495,16 +1591,8 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .nb-mine{font:400 var(--nb-size)/2.05 var(--f-hand);color:var(--tx0);overflow-wrap:break-word}
 .nb-mine .katex{font-size:1.02em}
 
-/* AI の面。紙ではないので影を落とさず、机に直接刷ったものとして扱う */
-.nb-ai{
-  margin-top:12px;padding:18px 20px 20px;
-  background:color-mix(in srgb,var(--view) 5%,var(--bg2));
-  border:1px solid var(--line);border-left:3px solid var(--nb-tint2);
-  border-radius:var(--rad-s);
-}
-.nb-ai .nb-body{font-size:calc(var(--nb-size) - 1px);color:var(--tx1)}
-/* AI の面の中の見出しは、自分の見出しより控える */
-.nb-ai__title{font:700 15px var(--f-disp);color:var(--tx0);margin-bottom:6px}
+/* AI の面（旧「AIの補足」パネル）は無くなった。AI の文章は本文の中に
+   `.nb-aiedit`（[E-2]）として挟まる ―― 別の箱ではなく、同じ紙への書き込み */
 
 /* 誰が書いたかの表札。--f-num で小さく、文字ではなく記号として読ませる */
 .nb-by{
@@ -1544,6 +1632,9 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   }
   .nb-cue:empty{display:none}
   .nb-cue-item{flex-direction:row;align-items:baseline;gap:5px}
+  /* 縦罫が無くなればキュー欄の幅ぶん下げる理由も無くなる */
+  .nb-keylegend{padding-left:0}
+  .nb-aiedit{padding:8px 10px 9px;gap:7px}
 }
 
 /* ── 狭い画面ではサイドバーを上に畳む */
