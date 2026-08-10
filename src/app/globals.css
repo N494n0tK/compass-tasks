@@ -440,11 +440,11 @@ html,body{margin:0;padding:0;height:100%}
   --f-ui:"BIZ UDPGothic","Noto Sans JP",system-ui,-apple-system,sans-serif;
   --f-disp:"Zen Kaku Gothic New","BIZ UDPGothic",system-ui,sans-serif;
   --f-num:"Barlow Condensed","Zen Kaku Gothic New",system-ui,sans-serif;
-  /* 旧名。コンポーネント側にまだ参照が残っていても壊れないようにしておく。
-     `--f-hand`(Klee One)はノート画面の作り直しで使い手がいなくなったので、
-     読み込みごと落とした。ここは取りこぼしの保険 */
-  --f-hand:var(--f-ui);
-  --font-hand:var(--f-ui);
+  /* 自分が書いたもの。ノート画面でだけ使う（[E-3]「書体が著者を示す」）。
+     ここ以外の画面で --f-hand を使わないこと ―― 手書きに見えることが
+     「自分の言葉」の合図として働かなくなる */
+  --f-hand:"Klee One","BIZ UDPGothic",serif;
+  --font-hand:var(--f-hand);
   --font-num:var(--f-num);
 }
 body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-family:var(--f-ui)}
@@ -1099,6 +1099,9 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .compass-theme-mode{
   /* 本文の行送り。数式・罫・小札の高さはすべてこれに合わせる */
   --nb-lead:1.95;
+  /* 本文の級数。ノート画面だけ他画面より 1 段大きい ―― ここは「読む」画面で、
+     ざっと目を走らせる画面ではないため（v0.13 で 15px から上げた） */
+  --nb-size:16.5px;
   /* 差し色の淡い面（番号・小札・解答の罫）。--viewBg より薄く、方眼が透ける濃さ */
   --nb-tint:color-mix(in srgb,var(--view) 13%,transparent);
   --nb-tint2:color-mix(in srgb,var(--view) 30%,transparent);
@@ -1158,11 +1161,11 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 
 /* ── 本文 */
-.nb-body{font:400 15px/var(--nb-lead) var(--f-ui);color:var(--tx0);overflow-wrap:break-word}
+.nb-body{font:400 var(--nb-size)/var(--nb-lead) var(--f-ui);color:var(--tx0);overflow-wrap:break-word}
 /* 別行立ての数式は左揃え。答案は左の罫（.nb-ans / .nb-hair）に沿わせたいので、
    KaTeX 既定の中央揃えだと札から遠く離れて浮いてしまう */
 .nb-body .katex-display,.nb-body .katex-display>.katex{text-align:left}
-.nb-body--sm{font-size:13.5px}
+.nb-body--sm{font-size:calc(var(--nb-size) - 2px)}
 .nb-body--dim{color:var(--tx2)}
 
 /* ── 開閉。v2 の `ansPack`：▸ が 90° 回って解答が下に伸びる */
@@ -1244,12 +1247,23 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   /* キュー欄の幅と、本文との間 */
   --nb-cue-w:148px;
   --nb-cue-gap:22px;
-  /* 重要語。ベタ（--nb-k）と淡い面（--nb-k-bg）の対で持つ */
-  --nb-k-red:var(--pink);      --nb-k-red-bg:var(--pinkBg);
-  --nb-k-blue:var(--blue);     --nb-k-blue-bg:var(--blueBg);
-  --nb-k-green:var(--grn);     --nb-k-green-bg:var(--grnBg);
-  --nb-k-orange:var(--org);    --nb-k-orange-bg:var(--orgBg);
-  --nb-k-purple:var(--vio);    --nb-k-purple-bg:var(--vioBg);
+  /* 重要語。--nb-k は「色そのもの」（キュー欄の語と付箋の輪郭）、
+     --nb-k-bg は本文に敷く蛍光ペンの帯。帯は必ず半透明にして、
+     紙の地色（明るい紙／暗い紙）の上で同じ濃さに見えるようにする */
+  --nb-k-red:var(--pink);
+  --nb-k-blue:var(--blue);
+  --nb-k-green:var(--grn);
+  --nb-k-orange:var(--org);
+  --nb-k-purple:var(--vio);
+  --nb-k-red-bg:color-mix(in srgb,var(--pink) 34%,transparent);
+  --nb-k-blue-bg:color-mix(in srgb,var(--blue) 34%,transparent);
+  --nb-k-green-bg:color-mix(in srgb,var(--grn) 30%,transparent);
+  --nb-k-orange-bg:color-mix(in srgb,var(--org) 32%,transparent);
+  --nb-k-purple-bg:color-mix(in srgb,var(--vio) 36%,transparent);
+  /* 机。自分のノートの写真（白い紙）を暗い画面の上に置くと目に刺さるので、
+     写真の下だけ一段明るい面を敷いて落差を減らす */
+  --nb-desk:color-mix(in srgb,var(--tx0) 7%,var(--bg1));
+  --nb-paper-shadow:0 10px 34px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.4);
 }
 /* 白い紙の上では、差し色をそのまま本文級数の文字に使うと 4.5:1 に届かない。
    [E] の --nb-ink と同じ手当て（1 段深い版に沈める）を 5 色ぜんぶに施す */
@@ -1259,6 +1273,14 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   --nb-k-green:color-mix(in srgb,var(--grn) 70%,var(--tx0));
   --nb-k-orange:color-mix(in srgb,var(--org) 62%,var(--tx0));
   --nb-k-purple:color-mix(in srgb,var(--vio) 74%,var(--tx0));
+  /* 明るい紙では帯を薄く。濃いと墨が沈んで読みにくくなる */
+  --nb-k-red-bg:color-mix(in srgb,var(--pink) 26%,transparent);
+  --nb-k-blue-bg:color-mix(in srgb,var(--blue) 26%,transparent);
+  --nb-k-green-bg:color-mix(in srgb,var(--grn) 44%,transparent);
+  --nb-k-orange-bg:color-mix(in srgb,var(--org) 48%,transparent);
+  --nb-k-purple-bg:color-mix(in srgb,var(--vio) 26%,transparent);
+  --nb-desk:color-mix(in srgb,var(--tx0) 6%,var(--bg2));
+  --nb-paper-shadow:0 8px 26px rgba(30,45,65,.16),0 1px 3px rgba(30,45,65,.14);
 }
 
 /* ── 紙割り。縦罫は背景で引くので、行間で途切れない */
@@ -1286,11 +1308,11 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 .nb-cue-item{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .nb-cue-term{
-  font:700 12.5px/1.5 var(--f-ui);
+  font:600 13.5px/1.55 var(--f-hand);
   color:var(--nb-k);
   overflow-wrap:anywhere;
 }
-.nb-cue-note{font:400 10px/1.5 var(--f-ui);color:var(--tx3);overflow-wrap:anywhere}
+.nb-cue-note{font:400 11px/1.6 var(--f-ui);color:var(--tx2);overflow-wrap:anywhere}
 
 /* ── 重要語 5 色。`.nb-key--*` は本文の語（span）とキュー欄の語で共有する */
 .nb-key--red{--nb-k:var(--nb-k-red);--nb-k-bg:var(--nb-k-red-bg)}
@@ -1299,11 +1321,15 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .nb-key--orange{--nb-k:var(--nb-k-orange);--nb-k-bg:var(--nb-k-orange-bg)}
 .nb-key--purple{--nb-k:var(--nb-k-purple);--nb-k-bg:var(--nb-k-purple-bg)}
 
-/* 本文の中の重要語。蛍光ペンのように**下 3 分の 1 だけ**に淡い面を敷く */
+/* 本文の中の重要語。
+   **色は文字ではなく帯が持つ。** 語を差し色で塗ると、10 語も並んだ時点で
+   本文が読めなくなる（実際にそうなった）。地の文と同じ墨のまま太らせ、
+   下 4 割に蛍光ペンの帯を敷いて、色は「どの系統の語か」だけを示す */
 .nb-key{
-  color:var(--nb-k);font-weight:700;
-  background:linear-gradient(var(--nb-k-bg),var(--nb-k-bg)) no-repeat 0 92%/100% 36%;
-  border-radius:2px;padding:0 1px;
+  color:var(--tx0);font-weight:700;
+  background:linear-gradient(var(--nb-k-bg),var(--nb-k-bg)) no-repeat 0 90%/100% 42%;
+  border-radius:2px;padding:0 1.5px;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone;
   transition:color .2s ease,background-color .2s ease,box-shadow .2s ease;
 }
 
@@ -1339,15 +1365,6 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 .nb-checkbar__text{font:400 11.5px var(--f-ui);color:var(--tx2)}
 
-/* ── 想起問題の出どころ。自作だけ版を張り、AI 作は輪郭だけ */
-.nb-origin{
-  display:inline-block;flex:none;
-  font:700 9.5px var(--f-ui);letter-spacing:.1em;
-  padding:2px 7px;border-radius:var(--rad-s);
-  border:1px solid var(--line2);color:var(--tx3);
-}
-.nb-origin--self{background:var(--nb-tint);border-color:transparent;color:var(--nb-ink)}
-
 /* ── まとめ。本文との境を紙面いっぱいの 1 本で切る */
 .nb-summary{
   margin-top:34px;padding-top:18px;
@@ -1357,11 +1374,165 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 
 /* ── 疑問。1 行 1 件の箇条書き（連絡欄はただの本文のまま） */
 .nb-doubt{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-.nb-doubt>li{position:relative;padding-left:20px}
+.nb-doubt>li{position:relative;padding-left:22px}
 .nb-doubt>li::before{
   content:'?';position:absolute;left:0;top:1px;
   font:700 12px var(--f-disp);color:var(--nb-warn);
 }
+
+/* ==========================================================================
+   [E-3] 自分のノート（spec §8.3）
+
+   この画面の主役は**自分で撮った手書きノートの写真**で、AI が作った文章は
+   その上に載っている補足にすぎない。紙面の作りはその一点を通す:
+
+     書体が著者を示す
+       --f-hand（Klee One）… 自分のもの。自作の問い・疑問・まとめ・写真の見出し
+       --f-ui  （BIZ UDP） … AI のもの。補足・解答・解説
+       --f-num （Barlow）  … ラベル（AI / 自作 / p.1 / 3 の 13）
+     影が層を示す
+       紙（写真）には影を落とす。AI の面には落とさない。紙が上に載っている
+     「自分のノートだけ」
+       AI 由来をまるごと畳むスイッチ。この画面の立場そのものを 1 つの操作にしたもの
+   ========================================================================== */
+
+/* ── 共通の小さなボタン。ノート画面のボタンはこれ 1 種類に絞る */
+.nb-btn{
+  flex:none;padding:6px 12px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:transparent;color:var(--tx2);
+  font:500 12px var(--f-ui);cursor:pointer;
+  transition:color .13s ease,border-color .13s ease,background .13s ease;
+}
+.nb-btn:hover:not(:disabled){color:var(--tx0);border-color:var(--view)}
+.nb-btn:disabled{opacity:.4;cursor:default}
+.nb-btn--solid{border-color:transparent;background:var(--grad);color:var(--onAcc);font-weight:700}
+.nb-btn--solid:hover:not(:disabled){color:var(--onAcc);filter:brightness(1.08)}
+.nb-btn--danger:hover:not(:disabled){color:var(--pink);border-color:var(--pink)}
+.nb-btn.is-on{border-color:var(--view);color:var(--view)}
+
+/* ── 写真。机の面 → 紙 → 影 の 3 枚重ね */
+.nb-scan{margin-top:16px}
+.nb-scan__head{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:10px;
+}
+/* 「自分のノート」。ラベルは数字書体で小さく、紙の持ち主を示す表札として */
+.nb-scan__label{
+  flex:none;font:600 10px var(--f-num);letter-spacing:.16em;
+  color:var(--view);text-transform:uppercase;
+}
+.nb-scan__caption{font:400 14px var(--f-hand);color:var(--tx1)}
+.nb-scan__caption-input{
+  flex:1 1 180px;min-width:0;
+  background:var(--bg2);border:1px solid var(--line2);border-radius:var(--rad-s);
+  padding:5px 9px;color:var(--tx1);font:400 14px var(--f-hand);outline:none;
+}
+
+/* 紙の高さは画面の 6 割強で止める。ここを止めないと写真だけで 1 画面が埋まり、
+   下の想起問題まで指が届かない ―― 読み返すのは紙だが、**解くのは問題**なので、
+   1 画面に「紙 + 最初の問い」が入る高さに抑える。全体は拡大で見る */
+.nb-scan__paper{
+  display:block;width:100%;max-height:50vh;padding:0;overflow:hidden;
+  border:0;border-radius:3px;cursor:zoom-in;
+  background:var(--nb-desk);
+  box-shadow:var(--nb-paper-shadow);
+}
+.nb-scan__hint{
+  display:block;margin-top:7px;
+  font:400 11px var(--f-ui);color:var(--tx3);
+}
+.nb-scan__paper:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.nb-scan__img{display:block;width:100%;height:100%;object-fit:contain}
+.nb-scan__loading{
+  display:flex;align-items:center;justify-content:center;height:100%;
+  font:400 12px var(--f-ui);color:var(--tx3);
+}
+.nb-scan__paper--missing{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:7px;padding:24px;text-align:center;cursor:default;
+  box-shadow:none;border:1px dashed var(--line2);
+}
+.nb-scan__missing-title{font:700 14px var(--f-disp);color:var(--tx1)}
+.nb-scan__missing-text{font:400 12px/1.8 var(--f-ui);color:var(--tx3);max-width:34ch}
+
+.nb-scan__pager{display:flex;align-items:center;gap:12px;margin-top:12px}
+.nb-scan__dots{display:flex;gap:6px;align-items:center}
+.nb-scan__dot{
+  width:8px;height:8px;padding:0;border-radius:50%;cursor:pointer;
+  border:1px solid var(--line2);background:transparent;
+}
+.nb-scan__dot.is-on{background:var(--view);border-color:var(--view)}
+.nb-scan__count{font:600 12px var(--f-num);color:var(--tx2);font-variant-numeric:tabular-nums}
+
+/* 写真がまだ無いノート。ここが「このノートは何を置く場所か」を言う */
+.nb-scan-empty{
+  margin-top:16px;padding:36px 24px;
+  display:flex;flex-direction:column;align-items:center;gap:11px;text-align:center;
+  background:var(--nb-desk);
+  border:1px dashed var(--line2);border-radius:var(--rad-s);
+}
+.nb-scan-empty__title{font:700 18px var(--f-hand);color:var(--tx0)}
+.nb-scan-empty__text{font:400 13px/1.95 var(--f-ui);color:var(--tx2);max-width:44ch}
+
+/* ── 拡大。紙を持ち上げて手元で見る */
+.nb-zoom{
+  position:fixed;inset:0;z-index:60;
+  display:flex;flex-direction:column;gap:12px;
+  padding:16px;
+  background:rgba(5,9,20,.9);backdrop-filter:blur(4px);
+  animation:fadeIn .14s ease;
+}
+.nb-zoom__bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nb-zoom__img{
+  flex:1;min-height:0;width:100%;object-fit:contain;
+  border-radius:3px;background:var(--nb-desk);cursor:default;
+}
+
+/* ── 自分のものと AI のもの */
+
+/* 自分の言葉。手書き書体で、地の文より少し大きく */
+.nb-mine{font:400 var(--nb-size)/2.05 var(--f-hand);color:var(--tx0);overflow-wrap:break-word}
+.nb-mine .katex{font-size:1.02em}
+
+/* AI の面。紙ではないので影を落とさず、机に直接刷ったものとして扱う */
+.nb-ai{
+  margin-top:12px;padding:18px 20px 20px;
+  background:color-mix(in srgb,var(--view) 5%,var(--bg2));
+  border:1px solid var(--line);border-left:3px solid var(--nb-tint2);
+  border-radius:var(--rad-s);
+}
+.nb-ai .nb-body{font-size:calc(var(--nb-size) - 1px);color:var(--tx1)}
+/* AI の面の中の見出しは、自分の見出しより控える */
+.nb-ai__title{font:700 15px var(--f-disp);color:var(--tx0);margin-bottom:6px}
+
+/* 誰が書いたかの表札。--f-num で小さく、文字ではなく記号として読ませる */
+.nb-by{
+  flex:none;display:inline-flex;align-items:center;gap:5px;
+  font:600 9.5px var(--f-num);letter-spacing:.14em;
+  padding:2px 8px;border-radius:var(--rad-s);
+  border:1px solid var(--line2);color:var(--tx3);
+}
+.nb-by--mine{border-color:transparent;background:var(--nb-tint);color:var(--nb-ink)}
+
+/* ── 読み方の列。マストヘッドの罫の内側、単元名のすぐ下に置く */
+.nb-readbar{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  margin-top:14px;
+}
+
+/* ── 「自分のノートだけ」のスイッチ。この画面の立場を 1 つの操作にしたもの */
+.nb-lens{
+  display:inline-flex;align-items:stretch;
+  border:1px solid var(--line2);border-radius:var(--rad-s);overflow:hidden;
+}
+.nb-lens__opt{
+  padding:6px 13px;border:0;background:transparent;cursor:pointer;
+  font:600 11.5px var(--f-ui);color:var(--tx3);
+  transition:background .13s ease,color .13s ease;
+}
+.nb-lens__opt:hover{color:var(--tx1)}
+.nb-lens__opt.is-on{background:var(--view);color:var(--onAcc)}
 
 /* ── 狭い画面ではキュー欄を本文の上へ回す（縦罫はやめる） */
 @media(max-width:700px){

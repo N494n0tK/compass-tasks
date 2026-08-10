@@ -21,7 +21,7 @@
 
 import { generateNoteReviews, cascadeNoteRemoval, syncNoteReviews } from '../../lib/logic/noteCards';
 import { normalizeKeyColor } from '../../lib/logic/noteKeywords';
-import { NOTE_KEYWORD_MAX, type Note } from '../../lib/model/notes';
+import { NOTE_KEYWORD_MAX, NOTE_SCAN_MAX, type Note } from '../../lib/model/notes';
 import type { ISODate, ReviewGrade } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
@@ -103,6 +103,18 @@ export function sanitizeNotes(raw: unknown): Note[] {
         return true;
       })
       .slice(0, NOTE_KEYWORD_MAX);
+    // 自分のノートの写真（v0.13 で追加）。実体は IndexedDB、ここはメタデータだけ
+    const scans = (Array.isArray(n.scans) ? (n.scans as Record<string, unknown>[]) : [])
+      .filter((k) => k && typeof k === 'object' && str(k.scanId))
+      .slice(0, NOTE_SCAN_MAX)
+      .map((k) => ({
+        scanId: str(k.scanId),
+        mime: str(k.mime) || 'image/jpeg',
+        w: typeof k.w === 'number' ? k.w : 0,
+        h: typeof k.h === 'number' ? k.h : 0,
+        bytes: typeof k.bytes === 'number' ? k.bytes : 0,
+        caption: str(k.caption),
+      }));
     const ex = n.exercise && typeof n.exercise === 'object' ? (n.exercise as Record<string, unknown>) : {};
     out.push({
       id: str(n.id),
@@ -110,6 +122,7 @@ export function sanitizeNotes(raw: unknown): Note[] {
       date: str(n.date),
       subject: str(n.subject),
       unit: str(n.unit),
+      scans,
       cards,
       blocks,
       summary: str(n.summary),

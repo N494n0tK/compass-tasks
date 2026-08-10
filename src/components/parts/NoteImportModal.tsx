@@ -132,8 +132,8 @@ export function NoteImportModal() {
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '5px' }}>
               {target
-                ? '「' + target.unit + '」を新しいJSONで置き換えます。想起問題の順番が同じなら復習の履歴は引き継がれます'
-                : '授業の文字起こしとノート／スライドの写真をAIに渡し、返ってきたJSONを貼り付けてください。コードブロックや前置きが付いていても取り込めます'}
+                ? '「' + target.unit + '」を新しいJSONで置き換えます。貼った写真と、想起問題の順番が同じなら復習の履歴も引き継がれます'
+                : '授業の文字起こしとノート／スライドの写真をAIに渡し、返ってきたJSONを貼り付けてください。取り込んだあと、ノートの写真をこのノートに貼れます'}
             </div>
           </div>
 
@@ -155,7 +155,7 @@ export function NoteImportModal() {
                 <span style={STEP_BADGE}>1</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "500 12.5px var(--f-ui)", color: 'var(--tx1)' }}>
-                    {p.label + 'をコピーして、AIに文字起こしと写真を渡す'}
+                    {p.label + 'をコピーして、AIに文字起こしとノートの写真を渡す'}
                   </div>
                   <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{p.hint}</div>
                 </div>

@@ -20,6 +20,7 @@ function note(over: Partial<Note> = {}): Note {
     date: T,
     subject: '数学',
     unit: '数列 ─ 漸化式と一般項',
+    scans: [],
     cards: [
       { cardId: 'c0', q: 'Q1', a: 'A1', guide: '', src: '', origin: 'ai', attempts: [] },
       { cardId: 'c1', q: 'Q2', a: 'A2', guide: '', src: '', origin: 'ai', attempts: [] },

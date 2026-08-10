@@ -425,6 +425,8 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     date,
     subject,
     unit,
+    // 写真は JSON には入らない（自分で撮るもの）。上書き取り込みでは必ず引き継ぐ
+    scans: existing?.scans || [],
     cards,
     blocks,
     summary: asString(raw.summary).trim(),

@@ -30,6 +30,7 @@ function note(over: Partial<Note> = {}): Note {
     date: T,
     subject: '数学',
     unit: '数列',
+    scans: [],
     cards: [card({ cardId: 'c0' }), card({ cardId: 'c1' }), card({ cardId: 'c2' })],
     blocks: [],
     summary: '',

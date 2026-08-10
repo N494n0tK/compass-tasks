@@ -604,6 +604,18 @@ export interface EphemeralState {
    * （`NoteView` の `peel`）、伏せ直しはこのフラグを 1 往復させるだけで済む。
    */
   nbCheck: boolean;
+  /**
+   * 「自分のノートだけ」。AI が作った補足・解答・まとめを畳んで、
+   * 自分で撮った写真と自分で書いた問いだけにする（spec §8.3）。
+   *
+   * このアプリのノートの立場そのもの ―― 読み返す主体は自分のノートで、
+   * AI の文章はその上に載っているだけ ―― を 1 つのスイッチにしたもの。
+   */
+  nbOnlyMine: boolean;
+  /** 開いているノートの写真の枚数目（0 始まり） */
+  nbScanIx: number;
+  /** 拡大表示している写真の `scanId`（`null` = 拡大していない） */
+  nbScanZoom: string | null;
   nbImportOpen: boolean;
   nbImportText: string;
   /** 上書き取り込みの対象ノート id（`null` = 新規） */

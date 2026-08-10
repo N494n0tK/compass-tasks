@@ -19,6 +19,7 @@ function note(over: Partial<Note> = {}): Note {
     date: '2026-08-09',
     subject: '数学',
     unit: '数列',
+    scans: [],
     cards: [card()],
     blocks: [],
     summary: '',

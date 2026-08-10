@@ -134,6 +134,34 @@ export interface NoteKeyword {
 /** 重要語の上限。キュー欄に収まる量（多すぎると全部が重要でなくなる） */
 export const NOTE_KEYWORD_MAX = 24;
 
+/**
+ * 自分で撮ったノートの写真 1 枚。**このノートの主役**（spec §8.3）。
+ *
+ * 画像の実体はここに載せない。Firestore の 1 ドキュメント上限は 1MB で、
+ * 写真 1 枚で軽く超える。実体は端末の IndexedDB（`NoteScanStore`）に置き、
+ * このメタデータだけをノートのドキュメントに保存する。
+ */
+export interface NoteScan {
+  /** `'s' + base36`。IndexedDB のキー `noteId + ':' + scanId` に使う */
+  scanId: string;
+  mime: string;
+  /** 元画像の寸法。読み込み前でも枠の縦横比を確保して、紙面が飛び跳ねないようにする */
+  w: number;
+  h: number;
+  bytes: number;
+  /** 自分で付ける見出し（「p.1 導入」など）。空文字可 */
+  caption: string;
+}
+
+/** 1 冊のノートに貼れる写真の枚数。1 授業ぶんの見開き数を想定 */
+export const NOTE_SCAN_MAX = 12;
+
+/** 1 枚あたりの上限（8MB）。これを超える写真は取り込み時に縮小する */
+export const NOTE_SCAN_MAX_BYTES = 8 * 1024 * 1024;
+
+/** 長辺の上限（px）。スマホの写真をそのまま入れると IndexedDB が膨らむので縮める */
+export const NOTE_SCAN_MAX_EDGE = 2000;
+
 /** 解説欄の要素。`def` = 定義カード、`ex` = 想起問題に紐づく解説 */
 export type NoteBlock =
   | { t: 'def'; title: string; body: string }
@@ -156,7 +184,16 @@ export interface Note {
   date: ISODate;
   subject: string;
   unit: string;
+  /**
+   * 自分で撮ったノートの写真。**紙面の主役**（spec §8.3）。
+   * 空でも成立する（写真を撮る前に JSON だけ取り込んだノート）。
+   */
+  scans: NoteScan[];
   cards: NoteCard[];
+  /**
+   * AI の補足。**ノートに書いてあることの写しではなく、書いていないこと**
+   * （録音・スライドから分かった要点）と、想起問題の解答・解説だけを入れる（spec §3.8）。
+   */
   blocks: NoteBlock[];
   /**
    * コーネル式の下段。授業 1 回を数行でまとめたもの。

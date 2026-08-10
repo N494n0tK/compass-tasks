@@ -3,32 +3,29 @@
 /**
  * Compass — ノート 1 冊の表示・編集（docs/notebook/spec.md §8）
  *
- * 紙割りは**コーネル式**（spec §8.2）。上から順に:
+ * **主役は自分で撮った手書きノートの写真**。AI が作った文章はその上に載っている
+ * 補足にすぎない（spec §8.3）。読む順は上から:
  *
- *   ┌ マストヘッド ───────────────────────────┐
- *   │ 想起問題（この授業で答えられるようになる問い） │
- *   ├─ キュー欄 ─┬─ 本文 ────────────────────┤
- *   │ 重要語     │ 定義・例題の解説                │
- *   │ （その語が │                               │
- *   │  出てくる  │                               │
- *   │  高さに）  │                               │
- *   ├───────────┴───────────────────────────┤
- *   │ まとめ（授業 1 回を自分の言葉で数行）        │
- *   └────────────────────────────────────────┘
+ *   ┌ マストヘッド ── 日付 / 教科 / 単元 ＋「自分のノートだけ」のスイッチ ┐
+ *   │ 自分のノート（写真）           ← 影を落とす。ここが紙                │
+ *   │ 想起問題                       ← 自作が先、AI が補った問いが後        │
+ *   ├────────────────────────────────────────────────────────────────────┤
+ *   │ AIの補足   ← 影を落とさない。畳んである。ノートに**書いていない**こと │
+ *   │  キュー欄 │ 本文（コーネル式）                                      │
+ *   ├────────────────────────────────────────────────────────────────────┤
+ *   │ まとめ / 疑問（自分の言葉）                                          │
+ *   └────────────────────────────────────────────────────────────────────┘
  *
- * コーネル式の 3 つの約束と、この画面での対応:
- *  - **問いを立てるのは自分**  … `card.origin === 'self'` の想起問題を「自作」として先に出す。
- *    AI が補った問いは控えめな版を張る（`NotePrompts` が自作を優先して拾う）。
- *  - **疑問は自分のもの**      … `note.doubt` は自分がノートに書いた疑問だけ。AI に作らせない。
- *  - **左を見て思い出す**      … 確認モード（`nbCheck`）で本文の重要語が付箋で伏せられる。
- *    キュー欄だけを頼りに思い出し、クリックで 1 枚ずつ剥がす。
+ * 3 つの約束:
+ *  - **書体が著者を示す**。自分の言葉は `--f-hand`（Klee One）、AI は `--f-ui`。
+ *    読む前に「これは誰が書いたか」が分かる。
+ *  - **影が層を示す**。写真には影、AI の面には影を落とさない。
+ *  - **「自分のノートだけ」**（`nbOnlyMine`）で AI 由来をまるごと畳める。
+ *    自分で書いたものを読み返すのがいちばん復習になる、という立場を操作にしたもの。
  *
- * 付箋の開閉は **DOM のクラス付け替えでやる**（`.nb-key.is-hidden` を外すだけ）。
- * state に入れると重要語 1 枚めくるたびに本文の HTML を作り直すことになり、
- * そのたび KaTeX が走る。逆に「全部伏せ直す」はクラスを付け直すだけで済む。
- *
- * 紙面の下敷きは `CompassNotebook/チャートノート v2.dc.html`（Broadsheet DS）のまま。
- * 罫を刷るのはマストヘッド・キュー欄の縦罫・まとめの上罫の 3 か所だけに絞ってある。
+ * 確認モード（`nbCheck`）は AI の本文に対して働く。付箋の開閉は **DOM のクラス
+ * 付け替えでやる**（`.nb-key.is-hidden` を外すだけ）。state に入れると 1 枚めくる
+ * たびに本文の HTML を作り直すことになり、剥がした付箋が戻ってしまう。
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -55,6 +52,8 @@ import {
 } from '../../lib/model/notes';
 import type { Review } from '../../lib/model/types';
 import { NoteMath, NoteMathInline, type NoteMarkOptions } from './NoteMath';
+import { NoteScanStrip } from './NoteScanStrip';
+import { deleteNoteScans } from './NoteScanStore';
 import { commitNote, removeNote } from './NotebookPersistence';
 import { addToOrder, mutReview } from './ShellActions';
 import { useSubjColors } from './ShellSubjects';
@@ -71,16 +70,6 @@ const INPUT: CSSProperties = {
   lineHeight: 1.8,
   outline: 'none',
   resize: 'vertical',
-};
-
-const MINI_BTN: CSSProperties = {
-  padding: '4px 9px',
-  border: '1px solid var(--line2)',
-  borderRadius: 'var(--rad-s)',
-  background: 'none',
-  color: 'var(--tx2)',
-  font: '500 11px var(--f-ui)',
-  cursor: 'pointer',
 };
 
 /** 開閉のアニメーション（v2 の `wrapSt`。grid-template-rows で高さを補間する） */
@@ -195,6 +184,9 @@ export function NoteView({ note }: NoteViewProps) {
   const edit = S.nbEdit;
   // 編集中は伏せない（伏せた語を書き換えられない）
   const check = S.nbCheck && !edit;
+  // 編集中に AI の欄が消えると直せなくなるので、編集中は必ず両方出す
+  const onlyMine = S.nbOnlyMine && !edit;
+  const selfCount = note.cards.filter((c) => c.origin === 'self').length;
   const subjColor = subjectColorFor(subjColors, note.subject);
 
   /** ノートを書き換えて保存する（復習の生成・同期も `commitNote` が面倒を見る） */
@@ -221,6 +213,8 @@ export function NoteView({ note }: NoteViewProps) {
 
   const del = () => {
     if (!window.confirm('このノートと、未完了の復習カードを削除しますか？')) return;
+    // 写真の実体（IndexedDB）も落とす。メタデータだけ消しても容量が返らない
+    void deleteNoteScans(note.id, note.scans);
     const removed = removeNote(store, note.id);
     store.showToast(
       '「' + note.unit + '」を削除しました' + (removed ? '(復習カード' + removed + '件も削除)' : ''),
@@ -402,34 +396,15 @@ export function NoteView({ note }: NoteViewProps) {
           ) : null}
           <span style={{ flex: 1 }} />
           <button
-            className="hv-acc-outline"
-            onClick={enterCheck}
-            style={{
-              ...MINI_BTN,
-              ...(check ? { borderColor: 'var(--view)', color: 'var(--view)' } : null),
-            }}
-            title="本文の重要語を伏せて、キュー欄だけで思い出す"
-            aria-pressed={check}
-          >
-            {check ? '✓ 確認モード' : '確認モード'}
-          </button>
-          <button className="hv-acc-outline" onClick={closeAll} style={MINI_BTN} title="解答をすべて閉じて復習">
-            復習
-          </button>
-          <button
-            className="hv-acc-outline"
+            className={'nb-btn' + (edit ? ' is-on' : '')}
             onClick={() => store.setState({ nbEdit: !edit, nbCheck: false })}
-            style={{
-              ...MINI_BTN,
-              ...(edit ? { borderColor: 'var(--view)', color: 'var(--view)' } : null),
-            }}
           >
             {edit ? '✓ 完了' : '編集'}
           </button>
-          <button className="hv-acc-outline" onClick={overwrite} style={MINI_BTN}>
+          <button className="nb-btn" onClick={overwrite}>
             JSONで上書き
           </button>
-          <button className="hv-pink-text" onClick={del} style={MINI_BTN}>
+          <button className="nb-btn nb-btn--danger" onClick={del}>
             削除
           </button>
         </div>
@@ -468,6 +443,40 @@ export function NoteView({ note }: NoteViewProps) {
         ) : (
           <h1 className="nb-title">{note.unit || '(単元名なし)'}</h1>
         )}
+
+        {/* ── 読み方の列。上の列（編集・削除）は「扱い方」なので分けてある */}
+        <div className="nb-readbar">
+          {/* この画面の立場を 1 つの操作にしたスイッチ（spec §8.3） */}
+          <div className="nb-lens" role="group" aria-label="表示する範囲">
+            <button
+              className={'nb-lens__opt' + (onlyMine ? ' is-on' : '')}
+              onClick={() => store.setState({ nbOnlyMine: true, nbCheck: false })}
+              aria-pressed={onlyMine}
+              title="AIが作った補足・解答・まとめを畳んで、自分のノートだけにする"
+            >
+              自分のノートだけ
+            </button>
+            <button
+              className={'nb-lens__opt' + (onlyMine ? '' : ' is-on')}
+              onClick={() => store.setState({ nbOnlyMine: false })}
+              aria-pressed={!onlyMine}
+            >
+              AIの補足も
+            </button>
+          </div>
+          <span style={{ flex: 1 }} />
+          <button
+            className={'nb-btn' + (check ? ' is-on' : '')}
+            onClick={enterCheck}
+            title="AIの補足の重要語を伏せて、キュー欄だけで思い出す"
+            aria-pressed={check}
+          >
+            {check ? '✓ 確認モード' : '確認モード'}
+          </button>
+          <button className="nb-btn" onClick={closeAll} title="解答をすべて閉じて復習">
+            解答を閉じる
+          </button>
+        </div>
       </header>
 
       {/* ── 確認モードの操作卓。伏せた枚数と、めくった枚数 */}
@@ -476,21 +485,36 @@ export function NoteView({ note }: NoteViewProps) {
           <span className="nb-checkbar__count" ref={countRef} />
           <span className="nb-checkbar__text" ref={hintRef} />
           <span style={{ flex: 1 }} />
-          <button className="hv-acc-outline" onClick={peelAll} style={MINI_BTN}>
+          <button className="nb-btn" onClick={peelAll}>
             全部めくる
           </button>
-          <button className="hv-acc-outline" onClick={hideAll} style={MINI_BTN}>
+          <button className="nb-btn" onClick={hideAll}>
             伏せ直す
           </button>
         </div>
       ) : null}
 
-      {/* ── 想起（コーネル式の上段）。自分で立てた問いを先に */}
-      <section style={{ marginTop: '30px' }}>
+      {/* ── 自分のノート。この紙面の主役なので、いちばん上・いちばん大きく */}
+      <NoteScanStrip
+        note={note}
+        edit={edit}
+        index={S.nbScanIx}
+        onIndex={(i) => store.setState({ nbScanIx: i })}
+        zoom={S.nbScanZoom}
+        onZoom={(id) => store.setState({ nbScanZoom: id })}
+        onPatch={patch}
+      />
+
+      {/* ── 想起問題。自分で立てた問いが先、AI が補った問いが後 */}
+      <section style={{ marginTop: '34px' }}>
         <SectionHead
           badge="想起"
           title="想起問題"
-          hint="解答を隠したまま思い出してから開く"
+          hint={
+            selfCount
+              ? '自分で立てた問いが' + selfCount + '問。解答を隠したまま思い出してから開く'
+              : '解答を隠したまま思い出してから開く'
+          }
         />
         <div style={{ display: 'grid', gap: '20px' }}>
           {note.cards.map((card, i) => {
@@ -514,14 +538,14 @@ export function NoteView({ note }: NoteViewProps) {
                     }}
                   >
                     <span
-                      className={'nb-origin' + (card.origin === 'self' ? ' nb-origin--self' : '')}
+                      className={'nb-by' + (card.origin === 'self' ? ' nb-by--mine' : '')}
                       title={
                         card.origin === 'self'
                           ? 'ノートに自分で書いた問い'
                           : 'AIが授業から補った問い'
                       }
                     >
-                      {card.origin === 'self' ? '自作' : 'AI'}
+                      {card.origin === 'self' ? 'MINE' : 'AI'}
                     </span>
                     {edit ? (
                       <button
@@ -547,7 +571,11 @@ export function NoteView({ note }: NoteViewProps) {
                       style={{ ...INPUT, minHeight: '52px' }}
                     />
                   ) : (
-                    <NoteMath className="nb-body" src={card.q} mark={markPlain} />
+                    <NoteMath
+                      className={card.origin === 'self' ? 'nb-mine' : 'nb-body'}
+                      src={card.q}
+                      mark={markPlain}
+                    />
                   )}
 
                   <div
@@ -574,9 +602,9 @@ export function NoteView({ note }: NoteViewProps) {
                     )}
                     {pending && canAddToToday(pending, T) ? (
                       <button
-                        className="hv-acc-outline"
+                        className="nb-btn"
                         onClick={() => addToToday(pending)}
-                        style={{ ...MINI_BTN, padding: '3px 8px' }}
+                        style={{ padding: '3px 8px' }}
                       >
                         ＋ 今日へ
                       </button>
@@ -648,7 +676,7 @@ export function NoteView({ note }: NoteViewProps) {
                 </div>
                 {edit ? (
                   <button
-                    className="hv-pink-text"
+                    className="nb-btn nb-btn--danger"
                     onClick={() => {
                       if (note.cards.length <= 1) {
                         store.showToast('想起問題は1問以上必要です');
@@ -662,7 +690,6 @@ export function NoteView({ note }: NoteViewProps) {
                         );
                       }, [card.cardId]);
                     }}
-                    style={{ ...MINI_BTN, flex: 'none' }}
                   >
                     削除
                   </button>
@@ -673,7 +700,7 @@ export function NoteView({ note }: NoteViewProps) {
         </div>
         {edit ? (
           <button
-            className="hv-acc-outline"
+            className="nb-btn"
             onClick={() => {
               if (note.cards.length >= NOTE_CARD_MAX) {
                 store.showToast('想起問題は' + NOTE_CARD_MAX + '問までです');
@@ -692,7 +719,7 @@ export function NoteView({ note }: NoteViewProps) {
                 });
               });
             }}
-            style={{ ...MINI_BTN, marginTop: '15px' }}
+                    style={{ marginTop: '15px' }}
           >
             ＋ 自分で想起問題を足す
           </button>
@@ -702,16 +729,17 @@ export function NoteView({ note }: NoteViewProps) {
       {/* ── 重要語の編集（編集モードだけ。読むときはキュー欄がそれにあたる） */}
       {edit ? <KeywordEditor note={note} onPatch={patch} /> : null}
 
-      {/* ── 本文。左のキュー欄と 1 本の縦罫で仕切る（コーネル式） */}
-      {note.blocks.length || edit ? (
-        <section style={{ marginTop: '30px' }}>
+      {/* ── AI の補足。**ノートに書いていないこと**と、想起問題の解答だけが入る。
+             紙（写真）ではないので影を落とさず、畳んでおける */}
+      {(note.blocks.length || edit) && !onlyMine ? (
+        <section style={{ marginTop: '34px' }} className="nb-ai">
           <SectionHead
-            badge="本文"
-            title="ノート"
+            badge="AIの補足"
+            title="ノートに書いていないこと"
             hint={
               note.keywords.length
-                ? '左のキュー欄には、その場所で出てくる重要語'
-                : '定義と、想起問題の解説'
+                ? '録音とスライドから。左のキュー欄はその場所で出てくる重要語'
+                : '録音とスライドから拾った要点と、想起問題の解説'
             }
           />
           <div
@@ -750,16 +778,15 @@ export function NoteView({ note }: NoteViewProps) {
           {edit ? (
             <div style={{ display: 'flex', gap: '7px', marginTop: '15px' }}>
               <button
-                className="hv-acc-outline"
+                className="nb-btn"
                 onClick={() =>
                   patch((d) => void d.blocks.push({ t: 'def', title: '定義', body: '' }))
                 }
-                style={MINI_BTN}
               >
                 ＋ 定義
               </button>
               <button
-                className="hv-acc-outline"
+                className="nb-btn"
                 onClick={() =>
                   patch(
                     (d) =>
@@ -772,7 +799,6 @@ export function NoteView({ note }: NoteViewProps) {
                       }),
                   )
                 }
-                style={MINI_BTN}
               >
                 ＋ 問の解説
               </button>
@@ -782,7 +808,7 @@ export function NoteView({ note }: NoteViewProps) {
       ) : null}
 
       {/* ── まとめ（コーネル式の下段）。紙面いっぱいの上罫で本文と切る */}
-      {note.summary || edit ? (
+      {(note.summary || edit) && !onlyMine ? (
         <section className="nb-summary">
           <SectionHead
             badge="まとめ"
@@ -797,13 +823,13 @@ export function NoteView({ note }: NoteViewProps) {
               style={{ ...INPUT, minHeight: '92px' }}
             />
           ) : (
-            <NoteMath className="nb-body nb-summary__body" src={note.summary} mark={markPlain} />
+            <NoteMath className="nb-mine nb-summary__body" src={note.summary} mark={markPlain} />
           )}
         </section>
       ) : null}
 
       {/* ── 演習 */}
-      {note.exercise.q || edit ? (
+      {(note.exercise.q || edit) && !onlyMine ? (
         <section style={{ marginTop: '30px' }}>
           <SectionHead badge="演習" hint="その場で 1 問、手を動かして解く" />
           {edit ? (
@@ -867,7 +893,7 @@ export function NoteView({ note }: NoteViewProps) {
                 <ul className="nb-doubt">
                   {doubtLines.map((line, i) => (
                     <li key={i}>
-                      <NoteMath className="nb-body nb-body--sm" src={line} mark={markPlain} />
+                      <NoteMath className="nb-mine" src={line} mark={markPlain} />
                     </li>
                   ))}
                 </ul>
@@ -986,9 +1012,8 @@ function KeywordEditor({
                 style={{ ...INPUT, flex: '1 1 140px', width: 'auto', font: '400 11.5px var(--f-ui)' }}
               />
               <button
-                className="hv-pink-text"
+                className="nb-btn nb-btn--danger"
                 onClick={() => onPatch((d) => void d.keywords.splice(i, 1))}
-                style={{ ...MINI_BTN, flex: 'none' }}
               >
                 削除
               </button>
@@ -1002,7 +1027,7 @@ function KeywordEditor({
         })}
       </div>
       <button
-        className="hv-acc-outline"
+        className="nb-btn"
         onClick={() => {
           if (note.keywords.length >= NOTE_KEYWORD_MAX) {
             store.showToast('重要語は' + NOTE_KEYWORD_MAX + '語までです');
@@ -1010,7 +1035,7 @@ function KeywordEditor({
           }
           onPatch((d) => void d.keywords.push({ term: '', color: 'red', note: '' }));
         }}
-        style={{ ...MINI_BTN, marginTop: '12px' }}
+        style={{ marginTop: '12px' }}
       >
         ＋ 重要語
       </button>
@@ -1084,16 +1109,15 @@ function NoteBlockRow({
                 ))}
               </select>
             ) : null}
-            <button className="hv-acc-outline" onClick={() => move(-1)} style={MINI_BTN} aria-label="上へ">
+            <button className="nb-btn" onClick={() => move(-1)} aria-label="上へ">
               ↑
             </button>
-            <button className="hv-acc-outline" onClick={() => move(1)} style={MINI_BTN} aria-label="下へ">
+            <button className="nb-btn" onClick={() => move(1)} aria-label="下へ">
               ↓
             </button>
             <button
-              className="hv-pink-text"
+              className="nb-btn nb-btn--danger"
               onClick={() => onPatch((d) => void d.blocks.splice(index, 1))}
-              style={MINI_BTN}
             >
               削除
             </button>
