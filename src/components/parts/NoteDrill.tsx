@@ -22,7 +22,7 @@ import { fmtD, fmtMD } from '../../lib/logic/dates';
 import { dueCardsOfNote, type DueCard } from '../../lib/logic/noteCards';
 import { sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
-import { NOTE_GRADE_META, type Note } from '../../lib/model/notes';
+import { NOTE_GRADES, NOTE_GRADE_META, type Note } from '../../lib/model/notes';
 import type { ReviewGrade } from '../../lib/model/types';
 import { NoteMath } from './NoteMath';
 import { NoteView, RevealButton } from './NoteView';
@@ -32,20 +32,11 @@ import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
 
 /**
- * 理解度 3 択。`ReviewAskModal` の `ASK_GRADES` と同じ並び・同じ色。
+ * 理解度 3 択。記号・文言・色は `NOTE_GRADE_META`（model/notes.ts）が持つ
+ * ―― ノート面（`NoteView`）と同じものを見せるため、ここでは並べ替えるだけ。
  * ◎○△ は答案に付ける丸つけの記号そのものなので、記号を大きく見せる。
  */
-const GRADES: readonly {
-  id: ReviewGrade;
-  icon: string;
-  label: string;
-  hint: string;
-  c: string;
-}[] = [
-  { id: 'high', icon: '◎', label: 'ばっちり', hint: '次の間隔へ', c: 'var(--grn)' },
-  { id: 'mid', icon: '○', label: 'まあまあ', hint: '同じ間隔でもう一度', c: 'var(--tx1)' },
-  { id: 'low', icon: '△', label: '不安…', hint: '明日もう一度', c: 'var(--pink)' },
-];
+const GRADES = NOTE_GRADES.map((id) => ({ id, ...NOTE_GRADE_META[id] }));
 
 const MINI_BTN = {
   padding: '5px 11px',
@@ -261,7 +252,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
                             key={g.id}
                             className="nb-maru"
                             onClick={() => grade(dc, g.id)}
-                            style={{ color: g.c }}
+                            style={{ color: g.token }}
                           >
                             <span className="nb-maru__mark">{g.icon}</span>
                             <span className="nb-maru__label">{g.label}</span>

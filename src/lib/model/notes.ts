@@ -69,14 +69,23 @@ export interface NoteAttempt {
   grade: ReviewGrade;
 }
 
-/** 理解度の見た目。丸つけの記号そのまま（`ReviewAskModal` / `NoteDrill` と同じ並び） */
+/**
+ * 理解度の見た目。丸つけの記号そのまま（`ReviewAskModal` / `NoteDrill` / `NoteView` で共有）。
+ *
+ * `hint` は**その理解度を選ぶと復習の予定がどう動くか**（`lib/logic/reviews.ts` の遷移）。
+ * 押す前に結果が分かるよう、ボタンに添える。丸つけの面が増えるたびに書き写していると
+ * 文言がずれるので、ここ 1 か所に置く。
+ */
 export const NOTE_GRADE_META: Readonly<
-  Record<ReviewGrade, { icon: string; label: string; token: string }>
+  Record<ReviewGrade, { icon: string; label: string; token: string; hint: string }>
 > = {
-  high: { icon: '◎', label: 'ばっちり', token: 'var(--grn)' },
-  mid: { icon: '○', label: 'まあまあ', token: 'var(--tx1)' },
-  low: { icon: '△', label: '不安', token: 'var(--pink)' },
+  high: { icon: '◎', label: 'ばっちり', token: 'var(--grn)', hint: '次の間隔へ' },
+  mid: { icon: '○', label: 'まあまあ', token: 'var(--tx1)', hint: '同じ間隔でもう一度' },
+  low: { icon: '△', label: '不安', token: 'var(--pink)', hint: '明日もう一度' },
 };
+
+/** 丸つけボタンを並べる順（できた順）。`Record` の列挙順に頼らない */
+export const NOTE_GRADES = ['high', 'mid', 'low'] as const;
 
 /** 想起問題 1 問 = 復習カード 1 枚（spec §2） */
 export interface NoteCard {

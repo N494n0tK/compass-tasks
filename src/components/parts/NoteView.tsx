@@ -19,9 +19,12 @@
  *  - **書体が著者を示す**。自分の言葉は `--f-hand`（Klee One）、AI は `--f-ui`。
  *    読む前に「これは誰が書いたか」が分かる。添削はさらに紫インクで重ねる。
  *  - **影が層を示す**。写真には影、AI の面には影を落とさない。
- *  - **「自分のノートだけ」**（`nbOnlyMine`）で AI 由来をまるごと畳める。
- *    自分で書いたものを読み返すのがいちばん復習になる、という立場を操作にしたもの。
- *    ただし**まとめは自分の言葉なので、このレンズでも畳まない**。
+ *  - **レンズ**（`nbLens`）で紙面をどこまで出すかを決める。出す量の少ない順に
+ *    `想起問題だけ` / `自分のノートだけ` / `AIの添削も` の 3 段。
+ *    `自分のノートだけ` は AI 由来をまるごと畳む ―― 自分で書いたものを読み返すのが
+ *    いちばん復習になる、という立場を操作にしたもの（**まとめは自分の言葉なので畳まない**）。
+ *    `想起問題だけ` はさらに絞って**問いと解答しか出さない**。紙面を読めば思い出せて
+ *    しまうので、「思い出せるか」を試す 1 周目は本文ごと伏せる、という面。
  *
  * 確認モード（`nbCheck`）は本文とキュー欄の重要語に対して働く。付箋の開閉は
  * **DOM のクラス付け替えでやる**（`.nb-key.is-hidden` を外すだけ）。state に入れると
@@ -34,10 +37,11 @@ import { fmtD, fmtMD, longDayLabel } from '../../lib/logic/dates';
 import { noteSeriesId } from '../../lib/logic/noteCards';
 import { assignCues, sectionSearchText } from '../../lib/logic/noteKeywords';
 import { timetableSubjects } from '../../lib/logic/timetable';
-import { canAddToToday, isAddedToToday } from '../../lib/logic/reviews';
+import { canAddToToday, isAddedToToday, sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import {
   NOTE_CARD_MAX,
+  NOTE_GRADES,
   NOTE_GRADE_META,
   NOTE_KEYWORD_MAX,
   NOTE_KEY_COLORS,
@@ -51,11 +55,12 @@ import {
   type NoteSection,
   lastAttemptOf,
 } from '../../lib/model/notes';
-import type { Review } from '../../lib/model/types';
+import type { Review, ReviewGrade } from '../../lib/model/types';
 import { NoteMath, NoteMathInline, type NoteMarkOptions } from './NoteMath';
 import { NoteScanStrip } from './NoteScanStrip';
 import { deleteNoteScans } from './NoteScanStore';
-import { commitNote, removeNote } from './NotebookPersistence';
+import { commitNote, recordNoteAttempt, removeNote } from './NotebookPersistence';
+import { completeReview } from './ReviewShared';
 import { addToOrder, mutReview } from './ShellActions';
 import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
@@ -173,6 +178,44 @@ function CardTrail({ card }: { card: Pick<NoteCard, 'attempts'> }) {
   );
 }
 
+/**
+ * 丸つけの 3 択。記号・文言・色は `NOTE_GRADE_META` から取る（`NoteDrill` と同じ見た目）。
+ *
+ * 添える一言は**押すと何が起きるか**。復習カードがあるときは間隔の動き
+ * （「次の間隔へ」など）、無いときは「記録だけ」。予定が動かないのに
+ * 「次の間隔へ」と書いてあると、押した人が嘘をつかれたことになる。
+ */
+function GradeRow({
+  pending,
+  onGrade,
+}: {
+  pending: Review | null;
+  onGrade: (g: ReviewGrade) => void;
+}) {
+  return (
+    <div className="nb-grade">
+      <div className="nb-grade__ask">思い出せた？</div>
+      <div className="nb-grade__row">
+        {NOTE_GRADES.map((id) => {
+          const meta = NOTE_GRADE_META[id];
+          return (
+            <button
+              key={id}
+              className="nb-maru"
+              onClick={() => onGrade(id)}
+              style={{ color: meta.token }}
+            >
+              <span className="nb-maru__mark">{meta.icon}</span>
+              <span className="nb-maru__label">{meta.label}</span>
+              <span className="nb-maru__hint">{pending ? meta.hint : '記録だけ'}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export interface NoteViewProps {
   note: Note;
 }
@@ -183,10 +226,14 @@ export function NoteView({ note }: NoteViewProps) {
   const ctx = dateCtx;
   const T = ctx.today;
   const edit = S.nbEdit;
-  // 編集中は伏せない（伏せた語を書き換えられない）
-  const check = S.nbCheck && !edit;
-  // 編集中に AI の欄が消えると直せなくなるので、編集中は必ず両方出す
-  const onlyMine = S.nbOnlyMine && !edit;
+  // 編集中に畳んだ欄は直せないので、編集中はレンズを無視して全部出す
+  const lens = edit ? 'ai' : S.nbLens;
+  const onlyMine = lens === 'mine';
+  // 想起問題だけの面には本文もキュー欄も無いので、伏せる相手がいない。
+  // 編集中も伏せない（伏せた語を書き換えられない）
+  const check = S.nbCheck && !edit && lens !== 'recall';
+  // 想起問題だけの面では、紙面の残り（本文・演習・疑問・写真・まとめ）を出さない
+  const paper = lens !== 'recall';
   const selfCount = note.cards.filter((c) => c.origin === 'self').length;
   const subjColor = subjectColorFor(subjColors, note.subject);
 
@@ -242,6 +289,35 @@ export function NoteView({ note }: NoteViewProps) {
     mutReview(store, r.id, (x) => ((x.added = true), x));
     addToOrder(store, r.id);
     store.showToast('「' + r.title + '」を今日のToDoに追加しました');
+  };
+
+  /**
+   * 想起問題に丸をつける（`NoteDrill` / 理解度モーダルと同じ道）。
+   *
+   * ノートを読み返していて思い出せたかどうかは、その場が**いちばん正確**なので、
+   * ドリル面まで行かなくてもここで答えられるようにした。
+   *
+   * - 復習カードがあるとき … `completeReview` に通す。間隔の遷移・学習ログ・
+   *   ノートへの記録までまとめて面倒を見てくれる（遷移をフォークしない。spec §11-4）
+   * - 無い / もう定着したとき … 動かす予定が無いので**記録だけ**残す。
+   *   「この問題を何回やって、どう感じたか」は予定とは別に価値がある（spec §9）
+   *
+   * どちらでも答えたら解答を畳む ―― 次に開いたとき、また思い出すところから始まるように。
+   */
+  const gradeCard = (card: NoteCard, pending: Review | null, g: ReviewGrade) => {
+    if (pending) {
+      store.showToast(completeReview(store, pending, g, sizeOfMin(pending.min), ctx));
+    } else {
+      recordNoteAttempt(store, note.id, card.cardId, T, g);
+      store.showToast(
+        '「' + NOTE_GRADE_META[g].label + '」で記録しました（復習の予定は動きません）',
+      );
+    }
+    store.setState((s) => {
+      const next = { ...s.nbRevealed };
+      delete next['r:' + note.id + ':' + card.cardId];
+      return { nbRevealed: next };
+    });
   };
 
   // ── 重要語。コーネル本文とキュー欄だけ伏せ、想起問題やまとめは色を付けるにとどめる
@@ -461,464 +537,500 @@ export function NoteView({ note }: NoteViewProps) {
 
         {/* ── 読み方の列。上の列（編集・削除）は「扱い方」なので分けてある */}
         <div className="nb-readbar">
-          {/* この画面の立場を 1 つの操作にしたスイッチ（spec §8.3） */}
+          {/* この画面の立場を 1 つの操作にしたスイッチ（spec §8.3）。
+              左から順に「出す量が増える」並び */}
           <div className="nb-lens" role="group" aria-label="表示する範囲">
             <button
-              className={'nb-lens__opt' + (onlyMine ? ' is-on' : '')}
-              onClick={() => store.setState({ nbOnlyMine: true, nbCheck: false })}
-              aria-pressed={onlyMine}
+              className={'nb-lens__opt' + (lens === 'recall' ? ' is-on' : '')}
+              onClick={() => store.setState({ nbLens: 'recall', nbCheck: false })}
+              aria-pressed={lens === 'recall'}
+              title="本文・写真・まとめを畳んで、想起問題だけにする"
+            >
+              想起問題だけ
+            </button>
+            <button
+              className={'nb-lens__opt' + (lens === 'mine' ? ' is-on' : '')}
+              onClick={() => store.setState({ nbLens: 'mine', nbCheck: false })}
+              aria-pressed={lens === 'mine'}
               title="AIの添削・解答・演習を畳んで、自分のノートの再現だけにする"
             >
               自分のノートだけ
             </button>
             <button
-              className={'nb-lens__opt' + (onlyMine ? '' : ' is-on')}
-              onClick={() => store.setState({ nbOnlyMine: false })}
-              aria-pressed={!onlyMine}
+              className={'nb-lens__opt' + (lens === 'ai' ? ' is-on' : '')}
+              onClick={() => store.setState({ nbLens: 'ai' })}
+              aria-pressed={lens === 'ai'}
               title="各節に AI の添削を重ねて見る"
             >
               AIの添削も
             </button>
           </div>
           <span style={{ flex: 1 }} />
-          <button
-            className={'nb-btn' + (check ? ' is-on' : '')}
-            onClick={enterCheck}
-            title="本文とキュー欄の重要語を伏せて、思い出してから 1 語ずつめくる"
-            aria-pressed={check}
-          >
-            {check ? '✓ 確認モード' : '確認モード'}
-          </button>
+          {/* 想起問題だけの面には本文もキュー欄も無い ＝ 伏せる相手がいないので出さない */}
+          {paper ? (
+            <button
+              className={'nb-btn' + (check ? ' is-on' : '')}
+              onClick={enterCheck}
+              title="本文とキュー欄の重要語を伏せて、思い出してから 1 語ずつめくる"
+              aria-pressed={check}
+            >
+              {check ? '✓ 確認モード' : '確認モード'}
+            </button>
+          ) : null}
           <button className="nb-btn" onClick={closeAll} title="解答をすべて閉じて復習">
             解答を閉じる
           </button>
         </div>
       </header>
 
-      {/* ── 確認モードの操作卓。伏せた枚数と、めくった枚数 */}
-      {check ? (
-        <div className="nb-checkbar" role="status" aria-live="polite">
-          <span className="nb-checkbar__count" ref={countRef} />
-          <span className="nb-checkbar__text" ref={hintRef} />
-          <span style={{ flex: 1 }} />
-          <button className="nb-btn" onClick={peelAll}>
-            全部めくる
-          </button>
-          <button className="nb-btn" onClick={hideAll}>
-            伏せ直す
-          </button>
-        </div>
-      ) : null}
+      {/* ── ここから下が紙面。レンズを切り替えると区画がまるごと入れ替わるので、
+             `key={lens}` で mount し直して `.nb-sheet` の出現アニメーションを掛ける
+             ―― 押したスイッチの下だけが刷り直される、という見立て。
+             マストヘッドと読み方の列は動かさない（そこは紙ではなく操作卓なので） */}
+      <div key={lens} className="nb-sheet">
+        {/* ── 確認モードの操作卓。伏せた枚数と、めくった枚数 */}
+        {check ? (
+          <div className="nb-checkbar" role="status" aria-live="polite">
+            <span className="nb-checkbar__count" ref={countRef} />
+            <span className="nb-checkbar__text" ref={hintRef} />
+            <span style={{ flex: 1 }} />
+            <button className="nb-btn" onClick={peelAll}>
+              全部めくる
+            </button>
+            <button className="nb-btn" onClick={hideAll}>
+              伏せ直す
+            </button>
+          </div>
+        ) : null}
 
-      {/* ── 想起問題。自分で立てた問いが先、AI が補った問いが後 */}
-      <section style={{ marginTop: '34px' }}>
-        <SectionHead
-          badge="想起"
-          title="想起問題"
-          hint={
-            selfCount
-              ? '自分で立てた問いが' + selfCount + '問。解答を隠したまま思い出してから開く'
-              : '解答を隠したまま思い出してから開く'
-          }
-        />
-        <div style={{ display: 'grid', gap: '20px' }}>
-          {note.cards.map((card, i) => {
-            const key = 'r:' + note.id + ':' + card.cardId;
-            const open = isOpen(key);
-            const { pending, done } = reviewOf(card.cardId);
-            return (
-              <div key={card.cardId} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                <span className="nb-no" aria-hidden="true">
-                  {i + 1}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '3px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <span
-                      className={'nb-by' + (card.origin === 'self' ? ' nb-by--mine' : '')}
-                      title={
-                        card.origin === 'self'
-                          ? 'ノートに自分で書いた問い'
-                          : 'AIが授業から補った問い'
-                      }
+        {/* ── 想起問題。自分で立てた問いが先、AI が補った問いが後 */}
+        <section style={{ marginTop: '34px' }}>
+          <SectionHead
+            badge="想起"
+            title="想起問題"
+            hint={
+              !paper
+                ? '本文を伏せた面。思い出せなかった問いだけ、レンズを戻して本文を読み直す'
+                : selfCount
+                  ? '自分で立てた問いが' + selfCount + '問。解答を隠したまま思い出してから開く'
+                  : '解答を隠したまま思い出してから開く'
+            }
+          />
+          <div style={{ display: 'grid', gap: '20px' }}>
+            {note.cards.map((card, i) => {
+              const key = 'r:' + note.id + ':' + card.cardId;
+              const open = isOpen(key);
+              const { pending, done } = reviewOf(card.cardId);
+              return (
+                <div key={card.cardId} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                  <span className="nb-no" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '3px',
+                        flexWrap: 'wrap',
+                      }}
                     >
-                      {card.origin === 'self' ? 'MINE' : 'AI'}
-                    </span>
-                    {edit ? (
-                      <button
-                        className="nb-jump"
-                        onClick={() =>
-                          patch(
-                            (d) =>
-                              void (d.cards[i].origin =
-                                d.cards[i].origin === 'self' ? 'ai' : 'self'),
-                          )
+                      <span
+                        className={'nb-by' + (card.origin === 'self' ? ' nb-by--mine' : '')}
+                        title={
+                          card.origin === 'self'
+                            ? 'ノートに自分で書いた問い'
+                            : 'AIが授業から補った問い'
                         }
                       >
-                        {card.origin === 'self' ? 'AI作にする' : '自作にする'}
-                      </button>
-                    ) : null}
-                  </div>
-                  {edit ? (
-                    <textarea
-                      className="fc-acc"
-                      value={card.q}
-                      onChange={(e) => patch((d) => void (d.cards[i].q = e.target.value))}
-                      placeholder="問題文(数式は $...$ で LaTeX)"
-                      style={{ ...INPUT, minHeight: '52px' }}
-                    />
-                  ) : (
-                    <NoteMath
-                      className={card.origin === 'self' ? 'nb-mine' : 'nb-body'}
-                      src={card.q}
-                      mark={markPlain}
-                    />
-                  )}
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <RevealButton open={open} onClick={() => toggle(key)} />
-                    {/* この問題を何回やって、前回どう感じたか（`NoteCard.attempts`）。
-                        復習の「次回」は予定、こちらは実績 */}
-                    <CardTrail card={card} />
-                    <span style={{ flex: 1 }} />
-                    {pending ? (
-                      <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
-                        {'次回 ' + fmtD(ctx, pending.due) + ' · ' + pending.stage}
+                        {card.origin === 'self' ? 'MINE' : 'AI'}
                       </span>
-                    ) : done ? (
-                      <span style={{ fontSize: '10.5px', color: 'var(--grn)' }}>定着 🎉</span>
+                      {edit ? (
+                        <button
+                          className="nb-jump"
+                          onClick={() =>
+                            patch(
+                              (d) =>
+                                void (d.cards[i].origin =
+                                  d.cards[i].origin === 'self' ? 'ai' : 'self'),
+                            )
+                          }
+                        >
+                          {card.origin === 'self' ? 'AI作にする' : '自作にする'}
+                        </button>
+                      ) : null}
+                    </div>
+                    {edit ? (
+                      <textarea
+                        className="fc-acc"
+                        value={card.q}
+                        onChange={(e) => patch((d) => void (d.cards[i].q = e.target.value))}
+                        placeholder="問題文(数式は $...$ で LaTeX)"
+                        style={{ ...INPUT, minHeight: '52px' }}
+                      />
                     ) : (
-                      <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>復習カードなし</span>
+                      <NoteMath
+                        className={card.origin === 'self' ? 'nb-mine' : 'nb-body'}
+                        src={card.q}
+                        mark={markPlain}
+                      />
                     )}
-                    {pending && canAddToToday(pending, T) ? (
-                      <button
-                        className="nb-btn"
-                        onClick={() => addToToday(pending)}
-                        style={{ padding: '3px 8px' }}
-                      >
-                        ＋ 今日へ
-                      </button>
-                    ) : pending && isAddedToToday(pending) ? (
-                      <span style={{ fontSize: '10.5px', color: 'var(--grn)' }}>✓ 追加済み</span>
-                    ) : null}
-                  </div>
 
-                  <div style={wrapStyle(open)}>
-                    <div style={WRAP_INNER}>
-                      <div className="nb-ans">
-                        {edit || card.guide ? (
-                          <SubRow label="方針">
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <RevealButton open={open} onClick={() => toggle(key)} />
+                      {/* この問題を何回やって、前回どう感じたか（`NoteCard.attempts`）。
+                          復習の「次回」は予定、こちらは実績 */}
+                      <CardTrail card={card} />
+                      <span style={{ flex: 1 }} />
+                      {pending ? (
+                        <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
+                          {'次回 ' + fmtD(ctx, pending.due) + ' · ' + pending.stage}
+                        </span>
+                      ) : done ? (
+                        <span style={{ fontSize: '10.5px', color: 'var(--grn)' }}>定着 🎉</span>
+                      ) : (
+                        <span style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>復習カードなし</span>
+                      )}
+                      {pending && canAddToToday(pending, T) ? (
+                        <button
+                          className="nb-btn"
+                          onClick={() => addToToday(pending)}
+                          style={{ padding: '3px 8px' }}
+                        >
+                          ＋ 今日へ
+                        </button>
+                      ) : pending && isAddedToToday(pending) ? (
+                        <span style={{ fontSize: '10.5px', color: 'var(--grn)' }}>✓ 追加済み</span>
+                      ) : null}
+                    </div>
+
+                    <div style={wrapStyle(open)}>
+                      <div style={WRAP_INNER}>
+                        {/* 解答は閉じていても DOM に残っている（高さだけ 0fr に畳む）ので、
+                            開いた瞬間を捉えるには `is-open` の付け外しが要る
+                            ―― クラスが付いた時点で `.nb-ans.is-open` の出現アニメーションが走る */}
+                        <div className={'nb-ans' + (open ? ' is-open' : '')}>
+                          {edit || card.guide ? (
+                            <SubRow label="方針">
+                              {edit ? (
+                                <textarea
+                                  className="fc-acc"
+                                  value={card.guide}
+                                  onChange={(e) =>
+                                    patch((d) => void (d.cards[i].guide = e.target.value))
+                                  }
+                                  placeholder="方針(どう考えるか)"
+                                  style={{ ...INPUT, minHeight: '44px' }}
+                                />
+                              ) : (
+                                <NoteMath
+                                  className="nb-body nb-body--sm"
+                                  src={card.guide}
+                                  mark={markPlain}
+                                />
+                              )}
+                            </SubRow>
+                          ) : null}
+                          <SubRow label="解答">
                             {edit ? (
                               <textarea
                                 className="fc-acc"
-                                value={card.guide}
-                                onChange={(e) =>
-                                  patch((d) => void (d.cards[i].guide = e.target.value))
-                                }
-                                placeholder="方針(どう考えるか)"
-                                style={{ ...INPUT, minHeight: '44px' }}
+                                value={card.a}
+                                onChange={(e) => patch((d) => void (d.cards[i].a = e.target.value))}
+                                placeholder="解答(表示数式は $$...$$)"
+                                style={{ ...INPUT, minHeight: '52px' }}
                               />
                             ) : (
-                              <NoteMath
-                                className="nb-body nb-body--sm"
-                                src={card.guide}
-                                mark={markPlain}
-                              />
+                              <NoteMath className="nb-body" src={card.a} mark={markPlain} />
                             )}
                           </SubRow>
-                        ) : null}
-                        <SubRow label="解答">
                           {edit ? (
-                            <textarea
+                            <input
                               className="fc-acc"
-                              value={card.a}
-                              onChange={(e) => patch((d) => void (d.cards[i].a = e.target.value))}
-                              placeholder="解答(表示数式は $$...$$)"
-                              style={{ ...INPUT, minHeight: '52px' }}
+                              value={card.src}
+                              onChange={(e) => patch((d) => void (d.cards[i].src = e.target.value))}
+                              placeholder="出典(任意)"
+                              style={{ ...INPUT, font: '400 11.5px var(--f-ui)' }}
                             />
-                          ) : (
-                            <NoteMath className="nb-body" src={card.a} mark={markPlain} />
-                          )}
-                        </SubRow>
-                        {edit ? (
-                          <input
-                            className="fc-acc"
-                            value={card.src}
-                            onChange={(e) => patch((d) => void (d.cards[i].src = e.target.value))}
-                            placeholder="出典(任意)"
-                            style={{ ...INPUT, font: '400 11.5px var(--f-ui)' }}
-                          />
-                        ) : card.src ? (
-                          <div style={{ font: '400 11.5px var(--f-ui)', color: 'var(--tx3)' }}>
-                            {'出典: ' + card.src}
-                          </div>
-                        ) : null}
+                          ) : card.src ? (
+                            <div style={{ font: '400 11.5px var(--f-ui)', color: 'var(--tx3)' }}>
+                              {'出典: ' + card.src}
+                            </div>
+                          ) : null}
+                          {/* 丸つけ。解答を見たあとにしか出さない（`.nb-ans` の中に置く）
+                              ―― 思い出す前に理解度を聞いても答えようがない */}
+                          {!edit ? (
+                            <GradeRow
+                              pending={pending}
+                              onGrade={(g) => gradeCard(card, pending, g)}
+                            />
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
+                  {edit ? (
+                    <button
+                      className="nb-btn nb-btn--danger"
+                      onClick={() => {
+                        if (note.cards.length <= 1) {
+                          store.showToast('想起問題は1問以上必要です');
+                          return;
+                        }
+                        if (!window.confirm('この想起問題と、その復習カードを削除しますか？')) return;
+                        patch((d) => void d.cards.splice(i, 1), [card.cardId]);
+                      }}
+                    >
+                      削除
+                    </button>
+                  ) : null}
                 </div>
-                {edit ? (
-                  <button
-                    className="nb-btn nb-btn--danger"
-                    onClick={() => {
-                      if (note.cards.length <= 1) {
-                        store.showToast('想起問題は1問以上必要です');
-                        return;
-                      }
-                      if (!window.confirm('この想起問題と、その復習カードを削除しますか？')) return;
-                      patch((d) => void d.cards.splice(i, 1), [card.cardId]);
-                    }}
-                  >
-                    削除
-                  </button>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-        {edit ? (
-          <button
-            className="nb-btn"
-            onClick={() => {
-              if (note.cards.length >= NOTE_CARD_MAX) {
-                store.showToast('想起問題は' + NOTE_CARD_MAX + '問までです');
-                return;
-              }
-              patch((d) => {
-                d.cards.push({
-                  cardId: 'c' + Date.now().toString(36) + d.cards.length.toString(36),
-                  q: '',
-                  a: '',
-                  guide: '',
-                  src: '',
-                  // 編集画面から足す問いは、当然「自分で立てた問い」
-                  origin: 'self',
-                  attempts: [],
-                });
-              });
-            }}
-                    style={{ marginTop: '15px' }}
-          >
-            ＋ 自分で想起問題を足す
-          </button>
-        ) : null}
-      </section>
-
-      {/* ── 重要語の編集（編集モードだけ。読むときはキュー欄がそれにあたる） */}
-      {edit ? <KeywordEditor note={note} onPatch={patch} /> : null}
-
-      {/* ── コーネル本文。**この紙面の主役**。
-             右段 = 自分の手書きノートの再現（Klee One）、左段 = キュー欄、
-             各節の直下に AI の添削が紫インクで挟まる（レンズが「AIの添削も」のとき） */}
-      {note.sections.length || edit ? (
-        <section style={{ marginTop: '34px' }}>
-          <SectionHead
-            badge="本文"
-            title="自分のノート"
-            hint={
-              onlyMine
-                ? '授業で自分が書いたノートの再現。左のキュー欄はその高さで出てくる重要語'
-                : '自分が書いたノートの再現に、AI の添削（紫）を重ねている'
-            }
-          />
-          {note.keywords.length ? <KeyLegend /> : null}
-          <div
-            ref={bodyRef}
-            className={'nb-cornell' + (note.keywords.length ? '' : ' is-flat')}
-            onClick={onBodyClick}
-            onKeyDown={onBodyKeyDown}
-          >
-            {shownSections.map((v, row) => (
-              <NoteSectionRow
-                key={v.index}
-                note={note}
-                section={v.section}
-                index={v.index}
-                edit={edit}
-                onPatch={patch}
-                cueIndexes={cues.perSection[row] || []}
-                mark={markBody}
-                mask={check}
-              />
-            ))}
-            {/* 本文のどこにも出てこない語。「自分のノートだけ」のときは出さない
-                ―― 畳んだ AI 側にしか無い語を、キュー欄からこぼすことになるため */}
-            {cues.orphans.length && !onlyMine ? (
-              <>
-                <div className="nb-cue">
-                  <CueList note={note} indexes={cues.orphans} mask={check} />
-                </div>
-                <div className="nb-sec-hint" style={{ alignSelf: 'center' }}>
-                  本文には出てこない語（キュー欄だけに出す）
-                </div>
-              </>
-            ) : null}
+              );
+            })}
           </div>
           {edit ? (
             <button
               className="nb-btn"
-              style={{ marginTop: '15px' }}
               onClick={() => {
-                if (note.sections.length >= NOTE_SECTION_MAX) {
-                  store.showToast('本文の区画は' + NOTE_SECTION_MAX + 'までです');
+                if (note.cards.length >= NOTE_CARD_MAX) {
+                  store.showToast('想起問題は' + NOTE_CARD_MAX + '問までです');
                   return;
                 }
-                patch((d) => void d.sections.push({ heading: '', text: '', ai: '' }));
+                patch((d) => {
+                  d.cards.push({
+                    cardId: 'c' + Date.now().toString(36) + d.cards.length.toString(36),
+                    q: '',
+                    a: '',
+                    guide: '',
+                    src: '',
+                    // 編集画面から足す問いは、当然「自分で立てた問い」
+                    origin: 'self',
+                    attempts: [],
+                  });
+                });
               }}
+                      style={{ marginTop: '15px' }}
             >
-              ＋ 節を足す
+              ＋ 自分で想起問題を足す
             </button>
           ) : null}
         </section>
-      ) : null}
 
-      {/* ── 演習 */}
-      {(note.exercise.q || edit) && !onlyMine ? (
-        <section style={{ marginTop: '30px' }}>
-          <SectionHead badge="演習" hint="その場で 1 問、手を動かして解く" />
-          {edit ? (
-            <textarea
-              className="fc-acc"
-              value={note.exercise.q}
-              onChange={(e) => patch((d) => void (d.exercise.q = e.target.value))}
-              placeholder="演習問題"
-              style={{ ...INPUT, minHeight: '52px' }}
+        {/* ── 重要語の編集（編集モードだけ。読むときはキュー欄がそれにあたる） */}
+        {edit ? <KeywordEditor note={note} onPatch={patch} /> : null}
+
+        {/* ── コーネル本文。**この紙面の主役**。
+               右段 = 自分の手書きノートの再現（Klee One）、左段 = キュー欄、
+               各節の直下に AI の添削が紫インクで挟まる（レンズが「AIの添削も」のとき） */}
+        {paper && (note.sections.length || edit) ? (
+          <section style={{ marginTop: '34px' }}>
+            <SectionHead
+              badge="本文"
+              title="自分のノート"
+              hint={
+                onlyMine
+                  ? '授業で自分が書いたノートの再現。左のキュー欄はその高さで出てくる重要語'
+                  : '自分が書いたノートの再現に、AI の添削（紫）を重ねている'
+              }
             />
-          ) : (
-            <NoteMath className="nb-body" src={note.exercise.q} mark={markPlain} />
-          )}
-          <RevealButton
-            open={isOpen('e:' + note.id)}
-            onClick={() => toggle('e:' + note.id)}
-          />
-          <div style={wrapStyle(isOpen('e:' + note.id))}>
-            <div style={WRAP_INNER}>
-              <div className="nb-ans">
+            {note.keywords.length ? <KeyLegend /> : null}
+            <div
+              ref={bodyRef}
+              className={'nb-cornell' + (note.keywords.length ? '' : ' is-flat')}
+              onClick={onBodyClick}
+              onKeyDown={onBodyKeyDown}
+            >
+              {shownSections.map((v, row) => (
+                <NoteSectionRow
+                  key={v.index}
+                  note={note}
+                  section={v.section}
+                  index={v.index}
+                  edit={edit}
+                  onPatch={patch}
+                  cueIndexes={cues.perSection[row] || []}
+                  mark={markBody}
+                  mask={check}
+                />
+              ))}
+              {/* 本文のどこにも出てこない語。「自分のノートだけ」のときは出さない
+                  ―― 畳んだ AI 側にしか無い語を、キュー欄からこぼすことになるため */}
+              {cues.orphans.length && !onlyMine ? (
+                <>
+                  <div className="nb-cue">
+                    <CueList note={note} indexes={cues.orphans} mask={check} />
+                  </div>
+                  <div className="nb-sec-hint" style={{ alignSelf: 'center' }}>
+                    本文には出てこない語（キュー欄だけに出す）
+                  </div>
+                </>
+              ) : null}
+            </div>
+            {edit ? (
+              <button
+                className="nb-btn"
+                style={{ marginTop: '15px' }}
+                onClick={() => {
+                  if (note.sections.length >= NOTE_SECTION_MAX) {
+                    store.showToast('本文の区画は' + NOTE_SECTION_MAX + 'までです');
+                    return;
+                  }
+                  patch((d) => void d.sections.push({ heading: '', text: '', ai: '' }));
+                }}
+              >
+                ＋ 節を足す
+              </button>
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* ── 演習 */}
+        {(note.exercise.q || edit) && lens === 'ai' ? (
+          <section style={{ marginTop: '30px' }}>
+            <SectionHead badge="演習" hint="その場で 1 問、手を動かして解く" />
+            {edit ? (
+              <textarea
+                className="fc-acc"
+                value={note.exercise.q}
+                onChange={(e) => patch((d) => void (d.exercise.q = e.target.value))}
+                placeholder="演習問題"
+                style={{ ...INPUT, minHeight: '52px' }}
+              />
+            ) : (
+              <NoteMath className="nb-body" src={note.exercise.q} mark={markPlain} />
+            )}
+            <RevealButton
+              open={isOpen('e:' + note.id)}
+              onClick={() => toggle('e:' + note.id)}
+            />
+            <div style={wrapStyle(isOpen('e:' + note.id))}>
+              <div style={WRAP_INNER}>
+                <div className={'nb-ans' + (isOpen('e:' + note.id) ? ' is-open' : '')}>
+                  {edit ? (
+                    <textarea
+                      className="fc-acc"
+                      value={note.exercise.a}
+                      onChange={(e) => patch((d) => void (d.exercise.a = e.target.value))}
+                      placeholder="解答"
+                      style={{ ...INPUT, minHeight: '60px' }}
+                    />
+                  ) : (
+                    <NoteMath className="nb-body" src={note.exercise.a} mark={markPlain} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* ── 疑問 / 連絡。授業の中身ではなく自分の書き足しなので、版は張らない */}
+        {paper && (note.doubt || note.notice || edit) ? (
+          <section
+            style={{
+              marginTop: '30px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
+              gap: '30px',
+            }}
+          >
+            {note.doubt || edit ? (
+              <div>
+                <SectionHead badge="疑問" hint="自分がノートに書いた疑問（1行1件）" tone="warn" />
                 {edit ? (
                   <textarea
                     className="fc-acc"
-                    value={note.exercise.a}
-                    onChange={(e) => patch((d) => void (d.exercise.a = e.target.value))}
-                    placeholder="解答"
-                    style={{ ...INPUT, minHeight: '60px' }}
+                    value={note.doubt}
+                    onChange={(e) => patch((d) => void (d.doubt = e.target.value))}
+                    placeholder={'授業中に引っかかったことを 1 行ずつ\n（ここはAIに書かせない欄）'}
+                    style={{ ...INPUT, minHeight: '68px' }}
                   />
                 ) : (
-                  <NoteMath className="nb-body" src={note.exercise.a} mark={markPlain} />
+                  <ul className="nb-doubt">
+                    {doubtLines.map((line, i) => (
+                      <li key={i}>
+                        <NoteMath className="nb-mine" src={line} mark={markPlain} />
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
+            ) : null}
+            {note.notice || edit ? (
+              <div>
+                <SectionHead badge="連絡" hint="提出物・テスト範囲など" tone="quiet" />
+                {edit ? (
+                  <textarea
+                    className="fc-acc"
+                    value={note.notice}
+                    onChange={(e) => patch((d) => void (d.notice = e.target.value))}
+                    placeholder="提出物・テスト範囲など"
+                    style={{ ...INPUT, minHeight: '68px' }}
+                  />
+                ) : (
+                  <NoteMath className="nb-body nb-body--sm" src={note.notice} />
+                )}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
-      {/* ── 疑問 / 連絡。授業の中身ではなく自分の書き足しなので、版は張らない */}
-      {note.doubt || note.notice || edit ? (
-        <section
-          style={{
-            marginTop: '30px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
-            gap: '30px',
-          }}
-        >
-          {note.doubt || edit ? (
-            <div>
-              <SectionHead badge="疑問" hint="自分がノートに書いた疑問（1行1件）" tone="warn" />
-              {edit ? (
-                <textarea
-                  className="fc-acc"
-                  value={note.doubt}
-                  onChange={(e) => patch((d) => void (d.doubt = e.target.value))}
-                  placeholder={'授業中に引っかかったことを 1 行ずつ\n（ここはAIに書かせない欄）'}
-                  style={{ ...INPUT, minHeight: '68px' }}
-                />
-              ) : (
-                <ul className="nb-doubt">
-                  {doubtLines.map((line, i) => (
-                    <li key={i}>
-                      <NoteMath className="nb-mine" src={line} mark={markPlain} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : null}
-          {note.notice || edit ? (
-            <div>
-              <SectionHead badge="連絡" hint="提出物・テスト範囲など" tone="quiet" />
-              {edit ? (
-                <textarea
-                  className="fc-acc"
-                  value={note.notice}
-                  onChange={(e) => patch((d) => void (d.notice = e.target.value))}
-                  placeholder="提出物・テスト範囲など"
-                  style={{ ...INPUT, minHeight: '68px' }}
-                />
-              ) : (
-                <NoteMath className="nb-body nb-body--sm" src={note.notice} />
-              )}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
+        {/* ── 元のノート（写真）。本文が主役になったので原本は畳む。
+               `<details>` にしてあるので、閉じている間は 1 行の見出しだけ */}
+        {paper ? (
+          <details className="nb-scanfold">
+            <summary className="nb-scanfold__summary">
+              <span className="nb-scanfold__caret" aria-hidden="true">
+                ▸
+              </span>
+              元のノート（写真）
+              <span className="nb-scanfold__count">
+                {note.scans.length ? note.scans.length + '枚' : '未登録'}
+              </span>
+            </summary>
+            <NoteScanStrip
+              note={note}
+              edit={edit}
+              index={S.nbScanIx}
+              onIndex={(i) => store.setState({ nbScanIx: i })}
+              zoom={S.nbScanZoom}
+              onZoom={(id) => store.setState({ nbScanZoom: id })}
+              onPatch={patch}
+            />
+          </details>
+        ) : null}
 
-      {/* ── 元のノート（写真）。本文が主役になったので原本は畳む。
-             `<details>` にしてあるので、閉じている間は 1 行の見出しだけ */}
-      <details className="nb-scanfold">
-        <summary className="nb-scanfold__summary">
-          <span className="nb-scanfold__caret" aria-hidden="true">
-            ▸
-          </span>
-          元のノート（写真）
-          <span className="nb-scanfold__count">
-            {note.scans.length ? note.scans.length + '枚' : '未登録'}
-          </span>
-        </summary>
-        <NoteScanStrip
-          note={note}
-          edit={edit}
-          index={S.nbScanIx}
-          onIndex={(i) => store.setState({ nbScanIx: i })}
-          zoom={S.nbScanZoom}
-          onZoom={(id) => store.setState({ nbScanZoom: id })}
-          onPatch={patch}
-        />
-      </details>
-
-      {/* ── まとめ。**自分が書く欄**なので紙面のいちばん下に置き、手書き書体で組む。
-             AI 由来ではないので「自分のノートだけ」レンズでも畳まない */}
-      <section className="nb-summary">
-        <SectionHead badge="まとめ" hint="この授業 1 回を、自分の言葉で数行に" />
-        {edit ? (
-          <textarea
-            className="fc-acc"
-            value={note.summary}
-            onChange={(e) => patch((d) => void (d.summary = e.target.value))}
-            placeholder="この授業でいちばん大事だったことを 3 行以内で"
-            style={{ ...INPUT, minHeight: '92px', font: '400 15.5px var(--f-hand)' }}
-          />
-        ) : note.summary ? (
-          <NoteMath className="nb-mine nb-summary__body" src={note.summary} mark={markPlain} />
-        ) : (
-          <p className="nb-summary__empty">
-            自分の言葉で、3 行以内のまとめを書く場所です（「編集」から書けます）
-          </p>
-        )}
-      </section>
+        {/* ── まとめ。**自分が書く欄**なので紙面のいちばん下に置き、手書き書体で組む。
+               AI 由来ではないので「自分のノートだけ」レンズでも畳まない。
+               「想起問題だけ」では畳む ―― まとめを読めば答えが割れてしまうため */}
+        {paper ? (
+          <section className="nb-summary">
+            <SectionHead badge="まとめ" hint="この授業 1 回を、自分の言葉で数行に" />
+            {edit ? (
+              <textarea
+                className="fc-acc"
+                value={note.summary}
+                onChange={(e) => patch((d) => void (d.summary = e.target.value))}
+                placeholder="この授業でいちばん大事だったことを 3 行以内で"
+                style={{ ...INPUT, minHeight: '92px', font: '400 15.5px var(--f-hand)' }}
+              />
+            ) : note.summary ? (
+              <NoteMath className="nb-mine nb-summary__body" src={note.summary} mark={markPlain} />
+            ) : (
+              <p className="nb-summary__empty">
+                自分の言葉で、3 行以内のまとめを書く場所です（「編集」から書けます）
+              </p>
+            )}
+          </section>
+        ) : null}
+      </div>
     </article>
   );
 }

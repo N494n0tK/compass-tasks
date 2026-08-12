@@ -1117,6 +1117,15 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   --nb-warn:color-mix(in srgb,var(--pink) 74%,var(--tx0));
 }
 
+/* ── 紙面のスクロール枠。
+      `position:relative` は飾りではなく**必須**。KaTeX は数式ごとに
+      `.katex-mathml`（読み上げ用の MathML）を `position:absolute` で置く。
+      枠の側に位置決めの基準が無いと、この絶対配置が枠を飛び越えて
+      ページ（初期包含ブロック）に載り、ノート画面でだけ**ウィンドウごと**
+      縦にスクロールできてしまう（`.compass-shell` の overflow:hidden は
+      包含ブロックの外にある要素を切り取れない）。基準をここに置いて閉じ込める。 */
+.nb-main{position:relative}
+
 /* ── ページ頭。ここだけ罫を刷る（太 3px / 細 1px） */
 .nb-masthead{
   border-top:3px solid var(--tx0);
@@ -1186,6 +1195,12 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   padding:4px 0 4px 15px;margin:7px 0 2px;
   display:grid;gap:10px;
 }
+/* 開いた瞬間だけインクが載る。キャレットが .3s で回るのに中身が瞬時に出ると
+   ちぐはぐなので、紙面と同じ inkIn を少し短く（高さは外側の grid が .45s で伸ばす）。
+   `.nb-sheet` と同じ理由で fill-mode は付けない ―― 残すと transform が単位行列で
+   居座り、中の KaTeX が滲む。fill 無しなら終わった瞬間に素の状態へ戻る */
+.nb-ans.is-open{animation:inkIn .2s cubic-bezier(.2,.85,.2,1)}
+@media(prefers-reduced-motion:reduce){.nb-ans.is-open{animation:none}}
 /* 解説の「解答」だけは、字の左に細い罫を引いて答案の体裁にする */
 .nb-hair{border-left:1px solid var(--line2);padding-left:15px}
 
@@ -1208,6 +1223,19 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   text-decoration:underline;text-underline-offset:3px;
 }
 .nb-jump:hover{color:var(--tx0)}
+
+/* ── 丸つけの一組（ノート面の想起問題。解答を開いたあと、その下に出る）。
+   ドリル面と同じ `.nb-maru` を使うのは、同じ操作だと一目で分かるようにするため。
+   上に細い罫を 1 本入れて「解答を読む」と「丸をつける」を切る */
+.nb-grade{
+  margin-top:14px;padding-top:12px;
+  border-top:1px dashed var(--line2);
+}
+.nb-grade__ask{font:700 11.5px var(--f-ui);color:var(--tx2);margin-bottom:8px}
+.nb-grade__row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+/* 解答欄の中なので、ドリル面よりひとまわり小さく組む（記号は読める大きさを保つ） */
+.nb-grade .nb-maru{padding:7px 5px 8px}
+.nb-grade .nb-maru__mark{font-size:20px}
 
 /* ── 丸つけ。◎○△（ドリル面の理解度） */
 .nb-maru{
@@ -1621,6 +1649,22 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 .nb-lens__opt:hover{color:var(--tx1)}
 .nb-lens__opt.is-on{background:var(--view);color:var(--onAcc)}
+
+/* ── レンズを倒したあとの紙面（マストヘッドより下の全部）。
+      スイッチを押すと区画がまるごと入れ替わるのに、いままで瞬時に差し替わっていた。
+      他画面の切り替え（inkIn）と同じ「インクが紙に載る」動きを短く掛けて、
+      押した操作と紙面の変化をつなぐ ―― 刷り直されるのはスイッチの下だけなので、
+      マストヘッドと読み方の列は動かさない。
+      長さは inkIn の .22s より気持ち短く。紙面は面積が大きく、同じ .22s だと重く見える。
+      走らせるのは NoteView 側の `key={lens}` による mount のとき（= レンズを変えたとき）だけ。
+
+      ⚠ fill-mode は付けない。`both` にすると終端の `transform:none` が
+      **単位行列として残り**（Chrome の実測で `matrix(1,0,0,1,0,0)`）、この要素が
+      `position:fixed` の包含ブロックになってしまう ―― 中にある写真の拡大
+      （`.nb-zoom`, inset:0 の全面）が紙面の中に閉じ込められる。fill 無しなら
+      終わった瞬間に素の指定（transform 実質なし）へ戻るので、KaTeX の滲みも残らない */
+.nb-sheet{animation:inkIn .2s cubic-bezier(.2,.85,.2,1)}
+@media(prefers-reduced-motion:reduce){.nb-sheet{animation:none}}
 
 /* ── 狭い画面ではキュー欄を本文の上へ回す（縦罫はやめる） */
 @media(max-width:700px){
