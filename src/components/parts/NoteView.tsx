@@ -34,6 +34,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { fmtD, fmtMD, longDayLabel } from '../../lib/logic/dates';
+import { parseNoteBody } from '../../lib/logic/noteBody';
 import { noteSeriesId } from '../../lib/logic/noteCards';
 import { assignCues, sectionSearchText } from '../../lib/logic/noteKeywords';
 import { timetableSubjects } from '../../lib/logic/timetable';
@@ -1207,13 +1208,82 @@ function KeywordEditor({
 // ─────────────────────────────────────────────────────────────
 
 /**
- * `$$…$$`（別行立ての数式）は改行をまたぐので、行に割ってはいけない。
- * 含まれていたら 1 かたまりのまま描く。
+ * 本文（`sections[].text`）を紙面に落とす。割り方は `logic/noteBody.ts` が決め、
+ * ここは**どう見せるか**だけを持つ（spec §3.10）:
+ *
+ *   行   … 箇条書き。ぶら下げ（`depth`）は字下げで、行頭の記号は打ち直さない
+ *   表   … 対応・分類の升目。手書き書体のまま細い罫で組む
+ *   余白 … 空行 1 つぶん。**ここが「詰まったノート」への答え**
+ *
+ * 重要語（`mark`）は表の升目にも塗る ―― `.nb-key` を DOM から数える確認モードは、
+ * 升目の中の語もそのまま拾う。
  */
-function bulletLines(text: string): string[] | null {
-  if (text.includes('$$')) return null;
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  return lines.length > 1 ? lines : null;
+function NoteBody({
+  text,
+  mark,
+}: {
+  text: string;
+  mark: NoteMarkOptions | undefined;
+}) {
+  const blocks = useMemo(() => parseNoteBody(text), [text]);
+  if (!blocks.length) return null;
+
+  return (
+    <>
+      {blocks.map((b, bi) => {
+        if (b.kind === 'gap') return <div key={bi} className="nb-gap" aria-hidden="true" />;
+
+        if (b.kind === 'raw')
+          return (
+            <NoteMath key={bi} className="nb-mine nb-cornell__text" src={b.text} mark={mark} />
+          );
+
+        if (b.kind === 'table')
+          return (
+            <div key={bi} className="nb-tablewrap">
+              <table className="nb-table">
+                {b.head ? (
+                  <thead>
+                    <tr>
+                      {b.head.map((c, ci) => (
+                        <th key={ci}>
+                          <NoteMathInline src={c} mark={mark} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                ) : null}
+                <tbody>
+                  {b.rows.map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map((c, ci) => (
+                        <td key={ci}>
+                          <NoteMathInline src={c} mark={mark} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+
+        return (
+          <ul key={bi} className="nb-cornell__list">
+            {b.lines.map((line, li) => (
+              <li
+                key={li}
+                data-depth={line.depth || undefined}
+                className={line.bullet ? undefined : 'is-plain'}
+              >
+                <NoteMath className="nb-mine nb-cornell__text" src={line.text} mark={mark} />
+              </li>
+            ))}
+          </ul>
+        );
+      })}
+    </>
+  );
 }
 
 /**
@@ -1260,8 +1330,6 @@ function NoteSectionRow({
       if (s) s[key] = value;
     });
 
-  const lines = bulletLines(section.text);
-
   return (
     <>
       {/* 左段。この節で初めて出てくる重要語だけを置く */}
@@ -1305,19 +1373,15 @@ function NoteSectionRow({
             className="fc-acc"
             value={section.text}
             onChange={(e) => setField('text', e.target.value)}
-            placeholder={'自分のノートの本文（1 行 1 項目 / 数式は $...$）\n空にすると「AI だけの補足」の節になります'}
+            placeholder={
+              '自分のノートの本文（1 行 1 項目 / 数式は $...$）\n' +
+              '行頭の空白 2 つでぶら下げ、空行で余白、| a | b | で表\n' +
+              '空にすると「AI だけの補足」の節になります'
+            }
             style={{ ...INPUT, minHeight: '112px', font: '400 14px var(--f-hand)', lineHeight: 2 }}
           />
-        ) : lines ? (
-          <ul className="nb-cornell__list">
-            {lines.map((line, li) => (
-              <li key={li}>
-                <NoteMath className="nb-mine nb-cornell__text" src={line} mark={mark} />
-              </li>
-            ))}
-          </ul>
         ) : (
-          <NoteMath className="nb-mine nb-cornell__text" src={section.text} mark={mark} />
+          <NoteBody text={section.text} mark={mark} />
         )}
 
         {/* AI の添削。赤ペンで挟まれた別人の筆 ―― 書体（活字）と色（紫）で切る */}

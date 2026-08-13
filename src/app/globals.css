@@ -1323,7 +1323,9 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   display:grid;
   grid-template-columns:var(--nb-cue-w) 1fr;
   column-gap:var(--nb-cue-gap);
-  row-gap:30px;
+  /* 区画と区画の間。v0.16 で 30px から広げた ―― 手書きのノートは区画ごとに
+     たっぷり空いていて、そこが「話が変わった」の合図になっている */
+  row-gap:42px;
   align-items:start;
   background:linear-gradient(var(--line2),var(--line2)) no-repeat;
   background-size:1px 100%;
@@ -1338,19 +1340,60 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 /* ── 自分のノートの見出し。本文と同じ手書き書体のまま、級数だけ上げる
    （版（.nb-badge）を張ると「アプリが付けた見出し」になってしまう） */
 .nb-cornell__heading{
-  margin:0 0 5px;
+  margin:0 0 10px;
   font:700 18px/1.5 var(--f-hand);
   color:var(--tx0);
 }
 /* 本文。自分の手書きの再現なので Klee One（= .nb-mine と同じ筆） */
 .nb-cornell__text{overflow-wrap:break-word}
-/* `\n` 区切りの行は箇条書きとして立てる。ノートは文章ではなく行の集まり */
-.nb-cornell__list{margin:0;padding:0;list-style:none;display:grid;gap:1px}
+
+/* ── 行の組み方（v0.16。`logic/noteBody.ts` の割り方をそのまま紙面にする）
+
+   手書きノートは**文章ではなく骨組み**で、見出し語の下に説明がぶら下がり、
+   話題の変わり目で 1 行空く。以前はどの行にも「・」を打ち、空行を捨てていたので、
+   紙面は「・」の列がびっしり続く教科書になっていた。直したのは 3 つ:
+
+     ぶら下げ … data-depth の段だけ字下げする。親の行と同じ「・」は打たない
+     記号     … 行がもともと ○ → = ① で始まるなら「・」を重ねない（生徒の記号が主）
+     余白     … 空行を .nb-gap として残す（詰めない）                            */
+.nb-cornell__list{margin:0;padding:0;list-style:none;display:grid;gap:3px}
 .nb-cornell__list>li{position:relative;padding-left:16px}
 .nb-cornell__list>li::before{
   content:'・';position:absolute;left:-1px;top:0;
   color:var(--tx3);font:400 var(--nb-size)/2.05 var(--f-hand);
 }
+/* すでに記号で始まる行・ぶら下げの行には打たない */
+.nb-cornell__list>li.is-plain::before{content:none}
+/* 折り返した続きは記号の下に潜らせる（ぶら下げインデント）。
+   「○ アニミズム … 長い定義」が 2 行になったとき、続きが ○ の真下から
+   始まると、次の項目との区別が付かない。行頭記号 1 字ぶんだけ下げて畳む */
+.nb-cornell__list>li.is-plain .nb-cornell__text{padding-left:1.7em;text-indent:-1.7em}
+/* ぶら下げ。1 段 = 全角 1 字ぶん強。字も少し細くして、親の行との差を付ける */
+.nb-cornell__list>li[data-depth]{padding-left:34px}
+.nb-cornell__list>li[data-depth="2"]{padding-left:54px}
+.nb-cornell__list>li[data-depth] .nb-cornell__text{font-size:calc(var(--nb-size) - 1.5px);color:var(--tx1)}
+
+/* 空行 1 つぶんの余白。ここを持たないと、どれだけ空けて書いても紙面は詰まる */
+.nb-gap{height:18px}
+
+/* ── 表（`| a | b |`）。対応・分類・比較を升目で見せる。
+   手書き書体のまま、罫は細く薄く ―― 紙のノートに定規で引いた線の見当。
+   狭い画面では枠の中だけ横スクロールさせる（紙面ごと流れない） */
+.nb-tablewrap{overflow-x:auto;margin:6px 0 2px;padding-bottom:2px}
+.nb-table{
+  border-collapse:collapse;
+  font:400 calc(var(--nb-size) - 1.5px)/1.75 var(--f-hand);
+  color:var(--tx0);
+}
+.nb-table th,.nb-table td{
+  border:1px solid var(--line2);
+  padding:5px 12px;
+  text-align:left;
+  vertical-align:top;
+}
+/* 見出し行だけ地を敷く。太罫にすると紙面の中で表だけが強くなりすぎる */
+.nb-table th{font-weight:700;background:var(--nb-tint);color:var(--tx0);white-space:nowrap}
+.nb-table .katex{font-size:1em}
 
 /* ── AI の添削。赤ペン先生が自分のノートに書き込んだ体裁にする。
    自分の手書き（Klee One・地の墨）との差は**書体と色の 2 つ**で付ける。
