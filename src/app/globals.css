@@ -612,26 +612,103 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .app-view-title::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;background:var(--view);transition:background .3s ease}
 .app-view-title__name{font:900 19px var(--f-disp)!important;letter-spacing:.05em;color:var(--tx0);line-height:1.2}
 .app-view-title__sub{font:400 10.5px var(--f-ui);color:var(--tx3);line-height:1.4;letter-spacing:.04em}
+/* ── 検索欄（v0.17 で組み直した）。
+   校内プリントの見立てでは、ここは紙ではなく**窓口の記入欄**にあたる。
+   だから面は 1 段沈め、いま何をさがしているか（`.app-search-scope`）を
+   欄の頭に刷り、書き始めると差し色の罫が下から立ち上がる。
+   角丸と影は増やさない ―― 浮かせるのではなく、地を彫る方向で立てる */
 .app-search{
-  position:relative;order:2;margin-left:auto;display:flex;align-items:center;gap:9px;
-  min-width:min(32vw,420px);padding:0 11px;height:36px;
-  background:var(--bg2);border:1px solid var(--line2);border-radius:var(--rad-s);
-  color:var(--tx2);box-shadow:none;transition:border-color .13s ease;
+  position:relative;order:2;margin-left:auto;display:flex;align-items:center;gap:8px;
+  min-width:min(32vw,420px);padding:0 7px 0 11px;height:36px;
+  background:var(--bg0);
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  color:var(--tx2);
+  box-shadow:inset 0 1px 0 rgba(0,0,0,.16);
+  transition:border-color .15s ease,background .15s ease,box-shadow .15s ease;
 }
-.app-search:hover,.app-search:focus-within{border-color:var(--view);box-shadow:none}
+/* 書き始めたら差し色の罫が左から伸びる（欄が「開いた」合図） */
+.app-search::after{
+  content:"";position:absolute;left:-1px;right:-1px;bottom:-1px;height:2px;
+  background:var(--view);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .26s cubic-bezier(.2,.85,.2,1);
+}
+.app-search:focus-within::after{transform:scaleX(1)}
+@media(prefers-reduced-motion:reduce){.app-search::after{transition:none}}
+.app-search:hover{border-color:color-mix(in srgb,var(--view) 45%,var(--line2))}
+.app-search:focus-within{
+  border-color:var(--view);background:var(--bg2);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--view) 15%,transparent);
+}
+.app-search-icon{flex:none;color:var(--tx3);transition:color .15s ease}
+.app-search:focus-within .app-search-icon{color:var(--view)}
+/* さがす相手。ノートの画面では「ノート内」＝ 紙面の中の語をさがしている */
+.app-search-scope{
+  flex:none;padding:3px 7px;border-radius:2px;
+  background:var(--bg3);color:var(--tx2);
+  font:700 9.5px var(--f-ui);letter-spacing:.1em;white-space:nowrap;
+  transition:background .15s ease,color .15s ease;
+}
+.app-search--note .app-search-scope{background:var(--viewBg);color:var(--view)}
 .app-search-input{flex:1;min-width:0;height:34px;padding:0;border:0;outline:0;background:transparent;color:var(--tx0);font:400 12.5px var(--f-ui)}
 .app-search-input::placeholder{color:var(--tx3)}
-.app-search-shortcut{flex:none;padding:1px 5px;border:1px solid var(--line2);border-radius:var(--rad-s);color:var(--tx3);font:600 10px var(--f-num)}
+/* ⌘K は打ち始めたら引っ込む（用が済んだ案内を出しっぱなしにしない） */
+.app-search-shortcut{
+  flex:none;padding:2px 6px;
+  border:1px solid var(--line2);border-bottom-width:2px;border-radius:3px;
+  background:var(--bg2);color:var(--tx3);
+  font:600 10px var(--f-num);letter-spacing:.06em;
+  transition:opacity .15s ease;
+}
+.app-search:focus-within .app-search-shortcut{opacity:0}
 .app-search-clear{width:22px;height:22px;flex:none;padding:0;border:0;border-radius:var(--rad-s);background:transparent;color:var(--tx3);cursor:pointer}
 .app-search-clear:hover{background:var(--bg3);color:var(--tx0)}
 .app-search-popover{
-  position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:80;
-  max-height:min(620px,calc(100vh - 90px));padding:13px;
+  position:absolute;left:0;right:0;top:calc(100% + 7px);z-index:80;
+  max-height:min(620px,calc(100vh - 90px));padding:0 13px 13px;
   background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad);
+  border-top:2px solid var(--view);
   box-shadow:0 20px 44px rgba(0,0,0,.34);
   display:flex;flex-direction:column;gap:10px;animation:fadeUp .14s ease;
 }
-.app-search-results{max-height:370px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+/* 見出しの帯。ここが何の一覧かを 1 行で言う */
+.app-search-popover__head{
+  display:flex;align-items:baseline;gap:9px;
+  margin:0 -13px;padding:10px 13px 9px;
+  border-bottom:1px solid var(--line);
+}
+.app-search-popover__title{font:700 12px var(--f-disp);color:var(--tx0);letter-spacing:.06em}
+.app-search-popover__sub{font:400 10.5px var(--f-ui);color:var(--tx3)}
+.app-search-count{font:400 11px var(--f-ui);color:var(--tx3)}
+.app-search-empty{padding:20px 10px;text-align:center;color:var(--tx3);font:400 11.5px/1.9 var(--f-ui)}
+.app-search-results{max-height:370px;overflow:auto;display:flex;flex-direction:column;gap:3px}
+
+/* ── ノート内検索の 1 件。左から「どこ（版）／語と前後／どの冊子か」。
+   紙面の版（.nb-badge）と同じ順番で読めるようにしてある */
+.app-search-hit{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:8px 10px;
+  border:0;border-left:2px solid transparent;border-radius:var(--rad-s);
+  background:var(--bg2);color:inherit;text-align:left;cursor:pointer;
+  transition:background .12s ease,border-color .12s ease;
+}
+.app-search-hit:hover,.app-search-hit:focus-visible{background:var(--bg3);border-left-color:var(--view)}
+.app-search-hit__kind{
+  flex:none;width:34px;padding:2px 0;text-align:center;
+  border:1px solid var(--line2);border-radius:2px;
+  font:700 9.5px var(--f-ui);color:var(--tx3);
+}
+/* キュー欄のヒットだけは、その語の 3 色をそのまま出す（紙面と同じ姿で照合できる） */
+.app-search-hit--cue .app-search-hit__kind{color:var(--nb-k);border-color:var(--nb-k)}
+.app-search-hit--cue .app-search-hit__term{color:var(--nb-k)}
+.app-search-hit__main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.app-search-hit__term{font:700 12px var(--f-ui);color:var(--tx0);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-search-hit__snip{font:400 10.5px var(--f-ui);color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-search-hit__where{
+  flex:none;max-width:38%;
+  font:400 10px var(--f-ui);color:var(--tx3);text-align:right;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 .app-top-actions{order:3;margin-left:auto!important}
 .app-alert-pill{
   display:flex;align-items:center;gap:6px;padding:7px 12px;
@@ -1126,6 +1203,27 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
       包含ブロックの外にある要素を切り取れない）。基準をここに置いて閉じ込める。 */
 .nb-main{position:relative}
 
+/* ── 紙（v0.17）。
+      Compass の他の画面は方眼の上に直接刷った「校内プリント」で、面は透明にして
+      方眼を透かしている。ノートだけはそれをやめて**不透明な 1 枚の紙**を置く。
+
+      理由は 1 つ。ここは唯一の「読む」画面で、本文の下を 32px の方眼が
+      通り続けると、行間に薄い横罫が入っているように見えて字が読みにくい。
+      重要語の 2px 下線・表の細罫・キュー欄の縦罫は、どれも方眼と同じ太さの
+      線なので、地に線があると**どれが意味のある線か**が消える。
+
+      紙なので影は落とさない（[C-2]「印刷物に影は落ちない」）。机との差は
+      1px の枠だけで付ける。 */
+.nb-paper{
+  max-width:880px;
+  padding:6px 30px 34px;
+  background:var(--bg1);
+  border:1px solid var(--line);
+  border-radius:var(--rad-s);
+}
+.nb-paper--wide{max-width:940px}
+@media(max-width:900px){.nb-paper{padding:6px 16px 26px}}
+
 /* ── ページ頭。ここだけ罫を刷る（太 3px / 細 1px） */
 .nb-masthead{
   border-top:3px solid var(--tx0);
@@ -1472,6 +1570,29 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   box-decoration-break:clone;-webkit-box-decoration-break:clone;
   transition:color .2s ease,box-shadow .2s ease;
 }
+
+/* ── ノート内検索で当たった語（`logic/noteSearch.ts` / 上の検索欄）。
+   重要語の 3 色は**意味**（最重要 / 事実 / つながり）を持っているので、
+   そこへ 4 つめの色を足すわけにいかない。検索の印は読み終われば消えるものなので、
+   文字の色はそのままに**地だけを蛍光ペンで塗る**。下線（重要語）と塗り（検索）で
+   役割が分かれ、重要語の上に当たっても両方が読める */
+mark.nb-find{
+  background:color-mix(in srgb,var(--org) 34%,transparent);
+  color:inherit;
+  border-radius:2px;padding:0 1px;
+  box-shadow:0 1px 0 color-mix(in srgb,var(--org) 55%,transparent);
+}
+/* 敷いた蛍光ペンを外すつまみ（読み方の列に出る） */
+.nb-findchip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:3px 9px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:transparent;color:var(--tx3);
+  font:600 11px var(--f-ui);cursor:pointer;
+  transition:border-color .13s ease,color .13s ease;
+}
+.nb-findchip:hover{border-color:var(--org);color:var(--tx1)}
+.nb-findchip mark.nb-find{font-weight:700;color:var(--tx0)}
 
 /* ── 確認モードの付箋。上辺のテープ（::after）ごと剥がす見立て。
    地は**不透明**にする ―― 半透明だと方眼や下の字が透けて、

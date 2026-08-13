@@ -36,6 +36,28 @@ export interface NoteMarkOptions {
   keywords: readonly NoteKeyword[];
   /** 確認モード。重要語を付箋で伏せる（クリックで剥がす。剥がす処理は DOM 側） */
   mask?: boolean;
+  /**
+   * ノート内検索で当たっている語。出てくるところに `<mark class="nb-find">` を敷く。
+   * 重要語の色（意味を持つ 3 色）とは別物なので、蛍光ペンの体裁で重ねる。
+   * 伏せてある重要語（`mask`）の中には敷かない ―― 付箋の下が透けたら伏せた意味がない。
+   */
+  find?: string;
+}
+
+/** 検索で当たっている語に蛍光ペンを敷く（`find` が空なら素の `plain`） */
+function plainFind(t: string, find: string): string {
+  if (!find) return plain(t);
+  const hay = t.toLowerCase();
+  const needle = find.toLowerCase();
+  let out = '';
+  let i = 0;
+  for (;;) {
+    const at = hay.indexOf(needle, i);
+    if (at < 0) return out + plain(t.slice(i));
+    out += plain(t.slice(i, at));
+    out += '<mark class="nb-find">' + plain(t.slice(at, at + find.length)) + '</mark>';
+    i = at + find.length;
+  }
 }
 
 /**
@@ -46,10 +68,12 @@ export interface NoteMarkOptions {
  * 含まれていても壊れない。
  */
 function marked(t: string, opt: NoteMarkOptions | undefined): string {
-  if (!opt || !opt.keywords.length) return plain(t);
+  if (!opt) return plain(t);
+  const find = opt.find || '';
+  if (!opt.keywords.length) return plainFind(t, find);
   return splitByKeywords(t, opt.keywords)
     .map((p) => {
-      if (p.keywordIndex === null) return plain(p.text);
+      if (p.keywordIndex === null) return plainFind(p.text, find);
       const kw = opt.keywords[p.keywordIndex];
       const cls =
         'nb-key nb-key--' + kw.color + (opt.mask ? ' is-hidden' : '');
@@ -62,7 +86,7 @@ function marked(t: string, opt: NoteMarkOptions | undefined): string {
         '"' +
         (opt.mask ? ' role="button" tabindex="0" aria-label="伏せた重要語。開くにはクリック"' : '') +
         '>' +
-        plain(p.text) +
+        (opt.mask ? plain(p.text) : plainFind(p.text, find)) +
         '</span>'
       );
     })

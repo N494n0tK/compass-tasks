@@ -70,7 +70,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
   const backToTodo = () => closeNoteDrill(store);
 
   return (
-    <div style={{ maxWidth: '880px', animation: 'fadeUp .22s ease' }}>
+    <div className="nb-paper" style={{ animation: 'fadeUp .22s ease' }}>
       {/* ── ページ頭。ノート本体と同じ太細 2 本組 */}
       <div className="nb-masthead">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

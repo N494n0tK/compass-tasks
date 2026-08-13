@@ -153,7 +153,7 @@ export function NoteExtract() {
   const sortHint = SORTS.find((x) => x.id === S.nbExtractSort)?.hint ?? '';
 
   return (
-    <div style={{ maxWidth: '840px', animation: 'fadeUp .22s ease' }}>
+    <div className="nb-paper nb-paper--wide" style={{ animation: 'fadeUp .22s ease' }}>
       {/* ノート本体と同じ太細 2 本組。ここが紙面の頭だという合図 */}
       <div className="nb-masthead">
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>

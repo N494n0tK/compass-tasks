@@ -237,6 +237,14 @@ export function NoteView({ note }: NoteViewProps) {
   const paper = lens !== 'recall';
   const selfCount = note.cards.filter((c) => c.origin === 'self').length;
   const subjColor = subjectColorFor(subjColors, note.subject);
+  /**
+   * ノート内検索で当たっている語（`logic/noteSearch.ts` / `ShellTopbar`）。
+   * 打っている最中は上の欄の語をそのまま、ポップオーバーを閉じたあとは
+   * 選んだときに残した `nbFind` を使う ―― 閉じた瞬間に色が消えると、
+   * せっかく引いた語を紙面の中でまた探し直すことになる。
+   * 確認モードでは敷かない（付箋の下が透けたら伏せた意味がない）。
+   */
+  const find = check ? '' : (S.searchOpen && S.query.trim()) || S.nbFind || '';
 
   /** ノートを書き換えて保存する（復習の生成・同期も `commitNote` が面倒を見る） */
   const patch = (fn: (draft: Note) => void, removedCardIds?: string[]) => {
@@ -325,12 +333,15 @@ export function NoteView({ note }: NoteViewProps) {
   //    （伏せる範囲を `.nb-cornell` の中に閉じるのは、めくった枚数を数える
   //      `bodyRef` の走査範囲と一致させるため）
   const markBody = useMemo<NoteMarkOptions | undefined>(
-    () => (note.keywords.length ? { keywords: note.keywords, mask: check } : undefined),
-    [note.keywords, check],
+    () =>
+      note.keywords.length || find
+        ? { keywords: note.keywords, mask: check, find }
+        : undefined,
+    [note.keywords, check, find],
   );
   const markPlain = useMemo<NoteMarkOptions | undefined>(
-    () => (note.keywords.length ? { keywords: note.keywords } : undefined),
-    [note.keywords],
+    () => (note.keywords.length || find ? { keywords: note.keywords, find } : undefined),
+    [note.keywords, find],
   );
 
   // ── 紙面に出す節。レンズが「自分のノートだけ」のとき:
@@ -367,6 +378,7 @@ export function NoteView({ note }: NoteViewProps) {
   //   `dangerouslySetInnerHTML` が貼り直されて**さっき剥がした付箋が戻る**。
   //   数えるのも表示も ref で行い、確認モード中は React を一切走らせない。
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const pageRef = useRef<HTMLElement | null>(null);
   const countRef = useRef<HTMLSpanElement | null>(null);
   const hintRef = useRef<HTMLSpanElement | null>(null);
   const tally = useRef({ peeled: 0, hidable: 0 });
@@ -394,6 +406,18 @@ export function NoteView({ note }: NoteViewProps) {
     tally.current = { peeled: 0, hidable: check ? allKeys().length : 0 };
     paintTally();
   }, [check, note, allKeys, paintTally]);
+
+  // 引いた語が紙面の下の方にあることの方が多い。開いた直後に最初の 1 つへ寄せる
+  // （寄せるだけで、めくったり開いたりはしない ―― 読む順は本人が決める）
+  // `.nb-sheet` の中だけを見る ―― 読み方の列に出ている「強調中」のつまみも
+  // 同じ `.nb-find` なので、素直に先頭を取ると紙面ではなくつまみへ寄ってしまう。
+  // `S.nbFind` も依存に入れる: 打ちながら見えていた語をそのまま一覧から選んだとき、
+  // `find` の中身は変わらない（打っていた語 = 選んだ語）ので、それだけでは鳴らない
+  useEffect(() => {
+    if (!find || !pageRef.current) return;
+    const at = pageRef.current.querySelector('.nb-sheet .nb-find');
+    if (at) at.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [find, S.nbFind, note.id, lens]);
 
   const peelOne = (el: HTMLElement) => {
     if (!el.classList.contains('is-hidden')) return;
@@ -448,7 +472,7 @@ export function NoteView({ note }: NoteViewProps) {
   const doubtLines = note.doubt.split('\n').map((l) => l.trim()).filter(Boolean);
 
   return (
-    <article style={{ maxWidth: '880px', animation: 'fadeUp .22s ease' }}>
+    <article ref={pageRef} className="nb-paper" style={{ animation: 'fadeUp .22s ease' }}>
       {/* ── ページ頭。罫を刷るのはここだけ */}
       <header className="nb-masthead">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -567,6 +591,17 @@ export function NoteView({ note }: NoteViewProps) {
             </button>
           </div>
           <span style={{ flex: 1 }} />
+          {/* 検索で引いた語。敷いた蛍光ペンはここから外す（外し方が無いと消せない） */}
+          {find ? (
+            <button
+              className="nb-findchip"
+              onClick={() => store.setState({ nbFind: '', query: '', searchOpen: false })}
+              title="強調をやめる"
+            >
+              <mark className="nb-find">{find}</mark>
+              <span aria-hidden="true">✕</span>
+            </button>
+          ) : null}
           {/* 想起問題だけの面には本文もキュー欄も無い ＝ 伏せる相手がいないので出さない */}
           {paper ? (
             <button
@@ -860,6 +895,7 @@ export function NoteView({ note }: NoteViewProps) {
                   cueIndexes={cues.perSection[row] || []}
                   mark={markBody}
                   mask={check}
+                  find={find}
                 />
               ))}
               {/* 本文のどこにも出てこない語。「自分のノートだけ」のときは出さない
@@ -867,7 +903,7 @@ export function NoteView({ note }: NoteViewProps) {
               {cues.orphans.length && !onlyMine ? (
                 <>
                   <div className="nb-cue">
-                    <CueList note={note} indexes={cues.orphans} mask={check} />
+                    <CueList note={note} indexes={cues.orphans} mask={check} find={find} />
                   </div>
                   <div className="nb-sec-hint" style={{ alignSelf: 'center' }}>
                     本文には出てこない語（キュー欄だけに出す）
@@ -1056,11 +1092,15 @@ function CueList({
   note,
   indexes,
   mask,
+  find,
 }: {
   note: Note;
   indexes: readonly number[];
   mask: boolean;
+  /** ノート内検索で当たっている語。キュー欄こそ**引く場所**なので、ここにも敷く */
+  find?: string;
 }) {
+  const mark = find ? { keywords: [], find } : undefined;
   return (
     <>
       {indexes.map((ki) => {
@@ -1078,9 +1118,11 @@ function CueList({
               tabIndex={mask ? 0 : undefined}
               aria-label={mask ? '伏せた重要語。開くにはクリック' : undefined}
             >
-              <NoteMathInline src={kw.term} />
+              <NoteMathInline src={kw.term} mark={mask ? undefined : mark} />
             </span>
-            {kw.note ? <NoteMathInline className="nb-cue-note" src={kw.note} /> : null}
+            {kw.note ? (
+              <NoteMathInline className="nb-cue-note" src={kw.note} mark={mark} />
+            ) : null}
           </div>
         );
       })}
@@ -1306,6 +1348,7 @@ function NoteSectionRow({
   cueIndexes,
   mark,
   mask,
+  find,
 }: {
   note: Note;
   section: NoteSection;
@@ -1315,6 +1358,7 @@ function NoteSectionRow({
   cueIndexes: readonly number[];
   mark: NoteMarkOptions | undefined;
   mask: boolean;
+  find?: string;
 }) {
   const move = (delta: number) =>
     onPatch((d) => {
@@ -1334,7 +1378,7 @@ function NoteSectionRow({
     <>
       {/* 左段。この節で初めて出てくる重要語だけを置く */}
       <div className="nb-cue">
-        <CueList note={note} indexes={cueIndexes} mask={mask} />
+        <CueList note={note} indexes={cueIndexes} mask={mask} find={find} />
       </div>
 
       {/* 右段（本文） */}

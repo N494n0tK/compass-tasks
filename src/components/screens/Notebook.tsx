@@ -22,6 +22,7 @@
  */
 
 import { useMemo } from 'react';
+import { noteMatchesQuery } from '../../lib/logic/noteSearch';
 import type { Note } from '../../lib/model/notes';
 import { NoteDrill } from '../parts/NoteDrill';
 import { NoteExtract } from '../parts/NoteExtract';
@@ -34,19 +35,18 @@ import { dateCtx, store, useAppStore } from '../useStore';
 export function Notebook() {
   const { state: S } = useAppStore();
   const T = dateCtx.today;
-  // 検索中は裏の画面も絞り込む（HTML:2621-2630 / spec §2.5）
-  const { filtering, hit } = makeSearchMatcher(S);
+  // 検索中は裏の画面も絞り込む（HTML:2621-2630 / spec §2.5）。
+  // ただしノートの画面での検索語は**ノートの中身**を指すので、絞り込みも
+  // ヒット一覧と同じ見方（`noteMatchesQuery`）に合わせる ―― 一覧に出た語を
+  // 持つノートが左のツリーから消えていたら、そこから辿れない
+  const { q, filtering } = makeSearchMatcher(S);
 
   const visible: Note[] = useMemo(() => {
     let list = S.notes;
     if (S.nbSubjFilter) list = list.filter((n) => n.subject === S.nbSubjFilter);
-    if (filtering) {
-      list = list.filter(
-        (n) => hit(n.unit) || hit(n.subject) || n.cards.some((c) => hit(c.q) || hit(c.a)),
-      );
-    }
+    if (filtering) list = list.filter((n) => noteMatchesQuery(n, q));
     return list;
-  }, [S.notes, S.nbSubjFilter, filtering, hit]);
+  }, [S.notes, S.nbSubjFilter, filtering, q]);
 
   const selected: Note | null =
     visible.find((n) => n.id === S.nbSelNoteId) ||
