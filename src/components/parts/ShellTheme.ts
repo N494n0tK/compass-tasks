@@ -245,7 +245,10 @@ export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
   review: 'grn',
   add: 'org',
   data: 'blue',
+  // ノートと問題抽出は同じ紙の表裏（読む面と解く面）なので、版も同じ `--ink` を使う。
+  // ほかの 6 画面が 1 画面 1 色なのに対し、この 2 つだけは対で 1 色
   notebook: 'ink',
+  extract: 'ink',
 };
 
 /**
@@ -283,10 +286,12 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'tests', label: '試験計画', dot: 'var(--vio)', g: 'var(--gVio)' },
   { id: 'todo', label: '今日のToDo', dot: 'var(--pink)', g: 'none' },
   { id: 'review', label: '復習', dot: 'var(--grn)', g: 'var(--gGrn)' },
-  // レガシーに無い追加画面。既定順では復習の隣（`navOrder` はドラッグで変えられる）
-  { id: 'notebook', label: 'ノート', dot: 'var(--ink)', g: 'none' },
   { id: 'add', label: 'タスク追加', dot: 'var(--org)', g: 'none' },
   { id: 'data', label: 'データ', dot: 'var(--blue)', g: 'none' },
+  // レガシーに無い追加画面。既定順ではいちばん後ろの 7 番目・8 番目
+  // （`navOrder` はドラッグで変えられる）
+  { id: 'notebook', label: 'ノート', dot: 'var(--ink)', g: 'none' },
+  { id: 'extract', label: '問題抽出', dot: 'var(--ink)', g: 'none' },
 ];
 
 /** `views.map(v => v.id)`（HTML:2691）。`navViewOrder()` の `all` と同じ並び */
@@ -300,7 +305,8 @@ export const TITLES: Readonly<Record<ViewId, readonly [string, string]>> = {
   todo: ['今日のToDo', '今日のタスクを実行する'],
   add: ['タスク追加', 'タスク・復習・予習・テストを自由に追加'],
   data: ['学習データ', '勉強時間とテスト結果をふり返る'],
-  notebook: ['ノート', '授業ノートを取り込み、想起カードで復習する'],
+  notebook: ['ノート', '授業ノートを読み、想起問題で引き出す'],
+  extract: ['問題抽出', '全ノートの問題を、理解度の低い順に解き直す'],
 };
 
 /**

@@ -12,6 +12,7 @@
  */
 
 import { daysUntil, type DateContext } from '../../lib/logic/dates';
+import { noteRefOf } from '../../lib/logic/noteCards';
 import {
   applyReviewCompletion,
   nextReviewOf,
@@ -20,6 +21,7 @@ import {
 } from '../../lib/logic/reviews';
 import type { Review, ReviewGrade, SizeKey } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
+import { recordNoteAttempt } from './NotebookPersistence';
 
 /**
  * `this.SIZE_MIN`（HTML:2037）。理解度モーダルのサイズチップのラベル
@@ -60,6 +62,13 @@ export function completeReview(
     order: orderAfterCompletion(s.order, m),
     selId: selIdAfterCompletion(s.selId, m),
   }));
+
+  // ノート由来の復習なら、問題そのものにも「いつ・どう感じたか」を残す。
+  // 復習行は完了すると次の行に置き換わるので、ここで書いておかないと
+  // 「この問題を何回やったか」が辿れなくなる（docs/notebook/spec.md §9）。
+  const ref = noteRefOf(review.seriesId);
+  if (ref) recordNoteAttempt(store, ref.noteId, ref.cardId, ctx.today, grade);
+
   return transition.message;
 }
 

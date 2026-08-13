@@ -35,9 +35,18 @@ export type ThemeSkin = 'note' | 'neon' | 'light';
 
 /**
  * 画面 ID（spec §2.6, HTML:2624-2631 相当）。
- * `'notebook'` はレガシーに無い追加画面（docs/notebook/spec.md §8）。
+ * `'notebook'`（ノート）と `'extract'`（問題抽出）はレガシーに無い追加画面で、
+ * ナビの 7 番目・8 番目に並ぶ（docs/notebook/spec.md §8）。
  */
-export type ViewId = 'cockpit' | 'tests' | 'todo' | 'review' | 'add' | 'data' | 'notebook';
+export type ViewId =
+  | 'cockpit'
+  | 'tests'
+  | 'todo'
+  | 'review'
+  | 'add'
+  | 'data'
+  | 'notebook'
+  | 'extract';
 
 /** タスクサイズ。`SIZE_MIN = { XS:5, S:10, M:20, L:30 }`（HTML:2037） */
 export type SizeKey = 'XS' | 'S' | 'M' | 'L';
@@ -426,11 +435,42 @@ export type RevSort = 'due' | 'subj';
 export type DataRange = 'all' | 'week' | 'month';
 
 /**
- * ノート画面のビュー切替。
- * `note` = ノート全体 / `extract` = 全ノート横断の問題抽出 /
- * `drill` = **その授業の今日ぶんの問題だけを解く面**（今日の ToDo から飛んでくる）
+ * ノート画面（`view: 'notebook'`）の中の切替。
+ * `note` = ノートを読む面 / `drill` = **その授業の今日ぶんの問題だけを解く面**
+ * （今日の ToDo から飛んでくる）。
+ *
+ * 問題抽出は独立した画面（`view: 'extract'`）なので、ここには含めない。
+ * `'extract'` は旧保存値との互換のためだけに型に残してある。
  */
 export type NotebookMode = 'note' | 'extract' | 'drill';
+
+/**
+ * ノート画面サイドバーの探し方（チャートノート v2 の `side`）。
+ * `tree` = 教科フォルダ / `cal` = 月カレンダー。**同時には出さない**
+ * （両方出すとサイドバーが縦に伸びて、ノート一覧がスクロールの外へ落ちる）
+ */
+export type NotebookSide = 'tree' | 'cal';
+
+/**
+ * ノートの紙面をどこまで出すか（`NoteView` のレンズ, spec §8.3）。
+ *
+ *  - `recall` … **想起問題だけ**。本文も写真もまとめも畳んで、問いと解答だけにする。
+ *               「思い出せるか」を試す 1 周目のための面
+ *  - `mine`   … 自分のノートだけ。AI の添削・解答・演習を畳む
+ *  - `ai`     … 自分のノートに AI の添削を重ねる（全部出す）
+ *
+ * 左から順に「出す量が増える」並びにしてあるので、スイッチもこの順で置く。
+ */
+export type NoteLens = 'recall' | 'mine' | 'ai';
+
+/**
+ * 問題抽出の並び順。
+ *
+ *  - `note`     … ノート順（授業日の新しい順 → ノート内の並び）
+ *  - `weak`     … 苦手な順（直近の理解度が低い順。同点なら久しく解いていない方が先）
+ *  - `stale`    … 久しぶり順（最後に解いた日が古い順。未着手が先頭）
+ */
+export type NoteExtractSort = 'note' | 'weak' | 'stale';
 
 /** Add 画面の自動細分化モード（`addGeneratorChips`, HTML:3656-3659） */
 export type AddGenerator = 'manual' | 'duo' | 'chart';
@@ -557,12 +597,37 @@ export interface EphemeralState {
   nbSelNoteId: string | null;
   /** ノートビュー / 問題抽出ビュー */
   nbMode: NotebookMode;
+  /** サイドバーの探し方（教科フォルダ / カレンダー） */
+  nbSide: NotebookSide;
+  /** 問題抽出の並び順 */
+  nbExtractSort: NoteExtractSort;
+  /** 問題抽出の理解度による絞り込み（`null` = 全部 / `'none'` = まだ解いていない） */
+  nbExtractGrade: ReviewGrade | 'none' | null;
   /** カレンダーが表示している月（その月の 1 日の iso） */
   nbMonth: ISODate;
   /** 教科の絞り込み（`null` = 全部） */
   nbSubjFilter: string | null;
   /** ノートの編集モード */
   nbEdit: boolean;
+  /**
+   * 確認モード。本文の重要語が付箋で伏せられ、クリックで剥がせる。
+   *
+   * 剥がした / 剥がしていないの状態は**ここに持たない**。DOM のクラスで持つので
+   * （`NoteView` の `peel`）、伏せ直しはこのフラグを 1 往復させるだけで済む。
+   */
+  nbCheck: boolean;
+  /**
+   * 紙面をどこまで出すか（spec §8.3）。
+   *
+   * `'mine'`（自分のノートだけ）は、このアプリのノートの立場そのもの
+   * ―― 読み返す主体は自分のノートで、AI の文章はその上に載っているだけ ――
+   * を 1 つのスイッチにしたもの。`'recall'` はさらに絞って、想起問題だけにする。
+   */
+  nbLens: NoteLens;
+  /** 開いているノートの写真の枚数目（0 始まり） */
+  nbScanIx: number;
+  /** 拡大表示している写真の `scanId`（`null` = 拡大していない） */
+  nbScanZoom: string | null;
   nbImportOpen: boolean;
   nbImportText: string;
   /** 上書き取り込みの対象ノート id（`null` = 新規） */

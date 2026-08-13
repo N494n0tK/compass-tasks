@@ -272,9 +272,19 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     notesLoaded: false,
     nbSelNoteId: null,
     nbMode: 'note',
+    nbSide: 'tree',
+    // 問題抽出は「苦手な順」を既定にする（並べ直さないと結局いつも上から解いてしまう）
+    nbExtractSort: 'weak',
+    nbExtractGrade: null,
     nbMonth: today.slice(0, 8) + '01',
     nbSubjFilter: null,
     nbEdit: false,
+    nbCheck: false,
+    // 既定は「自分のノートだけ」。本文は自分の手書きの再現で、AI の添削は
+    // スイッチで重ねる（先に AI の文章が目に入ると、自分のノートを読み返さなくなる）
+    nbLens: 'mine',
+    nbScanIx: 0,
+    nbScanZoom: null,
     nbImportOpen: false,
     nbImportText: '',
     nbImportTarget: null,

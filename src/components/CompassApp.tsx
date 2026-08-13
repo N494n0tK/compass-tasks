@@ -64,8 +64,8 @@ export interface CompassAppProps {
 }
 
 /** テンプレート上の画面 DOM 順（Cockpit → Tests → ToDo → Data → Add → Review, spec Q25） */
-function renderScreen(view: ViewId) {
-  switch (view) {
+function renderScreen(state: AppState) {
+  switch (state.view) {
     case 'cockpit':
       return <Cockpit />;
     case 'tests':
@@ -78,8 +78,10 @@ function renderScreen(view: ViewId) {
       return <AddTask />;
     case 'review':
       return <Review />;
-    // レガシーに無い追加画面（docs/notebook/spec.md §8）
+    // レガシーに無い追加画面（docs/notebook/spec.md §8）。
+    // どちらも `Notebook` が受けて、中で `view` を見て紙面を切り替える
     case 'notebook':
+    case 'extract':
       return <Notebook />;
   }
 }
@@ -201,14 +203,15 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         focusSearch();
         return;
       }
-      // 修飾キーなしのショートカット: 1–7で画面切替 / 「/」で検索 / n・f で追加・集中
+      // 修飾キーなしのショートカット: 1–8で画面切替 / 「/」で検索 / n・f で追加・集中
       if (!editingText && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (key === '/') {
           e.preventDefault();
           focusSearch();
           return;
         }
-        if (key >= '1' && key <= '7') {
+        // 1–8 で画面切替（ノート・問題抽出が増えて 8 つになった）
+        if (key >= '1' && key <= '8') {
           const order = normalizeNavOrder(store.getState().navOrder);
           const view = order[Number(key) - 1];
           if (view) {
@@ -320,7 +323,7 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
                   overdueCount={overdueCount}
                   onOpenAppSwitcher={openAppSwitcher}
                 />
-                {renderScreen(state.view)}
+                {renderScreen(state)}
               </div>
             </div>
             {/* ↓ オーバーレイ群は `.compass-shell` の「外」・`.compass-theme-mode` の直下（spec §2.1）。

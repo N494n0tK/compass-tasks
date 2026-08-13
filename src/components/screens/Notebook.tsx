@@ -3,8 +3,15 @@
 /**
  * Compass — ノート画面（docs/notebook/spec.md §8）
  *
- * レガシー Compass に無い 7 つめの画面。`CompassNotebook/チャートノート v3.dc.html` の
- * 2 ペイン構成（サイドバー + 本文）を Compass の画面規約に載せ替えたもの。
+ * レガシー Compass に無い 7・8 つめの画面（ノート / 問題抽出）。
+ * `CompassNotebook/チャートノート v2.dc.html` の 2 ペイン構成（サイドバー + 本文）を
+ * Compass の画面規約に載せ替えたもの。
+ *
+ * ナビの 2 タブはどちらもこのコンポーネントが受け、`view` で紙面を切り替える:
+ *  - `'notebook'` … ノートを読む面（`nbMode==='drill'` のときだけドリル面）
+ *  - `'extract'`  … 全ノート横断の問題抽出
+ * サイドバー（教科ツリー / カレンダー / 教科の絞り込み）は両方で共通。
+ * 問題抽出の絞り込みチップもここのサイドバーを使う。
  *
  * ワークフローとの対応:
  *  - 手順 3「JSONを貼る」 … サイドバーの「＋ JSONから取り込む」→ `NoteImportModal`
@@ -53,37 +60,53 @@ export function Notebook() {
       style={{
         flex: 1,
         overflow: 'hidden',
-        padding: '18px 20px',
+        padding: '20px 24px',
         display: 'flex',
-        gap: '18px',
+        gap: '24px',
         animation: 'fadeUp .22s ease',
       }}
     >
       <NotebookSidebar notes={visible} today={T} />
 
-      <div style={{ flex: 1, minWidth: 0, overflow: 'auto', paddingRight: '2px' }}>
-        {S.nbMode === 'extract' ? (
+      {/* 紙面。狭い画面では入れ子のスクロールをやめる（globals.css [E] の media） */}
+      <div className="nb-main" style={{ flex: 1, minWidth: 0, overflow: 'auto', paddingRight: '2px' }}>
+        {S.view === 'extract' ? (
           <NoteExtract />
         ) : S.nbMode === 'drill' && selected ? (
           <NoteDrill key={selected.id} note={selected} />
         ) : selected ? (
           <NoteView key={selected.id} note={selected} />
         ) : (
+          /* v2 と同じく箱で囲わない。紙面が始まる前の白場として置く */
           <div
             className="empty-note"
             style={{
-              border: '1px dashed var(--line2)',
-              borderRadius: 'var(--rad)',
-              padding: '40px 28px',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
               textAlign: 'center',
-              color: 'var(--tx3)',
+              padding: '30px',
+              animation: 'fadeUp .22s ease',
             }}
           >
-            <div style={{ font: "700 14px var(--f-ui)", color: 'var(--tx1)' }}>
+            <div style={{ font: '700 21px var(--f-disp)', color: 'var(--tx0)' }}>
               {S.notesLoaded ? 'ノートがまだありません' : 'ノートを読み込んでいます…'}
             </div>
-            <div style={{ fontSize: '12px', marginTop: '8px', lineHeight: 1.9 }}>
-              授業を録音してノート・スライドを撮影 → AIにプロンプトと一緒に渡す → 返ってきたJSONを貼るだけ。
+            <div
+              style={{
+                font: '400 12.5px var(--f-ui)',
+                color: 'var(--tx3)',
+                lineHeight: 1.95,
+                maxWidth: '440px',
+              }}
+            >
+              読み返すのは<strong style={{ color: 'var(--tx1)' }}>自分が書いたノートそのもの</strong>。
+              AIがするのは、その各段への添削と想起問題を足すことだけです。
+              <br />
+              授業を録音 → ノートを撮る → AIにプロンプトと一緒に渡す → 返ってきたJSONを貼る。
               <br />
               想起問題ごとに復習カードが作られ、その日のうちに「今日のToDo」へ1枚積まれます。
             </div>
@@ -92,13 +115,13 @@ export function Notebook() {
                 store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
               }
               style={{
-                marginTop: '16px',
+                marginTop: '5px',
                 padding: '10px 20px',
                 border: 'none',
                 borderRadius: 'var(--rad-s)',
                 background: 'var(--grad)',
                 color: 'var(--onAcc)',
-                font: "700 12.5px var(--f-ui)",
+                font: '700 12.5px var(--f-ui)',
                 cursor: 'pointer',
               }}
             >

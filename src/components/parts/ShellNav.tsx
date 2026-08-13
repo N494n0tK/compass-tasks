@@ -408,7 +408,7 @@ export function ShellNav({
         </div>
         <div className="nav-shortcuts" aria-hidden="true">
           <span>
-            <kbd>1</kbd>–<kbd>7</kbd> 画面
+            <kbd>1</kbd>–<kbd>8</kbd> 画面
           </span>
           <span>
             <kbd>/</kbd> 検索

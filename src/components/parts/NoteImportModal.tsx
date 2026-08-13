@@ -10,10 +10,12 @@
  * 検証結果はモーダル内で完結する一時値なので `useState`（`AppState` に置くほどの寿命が無い）。
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { parseNoteJson, type NoteImportIssue } from '../../lib/logic/noteImport';
+import { timetableSubjects } from '../../lib/logic/timetable';
+import { NOTE_SCHEMA, NOTE_SUBJECT_OTHER } from '../../lib/model/notes';
 import { commitNote } from './NotebookPersistence';
-import { NOTE_PROMPTS, copyText } from './NotePrompts';
+import { notePrompts, copyText } from './NotePrompts';
 import { ShellOverlay } from './ShellOverlay';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -36,6 +38,9 @@ export function NoteImportModal() {
   const { state: S } = useAppStore();
   const [issues, setIssues] = useState<NoteImportIssue[]>([]);
   const T = dateCtx.today;
+  // 教科の候補は時間割から取る。プロンプトにもこの一覧を埋め込む（spec §3.7）
+  const subjects = useMemo(() => timetableSubjects().concat([NOTE_SUBJECT_OTHER]), []);
+  const prompts = useMemo(() => notePrompts(subjects), [subjects]);
 
   if (!S.nbImportOpen) return null;
 
@@ -58,7 +63,7 @@ export function NoteImportModal() {
       setIssues([{ path: '$', message: 'JSONを貼り付けてください' }]);
       return;
     }
-    const res = parseNoteJson(text, { today: T, existing: target });
+    const res = parseNoteJson(text, { today: T, existing: target, knownSubjects: subjects });
     if (!res.ok) {
       setIssues(res.errors);
       return;
@@ -71,6 +76,7 @@ export function NoteImportModal() {
       nbImportOpen: false,
       nbImportText: '',
       nbImportTarget: null,
+      view: 'notebook',
       nbSelNoteId: res.note.id,
       nbMode: 'note',
       nbEdit: false,
@@ -126,14 +132,14 @@ export function NoteImportModal() {
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '5px' }}>
               {target
-                ? '「' + target.unit + '」を新しいJSONで置き換えます。想起問題の順番が同じなら復習の履歴は引き継がれます'
-                : '授業の文字起こしとノート／スライドの写真をAIに渡し、返ってきたJSONを貼り付けてください。コードブロックや前置きが付いていても取り込めます'}
+                ? '「' + target.unit + '」を新しいJSONで置き換えます。貼った写真と、想起問題の順番が同じなら復習の履歴も引き継がれます'
+                : '授業の文字起こしとノート／スライドの写真をAIに渡し、返ってきたJSONを貼り付けてください。取り込んだあと、ノートの写真をこのノートに貼れます'}
             </div>
           </div>
 
           {/* ステップ 1 — プロンプトのコピー（1 本だけ） */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {NOTE_PROMPTS.map((p) => (
+            {prompts.map((p) => (
               <div
                 key={p.id}
                 style={{
@@ -149,7 +155,7 @@ export function NoteImportModal() {
                 <span style={STEP_BADGE}>1</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: "500 12.5px var(--f-ui)", color: 'var(--tx1)' }}>
-                    {p.label + 'をコピーして、AIに文字起こしと写真を渡す'}
+                    {p.label + 'をコピーして、AIに文字起こしとノートの写真を渡す'}
                   </div>
                   <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>{p.hint}</div>
                 </div>
@@ -188,7 +194,7 @@ export function NoteImportModal() {
                 setIssues([]);
                 store.setState({ nbImportText: e.target.value });
               }}
-              placeholder={'{\n  "schema": "compass-note@1",\n  "date": "…",\n  …\n}'}
+              placeholder={'{\n  "schema": "' + NOTE_SCHEMA + '",\n  "date": "…",\n  "sections": [ … ],\n  …\n}'}
               spellCheck={false}
               style={{
                 width: '100%',

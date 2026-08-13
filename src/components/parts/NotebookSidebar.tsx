@@ -3,9 +3,20 @@
 /**
  * Compass — ノート画面のサイドバー（docs/notebook/spec.md §8）
  *
- * 移植元: `CompassNotebook/チャートノート v3.dc.html` の左ペイン
- * （教科ツリー / 月カレンダー）。ここに Compass 側の追加として
- * 「JSON取り込み」ボタンと「予習の自動生成」設定を同居させる。
+ * 下敷き: `CompassNotebook/チャートノート v2.dc.html` の左ペイン。
+ * 上から「フォルダ / カレンダー」の探し方 → 一覧 → 教科の絞り込み → ＋ボタン。
+ *
+ * v2 の「ノート / 問題抽出」の切替はここではなく**左ナビ**にある。
+ * この 2 つはナビの 7 番目・8 番目のタブ（`view: 'notebook' | 'extract'`）で、
+ * 画面の切替はアプリのナビが持つのが素直だから。
+ * サイドバー自体は両方のタブで共通に出る（教科の絞り込みは問題抽出でも効く）。
+ *
+ * v2 との違いは 2 つだけ:
+ *  - ＋ が「新規ノート」ではなく「JSONから取り込む」（Compass のワークフロー手順 3）
+ *  - 一番下に「予習の自動生成」の設定が同居する（spec §5）
+ *
+ * フォルダとカレンダーは**排他**にしてある（v2 と同じ）。両方出すとサイドバーが
+ * 縦に伸びて、肝心のノート一覧がスクロールの外へ落ちる。
  */
 
 import { useMemo } from 'react';
@@ -16,13 +27,13 @@ import type { Note } from '../../lib/model/notes';
 import { useSubjColors } from './ShellSubjects';
 import { store, useAppStore } from '../useStore';
 
-/** 日曜始まりの曜日ヘッダ（v3 の既定） */
+/** 日曜始まりの曜日ヘッダ（v2 の既定） */
 const DOW_HEADS = ['日', '月', '火', '水', '木', '金', '土'] as const;
 
 const SECTION_LABEL = {
-  font: "700 10px var(--f-ui)",
+  font: '700 10px var(--f-ui)',
   color: 'var(--tx3)',
-  letterSpacing: '.08em',
+  letterSpacing: '.12em',
   margin: '0 0 8px',
 } as const;
 
@@ -32,9 +43,26 @@ const MINI_BTN = {
   borderRadius: 'var(--rad-s)',
   background: 'none',
   color: 'var(--tx2)',
-  font: "500 11px var(--f-ui)",
+  font: '500 11px var(--f-ui)',
   cursor: 'pointer',
 } as const;
+
+/**
+ * 教科チップ / 探し方の切替に共通の小さなボタン。
+ * `font` の一括指定に太さまで含めること（`fontWeight` を別に足すと React が
+ * ショートハンドとの混在を警告する）
+ */
+function chipStyle(on: boolean, c?: string, bg?: string, bold?: boolean) {
+  return {
+    font: (bold ? '700' : '600') + ' 11px var(--f-ui)',
+    color: on ? 'var(--onAcc)' : c || 'var(--tx2)',
+    background: on ? c || 'var(--view)' : bg || 'transparent',
+    border: '1px solid ' + (on ? c || 'var(--view)' : 'var(--line2)'),
+    borderRadius: 'var(--rad-s)',
+    padding: '4px 11px',
+    cursor: 'pointer',
+  } as const;
+}
 
 /** `'YYYY-MM-01'` を n か月ずらす */
 export function shiftMonth(monthIso: string, n: number): string {
@@ -61,17 +89,28 @@ export interface NotebookSidebarProps {
 export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
   const { state: S, plans } = useAppStore();
   const subjColors = useSubjColors(S, plans);
+  const side = S.nbSide;
 
   // ── 教科ツリー
   const groups = useMemo(() => {
     const map = new Map<string, Note[]>();
-    S.notes.forEach((n) => {
+    notes.forEach((n) => {
       const key = n.subject || 'その他';
       const list = map.get(key);
       if (list) list.push(n);
       else map.set(key, [n]);
     });
     return Array.from(map.entries());
+  }, [notes]);
+
+  /** 絞り込みチップに出す教科は、ノートが 1 冊でもある教科（v2 は固定 6 科目） */
+  const subjects = useMemo(() => {
+    const seen: string[] = [];
+    S.notes.forEach((n) => {
+      const s = n.subject || 'その他';
+      if (seen.indexOf(s) < 0) seen.push(s);
+    });
+    return seen;
   }, [S.notes]);
 
   // ── カレンダー
@@ -89,8 +128,9 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
     return map;
   }, [notes]);
 
+  /** 一覧からノートを選ぶ。問題抽出のタブにいたらノートのタブへ移る */
   const select = (note: Note) =>
-    store.setState({ nbSelNoteId: note.id, nbMode: 'note', nbEdit: false });
+    store.setState({ view: 'notebook', nbSelNoteId: note.id, nbMode: 'note', nbEdit: false });
 
   const prepSubjects = useMemo(() => timetableSubjects(), []);
   const prep = S.prepAutoGen;
@@ -98,270 +138,246 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
   return (
     <aside
       style={{
-        width: '260px',
-        flex: '0 0 260px',
-        borderRight: '1px dashed var(--line2)',
-        paddingRight: '16px',
+        width: '272px',
+        flex: '0 0 272px',
+        borderRight: '1px solid var(--line2)',
+        paddingRight: '18px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '18px',
+        gap: '15px',
         overflow: 'auto',
       }}
     >
-      <button
-        onClick={() =>
-          store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
-        }
-        style={{
-          padding: '10px 14px',
-          border: 'none',
-          borderRadius: 'var(--rad-s)',
-          background: 'var(--grad)',
-          color: 'var(--onAcc)',
-          font: "700 12.5px var(--f-ui)",
-          cursor: 'pointer',
-        }}
-      >
-        ＋ JSONから取り込む
-      </button>
-
-      <div style={{ display: 'flex', gap: '6px' }}>
+      {/* ── 探し方（排他） */}
+      <div style={{ display: 'flex', gap: '4px', flex: 'none' }}>
         {(
           [
-            { id: 'note', label: 'ノート' },
-            { id: 'extract', label: '問題抽出' },
+            { id: 'tree', label: 'フォルダ' },
+            { id: 'cal', label: 'カレンダー' },
           ] as const
-        ).map((m) => {
-          const on = S.nbMode === m.id;
-          return (
-            <span
-              key={m.id}
-              onClick={() => store.setState({ nbMode: m.id })}
+        ).map((m) => (
+          <button
+            key={m.id}
+            onClick={() => store.setState({ nbSide: m.id })}
+            aria-pressed={side === m.id}
+            style={{
+              ...chipStyle(false, undefined, undefined, side === m.id),
+              flex: 1,
+              ...(side === m.id ? { background: 'var(--bg3)', color: 'var(--tx0)' } : null),
+            }}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 教科フォルダ */}
+      {side === 'tree' ? (
+        <div style={{ flex: 'none' }}>
+          {groups.length === 0 ? (
+            <div style={{ font: '400 11.5px var(--f-ui)', color: 'var(--tx3)' }}>
+              まだノートがありません
+            </div>
+          ) : null}
+          <div style={{ display: 'grid', gap: '3px' }}>
+            {groups.map(([subject, list]) => {
+              const open = S.nbTreeOpen[subject] !== false; // 既定で開く
+              const color = subjectColorFor(subjColors, subject);
+              return (
+                <div key={subject}>
+                  <div
+                    onClick={() =>
+                      store.setState((s) => ({
+                        nbTreeOpen: { ...s.nbTreeOpen, [subject]: !open },
+                      }))
+                    }
+                    className="hv-bg3"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '6px 8px',
+                      borderRadius: 'var(--rad-s)',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <span
+                      className={'nb-caret' + (open ? ' is-open' : '')}
+                      style={{ color: 'var(--tx3)' }}
+                    >
+                      ▸
+                    </span>
+                    <span style={{ font: '700 13px var(--f-disp)', color: color.c }}>{subject}</span>
+                    <span style={{ flex: 1 }} />
+                    <span style={{ font: '500 10.5px var(--f-num)', color: 'var(--tx3)' }}>
+                      {list.length + '件'}
+                    </span>
+                  </div>
+                  {open ? (
+                    <div style={{ display: 'grid', gap: '1px' }}>
+                      {list.map((n) => (
+                        <NoteRow key={n.id} note={n} on={n.id === S.nbSelNoteId} onClick={select} />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── カレンダー */}
+      {side === 'cal' ? (
+        <div style={{ flex: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+            <button
+              className="hv-acc-outline"
+              onClick={() => store.setState({ nbMonth: shiftMonth(month, -1) })}
+              style={MINI_BTN}
+              aria-label="前の月"
+            >
+              ‹
+            </button>
+            <div
               style={{
                 flex: 1,
                 textAlign: 'center',
-                font: "600 11.5px var(--f-ui)",
-                color: on ? 'var(--onAcc)' : 'var(--tx2)',
-                background: on ? 'var(--view)' : 'var(--bg2)',
-                border: '1px solid ' + (on ? 'var(--view)' : 'var(--line2)'),
-                borderRadius: 'var(--rad-s)',
-                padding: '6px 0',
-                cursor: 'pointer',
+                font: '700 13px var(--f-num)',
+                color: 'var(--tx1)',
               }}
             >
-              {m.label}
-            </span>
-          );
-        })}
-      </div>
-
-      {/* ── カレンダー */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-          <button
-            className="hv-acc-outline"
-            onClick={() => store.setState({ nbMonth: shiftMonth(month, -1) })}
-            style={MINI_BTN}
-          >
-            ‹
-          </button>
-          <div
-            style={{
-              flex: 1,
-              textAlign: 'center',
-              font: "700 12px var(--f-num)",
-              color: 'var(--tx1)',
-            }}
-          >
-            {month.slice(0, 4) + '年' + monthLabel(month)}
-          </div>
-          <button
-            className="hv-acc-outline"
-            onClick={() => store.setState({ nbMonth: shiftMonth(month, 1) })}
-            style={MINI_BTN}
-          >
-            ›
-          </button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '2px' }}>
-          {DOW_HEADS.map((d) => (
-            <div
-              key={d}
-              style={{ textAlign: 'center', fontSize: '9.5px', color: 'var(--tx3)', padding: '2px 0' }}
-            >
-              {d}
+              {month.slice(0, 4) + '年' + monthLabel(month)}
             </div>
-          ))}
-          {Array.from({ length: rows * 7 }, (_, i) => {
-            const dayNo = i - offset + 1;
-            if (dayNo < 1 || dayNo > dim) return <div key={i} />;
-            const iso = month.slice(0, 8) + String(dayNo).padStart(2, '0');
-            const hits = byDate.get(iso) || [];
-            const isToday = iso === today;
-            const selected = hits.some((n) => n.id === S.nbSelNoteId);
-            return (
+            <button
+              className="hv-acc-outline"
+              onClick={() => store.setState({ nbMonth: shiftMonth(month, 1) })}
+              style={MINI_BTN}
+              aria-label="次の月"
+            >
+              ›
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '2px' }}>
+            {DOW_HEADS.map((d) => (
               <div
-                key={i}
-                onClick={() => (hits.length ? select(hits[0]) : undefined)}
-                title={hits.length ? hits.map((n) => n.unit).join(' / ') : undefined}
+                key={d}
                 style={{
                   textAlign: 'center',
-                  fontSize: '11px',
-                  padding: '4px 0 6px',
-                  borderRadius: 'var(--rad-s)',
-                  position: 'relative',
-                  cursor: hits.length ? 'pointer' : 'default',
-                  color: selected ? 'var(--onAcc)' : hits.length ? 'var(--tx0)' : 'var(--tx3)',
-                  background: selected ? 'var(--view)' : 'transparent',
-                  border: '1px solid ' + (isToday && !selected ? 'var(--view)' : 'transparent'),
+                  font: '400 9.5px var(--f-ui)',
+                  color: 'var(--tx3)',
+                  padding: '2px 0',
                 }}
               >
-                {dayNo}
-                {hits.length && !selected ? (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: '50%',
-                      bottom: '2px',
-                      transform: 'translateX(-50%)',
-                      width: '4px',
-                      height: '4px',
-                      borderRadius: 'var(--rad-s)',
-                      background: 'var(--view)',
-                    }}
-                  />
-                ) : null}
+                {d}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 教科ツリー */}
-      <div>
-        <div style={SECTION_LABEL}>フォルダ</div>
-        {groups.length === 0 ? (
-          <div style={{ fontSize: '11.5px', color: 'var(--tx3)' }}>まだノートがありません</div>
-        ) : null}
-        <div style={{ display: 'grid', gap: '4px' }}>
-          {groups.map(([subject, list]) => {
-            const open = S.nbTreeOpen[subject] !== false; // 既定で開く
-            const color = subjectColorFor(subjColors, subject);
-            const filtered = S.nbSubjFilter === subject;
-            return (
-              <div key={subject}>
+            ))}
+            {Array.from({ length: rows * 7 }, (_, i) => {
+              const dayNo = i - offset + 1;
+              if (dayNo < 1 || dayNo > dim) return <div key={i} />;
+              const iso = month.slice(0, 8) + String(dayNo).padStart(2, '0');
+              const hits = byDate.get(iso) || [];
+              const isToday = iso === today;
+              const selected = hits.some((n) => n.id === S.nbSelNoteId);
+              return (
                 <div
-                  onClick={() =>
-                    store.setState((s) => ({
-                      nbTreeOpen: { ...s.nbTreeOpen, [subject]: !open },
-                    }))
-                  }
-                  className="hv-bg3"
+                  key={i}
+                  onClick={() => (hits.length ? select(hits[0]) : undefined)}
+                  title={hits.length ? hits.map((n) => n.unit).join(' / ') : undefined}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '7px',
-                    padding: '5px 7px',
+                    textAlign: 'center',
+                    font: '500 11.5px var(--f-num)',
+                    padding: '5px 0 7px',
                     borderRadius: 'var(--rad-s)',
-                    cursor: 'pointer',
+                    position: 'relative',
+                    cursor: hits.length ? 'pointer' : 'default',
+                    color: selected ? 'var(--onAcc)' : hits.length ? 'var(--tx0)' : 'var(--tx3)',
+                    background: selected ? 'var(--view)' : 'transparent',
+                    boxShadow: isToday && !selected ? 'inset 0 0 0 1px var(--view)' : 'none',
                   }}
                 >
-                  <span style={{ fontSize: '9px', color: 'var(--tx3)' }}>{open ? '▾' : '▸'}</span>
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      store.setState({ nbSubjFilter: filtered ? null : subject });
-                    }}
-                    style={{
-                      font: "700 10.5px var(--f-ui)",
-                      color: filtered ? 'var(--onAcc)' : color.c,
-                      background: filtered ? color.c : color.bg,
-                      borderRadius: 'var(--rad-s)',
-                      padding: '2px 9px',
-                    }}
-                  >
-                    {subject}
-                  </span>
-                  <span style={{ flex: 1 }} />
-                  <span style={{ font: "500 10px var(--f-num)", color: 'var(--tx3)' }}>
-                    {list.length + '件'}
-                  </span>
+                  {dayNo}
+                  {hits.length && !selected ? (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: '50%',
+                        bottom: '2px',
+                        transform: 'translateX(-50%)',
+                        width: '4px',
+                        height: '4px',
+                        background: 'var(--view)',
+                      }}
+                    />
+                  ) : null}
                 </div>
-                {open ? (
-                  <div style={{ display: 'grid', gap: '2px', paddingLeft: '16px' }}>
-                    {list.map((n) => {
-                      const on = n.id === S.nbSelNoteId;
-                      return (
-                        <div
-                          key={n.id}
-                          onClick={() => select(n)}
-                          className="hv-bg3"
-                          style={{
-                            padding: '5px 8px',
-                            borderRadius: 'var(--rad-s)',
-                            cursor: 'pointer',
-                            background: on ? 'var(--viewBg)' : 'transparent',
-                            borderLeft: '2px solid ' + (on ? 'var(--view)' : 'transparent'),
-                          }}
-                        >
-                          <div
-                            style={{
-                              font: "500 11.5px var(--f-ui)",
-                              color: on ? 'var(--tx0)' : 'var(--tx1)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {n.unit || '(単元名なし)'}
-                          </div>
-                          <div style={{ fontSize: '9.5px', color: 'var(--tx3)' }}>
-                            {n.date
-                              ? fmtMD(n.date) + '(' + dowOf(n.date) + ') · カード' + n.cards.length
-                              : 'カード' + n.cards.length}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {/* v2 と同じく、選んだ月にあるノートを日付順に下へ出す */}
+          <div style={{ ...SECTION_LABEL, margin: '15px 0 6px' }}>
+            {monthLabel(month) + 'のノート · ' + notes.filter((n) => n.date.slice(0, 7) === month.slice(0, 7)).length + '件'}
+          </div>
+          <div style={{ display: 'grid', gap: '1px' }}>
+            {notes
+              .filter((n) => n.date.slice(0, 7) === month.slice(0, 7))
+              .map((n) => (
+                <NoteRow key={n.id} note={n} on={n.id === S.nbSelNoteId} onClick={select} />
+              ))}
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      <div style={{ flex: 1, minHeight: '10px' }} />
+
+      {/* ── 教科で絞り込み（v2 の subjChips） */}
+      {subjects.length > 1 ? (
+        <div style={{ flex: 'none' }}>
+          <div style={SECTION_LABEL}>教科で絞り込み</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+            {subjects.map((s) => {
+              const on = S.nbSubjFilter === s;
+              const c = subjectColorFor(subjColors, s);
+              return (
+                <button
+                  key={s}
+                  onClick={() => store.setState({ nbSubjFilter: on ? null : s })}
+                  aria-pressed={on}
+                  style={chipStyle(on, c.c, c.bg)}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── 予習の自動生成（docs/notebook/spec.md §5） */}
-      <div
-        style={{
-          border: '1px solid var(--line)',
-          borderRadius: 'var(--rad)',
-          background: 'var(--bg2)',
-          padding: '11px 12px',
-        }}
-      >
+      <div style={{ flex: 'none', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ ...SECTION_LABEL, margin: 0, flex: 1 }}>予習の自動生成</div>
-          <span
+          <button
             onClick={() =>
               store.setState((s) => ({
                 prepAutoGen: { ...s.prepAutoGen, enabled: !s.prepAutoGen.enabled },
               }))
             }
-            style={{
-              font: "700 10px var(--f-ui)",
-              color: prep.enabled ? 'var(--onAcc)' : 'var(--tx2)',
-              background: prep.enabled ? 'var(--grn)' : 'var(--bg3)',
-              border: '1px solid ' + (prep.enabled ? 'var(--grn)' : 'var(--line2)'),
-              borderRadius: 'var(--rad-s)',
-              padding: '2px 10px',
-              cursor: 'pointer',
-            }}
+            aria-pressed={prep.enabled}
+            style={chipStyle(prep.enabled, 'var(--grn)')}
           >
             {prep.enabled ? 'ON' : 'OFF'}
-          </span>
+          </button>
         </div>
-        <div style={{ fontSize: '10px', color: 'var(--tx3)', margin: '6px 0 8px', lineHeight: 1.6 }}>
+        <div
+          style={{
+            font: '400 10px var(--f-ui)',
+            color: 'var(--tx3)',
+            margin: '7px 0 8px',
+            lineHeight: 1.7,
+          }}
+        >
           {'起動時に、翌登校日（' +
             fmtMD(isoShift(today, 1)) +
             ' 以降の平日）の時間割から教科ごとに1件ずつ積みます'}
@@ -370,7 +386,7 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
           {prepSubjects.map((s) => {
             const off = prep.offSubjects.indexOf(s) >= 0;
             return (
-              <span
+              <button
                 key={s}
                 onClick={() =>
                   store.setState((st) => ({
@@ -382,24 +398,85 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
                     },
                   }))
                 }
+                aria-pressed={!off}
                 style={{
-                  font: "500 10px var(--f-ui)",
+                  font: '500 10px var(--f-ui)',
                   color: off ? 'var(--tx3)' : 'var(--tx1)',
-                  background: off ? 'transparent' : 'var(--bg3)',
+                  background: 'transparent',
                   border: '1px solid var(--line2)',
                   borderRadius: 'var(--rad-s)',
-                  padding: '2px 8px',
+                  padding: '3px 8px',
                   cursor: 'pointer',
                   textDecoration: off ? 'line-through' : 'none',
                   opacity: prep.enabled ? 1 : 0.45,
                 }}
               >
                 {s}
-              </span>
+              </button>
             );
           })}
         </div>
       </div>
+
+      <button
+        onClick={() =>
+          store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
+        }
+        style={{
+          flex: 'none',
+          padding: '11px 14px',
+          border: 'none',
+          borderRadius: 'var(--rad-s)',
+          background: 'var(--grad)',
+          color: 'var(--onAcc)',
+          font: '700 12.5px var(--f-ui)',
+          cursor: 'pointer',
+        }}
+      >
+        ＋ JSONから取り込む
+      </button>
     </aside>
+  );
+}
+
+/** 一覧の 1 行。フォルダ／カレンダーの両方から使う */
+function NoteRow({
+  note,
+  on,
+  onClick,
+}: {
+  note: Note;
+  on: boolean;
+  onClick: (n: Note) => void;
+}) {
+  return (
+    <div
+      onClick={() => onClick(note)}
+      className="hv-bg3"
+      style={{
+        padding: '6px 8px 6px 27px',
+        borderRadius: 'var(--rad-s)',
+        cursor: 'pointer',
+        background: on ? 'var(--viewBg)' : 'transparent',
+        boxShadow: on ? 'inset 2px 0 0 var(--view)' : 'none',
+      }}
+    >
+      <div
+        style={{
+          font: '600 12px var(--f-ui)',
+          color: on ? 'var(--tx0)' : 'var(--tx1)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {note.unit || '(単元名なし)'}
+      </div>
+      <div style={{ font: '400 10px var(--f-num)', color: 'var(--tx3)', letterSpacing: '.04em' }}>
+        {note.date
+          ? fmtMD(note.date) + '(' + dowOf(note.date) + ') · カード' + note.cards.length
+          : 'カード' + note.cards.length}
+      </div>
+    </div>
   );
 }

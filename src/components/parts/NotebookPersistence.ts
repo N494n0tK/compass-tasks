@@ -20,8 +20,17 @@
  */
 
 import { generateNoteReviews, cascadeNoteRemoval, syncNoteReviews } from '../../lib/logic/noteCards';
-import type { Note } from '../../lib/model/notes';
-import type { ISODate } from '../../lib/model/types';
+import { migrateLegacyBlocks } from '../../lib/logic/noteImport';
+import { migrateLegacyKeyColor, normalizeKeyColor } from '../../lib/logic/noteKeywords';
+import {
+  NOTE_KEYWORD_MAX,
+  NOTE_SCAN_MAX,
+  NOTE_SECTION_MAX,
+  type NoteCard,
+  type NoteSection,
+  type Note,
+} from '../../lib/model/notes';
+import type { ISODate, ReviewGrade } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
 
@@ -45,6 +54,11 @@ function str(v: unknown): string {
 /**
  * localStorage / Firestore から来た生データを `Note` として読む。
  * 壊れた行は**黙って捨てる**（`dataPatch` と同じ方針。起動を止めない）。
+ *
+ * v0.14 より前に保存したノートは `blocks`（AI の補足）＋ 5 色で入っている。
+ * ここで `sections`（自分のノートの再現 ＋ AI の添削）と 3 色へ畳む。
+ * 畳み方は取り込みと**同じ関数**（`migrateLegacyBlocks` / `migrateLegacyKeyColor`）を通す ――
+ * 2 か所で書くと、貼り直したノートと読み込んだノートで中身が変わってしまう。
  */
 export function sanitizeNotes(raw: unknown): Note[] {
   if (!Array.isArray(raw)) return [];
@@ -53,7 +67,12 @@ export function sanitizeNotes(raw: unknown): Note[] {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return;
     const n = item as Record<string, unknown>;
     if (!str(n.id) || !Array.isArray(n.cards)) return;
-    const cards = (n.cards as Record<string, unknown>[])
+    /**
+     * 旧形式か。`sections` が無い行だけを旧扱いにする（`sections: []` の新しい空ノートは
+     * 旧扱いしない ―― 旧 `green`＝年号を `blue` へ倒す規則が、新しい緑を毎回食ってしまう）。
+     */
+    const legacy = !Array.isArray(n.sections);
+    const cards: NoteCard[] = (n.cards as Record<string, unknown>[])
       .filter((c) => c && typeof c === 'object' && str(c.cardId))
       .map((c) => ({
         cardId: str(c.cardId),
@@ -61,20 +80,56 @@ export function sanitizeNotes(raw: unknown): Note[] {
         a: str(c.a),
         guide: str(c.guide),
         src: str(c.src),
+        // v0.11 以前のノートには無い。既存分は AI 作として読む
+        origin: c.origin === 'self' ? ('self' as const) : ('ai' as const),
+        // 解いた記録。壊れた行は落とし、古い順に並べ直す
+        attempts: (Array.isArray(c.attempts) ? (c.attempts as Record<string, unknown>[]) : [])
+          .filter(
+            (t) =>
+              t &&
+              typeof t === 'object' &&
+              /^\d{4}-\d{2}-\d{2}$/.test(String(t.day)) &&
+              (t.grade === 'high' || t.grade === 'mid' || t.grade === 'low'),
+          )
+          .map((t) => ({ day: String(t.day), grade: t.grade as ReviewGrade }))
+          .sort((x, y) => x.day.localeCompare(y.day)),
       }));
-    const blocks = (Array.isArray(n.blocks) ? (n.blocks as Record<string, unknown>[]) : [])
-      .filter((b) => b && typeof b === 'object' && (b.t === 'def' || b.t === 'ex'))
-      .map((b) =>
-        b.t === 'def'
-          ? { t: 'def' as const, title: str(b.title), body: str(b.body) }
-          : {
-              t: 'ex' as const,
-              cardId: typeof b.cardId === 'string' ? b.cardId : null,
-              guide: str(b.guide),
-              solution: str(b.solution),
-              caution: str(b.caution),
-            },
-      );
+    // 本文（v0.14 で `blocks` から置き換え）。中身の無い区画は落とす
+    const sections: NoteSection[] = (
+      Array.isArray(n.sections) ? (n.sections as Record<string, unknown>[]) : []
+    )
+      .filter((s) => s && typeof s === 'object' && !Array.isArray(s))
+      .map((s) => ({ heading: str(s.heading), text: str(s.text), ai: str(s.ai) }))
+      .filter((s) => !!s.text || !!s.ai);
+    // 旧 `blocks` は `sections` とカードの `guide` へ畳む（警告は出せないので黙って直す）
+    if (legacy) sections.push(...migrateLegacyBlocks(n.blocks, cards, null));
+    // 重要語（v0.12 で追加）。壊れた行は落とし、語の重複だけ除く
+    const keyColorOf = legacy ? migrateLegacyKeyColor : normalizeKeyColor;
+    const seenTerms = new Set<string>();
+    const keywords = (Array.isArray(n.keywords) ? n.keywords : [])
+      .map((k) => {
+        const item = k && typeof k === 'object' ? (k as Record<string, unknown>) : null;
+        const term = (typeof k === 'string' ? k : item ? str(item.term) : '').trim();
+        return { term, color: keyColorOf(item?.color), note: item ? str(item.note) : '' };
+      })
+      .filter((k) => {
+        if (!k.term || seenTerms.has(k.term)) return false;
+        seenTerms.add(k.term);
+        return true;
+      })
+      .slice(0, NOTE_KEYWORD_MAX);
+    // 自分のノートの写真（v0.13 で追加）。実体は IndexedDB、ここはメタデータだけ
+    const scans = (Array.isArray(n.scans) ? (n.scans as Record<string, unknown>[]) : [])
+      .filter((k) => k && typeof k === 'object' && str(k.scanId))
+      .slice(0, NOTE_SCAN_MAX)
+      .map((k) => ({
+        scanId: str(k.scanId),
+        mime: str(k.mime) || 'image/jpeg',
+        w: typeof k.w === 'number' ? k.w : 0,
+        h: typeof k.h === 'number' ? k.h : 0,
+        bytes: typeof k.bytes === 'number' ? k.bytes : 0,
+        caption: str(k.caption),
+      }));
     const ex = n.exercise && typeof n.exercise === 'object' ? (n.exercise as Record<string, unknown>) : {};
     out.push({
       id: str(n.id),
@@ -82,8 +137,11 @@ export function sanitizeNotes(raw: unknown): Note[] {
       date: str(n.date),
       subject: str(n.subject),
       unit: str(n.unit),
+      scans,
       cards,
-      blocks,
+      sections: sections.slice(0, NOTE_SECTION_MAX),
+      summary: str(n.summary),
+      keywords,
       exercise: { q: str(ex.q), a: str(ex.a) },
       doubt: str(n.doubt),
       notice: str(n.notice),
@@ -327,6 +385,37 @@ export function commitNote(
   }
 
   return { created, removed };
+}
+
+/**
+ * 想起問題を 1 回解いた記録をノートに書き足す（`NoteCard.attempts`）。
+ *
+ * **復習には触らない。** 間隔の計算は `ReviewShared.completeReview` の仕事で、
+ * ここは「この問題を、いつ、どう感じたか」だけを残す。だから問題抽出のような
+ * 予定外の解き直しからも同じように呼べる（予定を乱さずに履歴だけ増える）。
+ *
+ * @returns 記録できたら `true`（ノート／カードが見つからなければ `false`）
+ */
+export function recordNoteAttempt(
+  store: CompassStore,
+  noteId: string,
+  cardId: string,
+  day: ISODate,
+  grade: ReviewGrade,
+): boolean {
+  const note = store.getState().notes.find((n) => n.id === noteId);
+  if (!note || !note.cards.some((c) => c.cardId === cardId)) return false;
+
+  const next: Note = {
+    ...note,
+    cards: note.cards.map((c) =>
+      c.cardId === cardId ? { ...c, attempts: c.attempts.concat([{ day, grade }]) } : c,
+    ),
+    updatedAt: day,
+  };
+  store.setState((s) => ({ notes: upsertNote(s.notes, next) }));
+  notebookController()?.save(next);
+  return true;
 }
 
 /** ノートを消し、そのノート由来の**未完了**復習も片付ける（完了済みは履歴として残す） */

@@ -1,5 +1,5 @@
 /**
- * Compass — 貼り付け JSON（`compass-note@1`）の検証と取り込み
+ * Compass — 貼り付け JSON（`compass-note@2` / `@1`）の検証と取り込み
  *
  * 仕様: docs/notebook/spec.md §3.2 / §3.3 / §3.4、受け入れ N-001〜N-020。
  *
@@ -9,17 +9,27 @@
  *  - 未知のトップレベルキーは黙って無視する（プロンプト B の出力揺れを弾かない, N-014）。
  *  - 旧スキーマの `qi`（recall の配列インデックス）はここで `cardId` に解決する。
  *    以降アプリ内では `cardId` しか使わない（`model/notes.ts` の注記）。
+ *  - `@1`（`blocks` + 5 色）も受け続ける。手元に残っている JSON と旧プロンプトの出力を
+ *    捨てないため。読み替えは {@link migrateLegacyBlocks} に集約し、保存データの移行
+ *    （`NotebookPersistence.sanitizeNotes`）からも同じ関数を使う（二重実装しない）。
  *
  * 純ロジック。React / firebase を import しない。
  */
 
 import {
   NOTE_CARD_MAX,
+  NOTE_KEYWORD_MAX,
   NOTE_SCHEMA,
+  NOTE_SCHEMAS,
+  NOTE_SCHEMA_V1,
+  NOTE_SECTION_MAX,
   type Note,
-  type NoteBlock,
   type NoteCard,
+  type NoteCardOrigin,
+  type NoteKeyword,
+  type NoteSection,
 } from '../model/notes';
+import { migrateLegacyKeyColor, normalizeKeyColor } from './noteKeywords';
 import type { ISODate } from '../model/types';
 
 /** `dates.ts` / `reviews.ts` と同じ日付形式の判定 */
@@ -57,6 +67,11 @@ export interface NoteImportOptions {
   newNoteId?: () => string;
   /** カード ID の生成。`index` は recall 内の位置。既定は `'c' + base36 + index` */
   newCardId?: (index: number) => string;
+  /**
+   * 時間割に出てくる教科名（`timetableSubjects()`）。渡すと、これに無い教科で warning を出す。
+   * **エラーにはしない**（時間割に無い授業のノートも取れるべき）。
+   */
+  knownSubjects?: readonly string[];
 }
 
 /** 既定のノート ID。`noteRefOf` の正規表現 `^n[0-9a-z]+$` に収まる形にする */
@@ -80,6 +95,11 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 /** 文字列以外（数値・null・欠落）は空文字として扱う。必須判定は呼び出し側で */
 function asString(v: unknown): string {
   return typeof v === 'string' ? v : '';
+}
+
+/** `origin` は自己申告。`"self"` 以外はすべて AI 作として扱う（spec §3.6） */
+function asOrigin(v: unknown): NoteCardOrigin {
+  return v === 'self' ? 'self' : 'ai';
 }
 
 /**
@@ -167,6 +187,151 @@ function uniqueCardId(base: string, used: Set<string>): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// sections（`compass-note@2`）
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 本文の区画を読む。**中身のある区画だけ**を残す。
+ *
+ * `heading` しか無い区画（`text` も `ai` も空）は、紙面に出しても見出しだけが浮くので捨てる。
+ * 配列でないときは**エラー**にする ―― `sections` は `@2` の本文そのもので、
+ * 黙って空にすると「取り込めたのにノートが白紙」という一番たちの悪い失敗になる。
+ * 一方**キーごと無い**のは AI がよく落とすだけなので、他の欄と同じく空で通す。
+ */
+function parseSections(
+  raw: unknown,
+  errors: NoteImportIssue[],
+  warnings: NoteImportIssue[],
+): NoteSection[] {
+  const sections: NoteSection[] = [];
+  if (raw === undefined || raw === null) return sections;
+  if (!Array.isArray(raw)) {
+    errors.push({ path: 'sections', message: 'sections は配列にしてください' });
+    return sections;
+  }
+  raw.forEach((item, i) => {
+    const path = 'sections[' + i + ']';
+    if (!isPlainObject(item)) {
+      warnings.push({ path, message: 'セクションの形式が不正なので無視しました' });
+      return;
+    }
+    const heading = asString(item.heading).trim();
+    const text = asString(item.text).trim();
+    const ai = asString(item.ai).trim();
+    if (!text && !ai) return;
+    sections.push({ heading, text, ai });
+  });
+  return sections;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 旧 `blocks`（`compass-note@1` / v0.13 以前の保存データ）→ `sections`
+// ─────────────────────────────────────────────────────────────
+
+/** 旧 `ex` ブロックの中身を 1 本の文章にする。空の項は落とし、解答・注意には見出しを付ける */
+function legacyExText(item: Record<string, unknown>): string {
+  const guide = asString(item.guide).trim();
+  const solution = asString(item.solution).trim();
+  const caution = asString(item.caution).trim();
+  return [guide, solution && '解説: ' + solution, caution && '注意: ' + caution]
+    .filter((s) => !!s)
+    .join('\n');
+}
+
+/**
+ * カードの `guide` に追記する。
+ * 旧 `ex.guide` は `recall.guide` と同じ文が入っていることが多いので、
+ * **既に書いてある行は足さない**（同じ方針が 2 回並ぶのを避ける）。
+ */
+function appendGuide(existing: string, add: string): string {
+  if (!add) return existing;
+  if (!existing.trim()) return add;
+  const lines = add.split('\n').filter((line) => !existing.includes(line));
+  return lines.length ? existing + '\n' + lines.join('\n') : existing;
+}
+
+/** 旧 `ex` ブロックが指すカード。貼り付け JSON は `qi`、保存データは `cardId` で指す */
+function resolveLegacyCard(
+  item: Record<string, unknown>,
+  cards: readonly NoteCard[],
+  path: string,
+  warnings: NoteImportIssue[] | null,
+): NoteCard | null {
+  if (typeof item.cardId === 'string' && item.cardId) {
+    return cards.find((c) => c.cardId === item.cardId) || null;
+  }
+  // `"qi": "0"`（文字列）で来ることがあるので数値に寄せる
+  const qi =
+    typeof item.qi === 'string' && /^-?\d+$/.test(item.qi.trim())
+      ? parseInt(item.qi, 10)
+      : item.qi;
+  if (typeof qi === 'number' && Number.isInteger(qi)) {
+    if (qi >= 0 && qi < cards.length) return cards[qi];
+    warnings?.push({
+      path: path + '.qi',
+      message: 'qi=' + qi + ' は recall の範囲外なので未対応にしました',
+    });
+  }
+  return null;
+}
+
+/**
+ * 旧 `blocks` を `sections` とカードの `guide` へ畳む（`@1` の取り込みと保存データの移行で共用）。
+ *
+ * 畳み先は**情報を落とさないこと**を基準に決めた:
+ *  - `def` → `{heading: title, text: '', ai: body}`。旧 `def` は「ノートに書いて**いない**こと」
+ *    だったので、自分のノート本文（`text`）ではなく **AI の添削**として置く。
+ *  - `ex` で対応するカードがある → そのカードの `guide` へ追記する。旧 `ex` は
+ *    「その問題の方針・解答・注意」なので、本文の区画に置くと問題から離れて読めなくなる。
+ *    `NoteCard.guide` は解答画面で問題のすぐ下に出る唯一の自由記述で、意味も見え方も保たれる。
+ *  - `ex` で対応するカードが無い（`qi` が範囲外・`null`、消えたカード）→
+ *    `{heading: '解説', text: '', ai: …}` として本文に残す。捨てると内容が黙って消える。
+ *  - 見出しも中身も空になった区画は落とす（`sections` の規則と揃える）。
+ *
+ * ⚠ 渡した `cards` の `guide` を**書き換える**。取り込み中に作った配列だけを渡すこと。
+ *
+ * @param warnings `null` を渡すと黙って直す（保存データの読み込みは UI に出せないため）
+ */
+export function migrateLegacyBlocks(
+  rawBlocks: unknown,
+  cards: NoteCard[],
+  warnings: NoteImportIssue[] | null,
+): NoteSection[] {
+  const sections: NoteSection[] = [];
+  if (rawBlocks === undefined || rawBlocks === null) return sections;
+  if (!Array.isArray(rawBlocks)) {
+    warnings?.push({ path: 'blocks', message: 'blocks を配列として読み取れないので空にしました' });
+    return sections;
+  }
+  rawBlocks.forEach((item, i) => {
+    const path = 'blocks[' + i + ']';
+    if (!isPlainObject(item)) {
+      warnings?.push({ path, message: 'ブロックの形式が不正なので無視しました' });
+      return;
+    }
+    if (item.t === 'def') {
+      const heading = asString(item.title).trim();
+      const ai = asString(item.body).trim();
+      if (ai) sections.push({ heading, text: '', ai });
+      return;
+    }
+    if (item.t === 'ex') {
+      const card = resolveLegacyCard(item, cards, path, warnings);
+      const body = legacyExText(item);
+      if (!body) return;
+      if (card) card.guide = appendGuide(card.guide, body);
+      else sections.push({ heading: '解説', text: '', ai: body });
+      return;
+    }
+    warnings?.push({
+      path: path + '.t',
+      message: '未知のブロック種別 "' + String(item.t) + '" を無視しました',
+    });
+  });
+  return sections;
+}
+
+// ─────────────────────────────────────────────────────────────
 // 本体
 // ─────────────────────────────────────────────────────────────
 
@@ -182,7 +347,7 @@ function uniqueCardId(base: string, used: Set<string>): string {
 export function parseNoteJson(text: string, options: NoteImportOptions): NoteImportResult {
   const errors: NoteImportIssue[] = [];
   const warnings: NoteImportIssue[] = [];
-  const { today, existing = null } = options;
+  const { today, existing = null, knownSubjects = [] } = options;
   const newNoteId = options.newNoteId || defaultNoteId;
   const newCardId = options.newCardId || defaultCardId;
 
@@ -229,8 +394,9 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
   // ── schema
   // 前後の空白は落とす。**行そのものが無い**のは AI がよく忘れるだけなので warning で通し、
   // **別の値が入っている**（別アプリ・別バージョンの JSON）ときだけエラーにする。
+  // `@1` も受理する（`blocks` は取り込み時に `sections` へ畳む）。
   const schema = typeof raw.schema === 'string' ? raw.schema.trim() : raw.schema;
-  if (schema !== NOTE_SCHEMA) {
+  if (!(typeof schema === 'string' && (NOTE_SCHEMAS as readonly string[]).includes(schema))) {
     if (schema === undefined || schema === null || schema === '') {
       warnings.push({
         path: 'schema',
@@ -242,12 +408,23 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
         message:
           'schema は "' +
           NOTE_SCHEMA +
-          '" にしてください（受信: ' +
+          '"（旧 "' +
+          NOTE_SCHEMA_V1 +
+          '" も可）にしてください（受信: ' +
           (typeof schema === 'string' ? '"' + schema + '"' : String(schema)) +
           '）',
       });
     }
   }
+
+  /**
+   * 旧形式として読むか。`schema` が `@1` のとき、または `schema` を書き忘れた出力が
+   * `sections` を持たず `blocks` を持つとき（旧プロンプトの出力）。
+   * 重要語の色の畳み方が変わる ―― 旧 `green` は「年号・数値」なので `blue` へ送る。
+   */
+  const legacy =
+    schema === NOTE_SCHEMA_V1 || (raw.sections === undefined && raw.blocks !== undefined);
+  const keyColorOf = legacy ? migrateLegacyKeyColor : normalizeKeyColor;
 
   // ── date（直せるので warning）。空文字は「資料から読めなかった」の合図なので黙って今日にする
   let date: ISODate = today;
@@ -258,8 +435,21 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
   }
 
   // ── subject / unit
+  // 教科は時間割の名前（言語・英コ・歴総 …）に揃えたい。揃っていなくても保存はできるが、
+  // 揃っていないと教科の色も予習の突き合わせもズレるので、はっきり知らせる。
   const subject = asString(raw.subject).trim();
   if (!subject) errors.push({ path: 'subject', message: '教科を入力してください' });
+  else if (knownSubjects.length && knownSubjects.indexOf(subject) < 0) {
+    warnings.push({
+      path: 'subject',
+      message:
+        '教科「' +
+        subject +
+        '」は時間割にありません（' +
+        knownSubjects.join(' / ') +
+        '）。ノートの「編集」から選び直せます',
+    });
+  }
   const unit = asString(raw.unit).trim();
   if (!unit) errors.push({ path: 'unit', message: '単元名を入力してください' });
 
@@ -286,7 +476,8 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
       if (!q) errors.push({ path: 'recall[' + i + '].q', message: '問題文が空です' });
       if (!a) errors.push({ path: 'recall[' + i + '].a', message: '解答が空です' });
       // 既存カードとはインデックスで対応付ける（spec §3.4 / N-018）
-      const inherited = existing?.cards[i]?.cardId;
+      const inheritedCard = existing?.cards[i];
+      const inherited = inheritedCard?.cardId;
       const cardId = uniqueCardId(inherited || newCardId(i), usedCardIds);
       usedCardIds.add(cardId);
       cards.push({
@@ -295,56 +486,56 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
         a: asString(item.a),
         guide: asString(item.guide),
         src: asString(item.src),
+        // 指定が無ければ AI 作。「自分で書いた問い」は名乗り出た分だけ数える（spec §3.6）
+        origin: asOrigin(item.origin),
+        // 上書き取り込みでは**解いた記録を引き継ぐ**。`cardId` を同じインデックスから
+        // 引き継いでいる以上、履歴も同じ問題のものとして残さないと辻褄が合わない
+        attempts: inherited ? (inheritedCard?.attempts ?? []).slice() : [],
       });
     });
   }
 
-  // ── blocks（`qi` → `cardId`）
-  const blocks: NoteBlock[] = [];
-  if (raw.blocks !== undefined && !Array.isArray(raw.blocks)) {
-    warnings.push({ path: 'blocks', message: 'blocks を配列として読み取れないので空にしました' });
-  } else if (Array.isArray(raw.blocks)) {
-    raw.blocks.forEach((item, i) => {
-      const path = 'blocks[' + i + ']';
-      if (!isPlainObject(item)) {
-        warnings.push({ path, message: 'ブロックの形式が不正なので無視しました' });
-        return;
-      }
-      if (item.t === 'def') {
-        blocks.push({ t: 'def', title: asString(item.title), body: asString(item.body) });
-        return;
-      }
-      if (item.t === 'ex') {
-        let cardId: string | null = null;
-        // `"qi": "0"`（文字列）で来ることがあるので数値に寄せる
-        const qi =
-          typeof item.qi === 'string' && /^-?\d+$/.test(item.qi.trim())
-            ? parseInt(item.qi, 10)
-            : item.qi;
-        if (typeof qi === 'number' && Number.isInteger(qi)) {
-          if (qi >= 0 && qi < cards.length) {
-            cardId = cards[qi].cardId;
-          } else {
-            warnings.push({
-              path: path + '.qi',
-              message: 'qi=' + qi + ' は recall の範囲外なので未対応にしました',
-            });
-          }
-        }
-        blocks.push({
-          t: 'ex',
-          cardId,
-          guide: asString(item.guide),
-          solution: asString(item.solution),
-          caution: asString(item.caution),
-        });
-        return;
-      }
-      warnings.push({
-        path: path + '.t',
-        message: '未知のブロック種別 "' + String(item.t) + '" を無視しました',
+  // ── sections（本文＝自分のノートの再現）。旧 `blocks` があれば続けて畳む
+  const sections = parseSections(raw.sections, errors, warnings);
+  if (raw.blocks !== undefined) {
+    // `migrateLegacyBlocks` は対応するカードの `guide` を書き換える（上で作った配列を渡す）
+    sections.push(...migrateLegacyBlocks(raw.blocks, cards, warnings));
+  }
+  if (sections.length > NOTE_SECTION_MAX) {
+    warnings.push({
+      path: 'sections',
+      message: '本文は' + NOTE_SECTION_MAX + '区画までなので、先頭から採用しました',
+    });
+    sections.length = NOTE_SECTION_MAX;
+  }
+
+  // ── keywords（コーネル式のキュー欄。spec §3.5）
+  // 語そのものが本文と 1 文字も違わないことが命なので、trim 以外は触らない。
+  // 重複・空文字・上限超過は**黙って落とす**（内容の欠落ではないので warning にしない）。
+  const keywords: NoteKeyword[] = [];
+  if (raw.keywords !== undefined && !Array.isArray(raw.keywords)) {
+    warnings.push({ path: 'keywords', message: 'keywords を配列として読み取れないので空にしました' });
+  } else if (Array.isArray(raw.keywords)) {
+    const seen = new Set<string>();
+    raw.keywords.forEach((item) => {
+      // ただの文字列の配列で来ることがある（"keywords": ["産業革命", …]）
+      const term = (typeof item === 'string' ? item : isPlainObject(item) ? asString(item.term) : '')
+        .trim();
+      if (!term || seen.has(term)) return;
+      if (keywords.length >= NOTE_KEYWORD_MAX) return;
+      seen.add(term);
+      keywords.push({
+        term,
+        color: keyColorOf(isPlainObject(item) ? item.color : undefined),
+        note: isPlainObject(item) ? asString(item.note).trim() : '',
       });
     });
+    if (raw.keywords.length > NOTE_KEYWORD_MAX) {
+      warnings.push({
+        path: 'keywords',
+        message: '重要語は' + NOTE_KEYWORD_MAX + '語までなので、先頭から採用しました',
+      });
+    }
   }
 
   // ── exercise
@@ -363,8 +554,15 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     date,
     subject,
     unit,
+    // 写真は JSON には入らない（自分で撮るもの）。上書き取り込みでは必ず引き継ぐ
+    scans: existing?.scans || [],
     cards,
-    blocks,
+    sections,
+    // まとめは**復習のときに自分で書く欄**（spec §3.6）。AI は常に空で返してくるので、
+    // 空を受け取ったら既存の文章を消さずに引き継ぐ ―― そうしないと、あとから JSON を
+    // 貼り直すたびに、自分で書いたまとめが黙って消える（写真と同じ扱い）
+    summary: asString(raw.summary).trim() || existing?.summary || '',
+    keywords,
     exercise,
     doubt: asString(raw.doubt),
     notice: asString(raw.notice),

@@ -57,7 +57,12 @@ export function ShellTopbar({
   const matcher = makeSearchMatcher(S);
   const { q } = matcher;
   const totals = todayTotals(todayItems);
-  const title = TITLES[S.view];
+  // ノートのタブだけは中に 2 つの面がある（読む面 / その授業の今日ぶんを解くドリル面）。
+  // ドリルに入っているあいだは見出しもそれに合わせる
+  const title: readonly [string, string] =
+    S.view === 'notebook' && S.nbMode === 'drill'
+      ? ['今日の復習', 'この授業の、今日ぶんの問題だけを解く']
+      : TITLES[S.view];
   // `parseInt(T.slice(5,7),10)+'月'+parseInt(T.slice(8,10),10)+'日('+DAYS[0].dow+')'`（HTML:4130）
   const todayHeader =
     parseInt(T.slice(5, 7), 10) +

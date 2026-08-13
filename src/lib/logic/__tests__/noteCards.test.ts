@@ -20,7 +20,7 @@ const T = '2026-08-06';
 const TOMORROW = '2026-08-07';
 
 function card(over: Partial<NoteCard> = {}): NoteCard {
-  return { cardId: 'c0', q: 'Q', a: 'A', guide: '', src: '', ...over };
+  return { cardId: 'c0', q: 'Q', a: 'A', guide: '', src: '', origin: 'ai', attempts: [], ...over };
 }
 
 function note(over: Partial<Note> = {}): Note {
@@ -30,8 +30,11 @@ function note(over: Partial<Note> = {}): Note {
     date: T,
     subject: '数学',
     unit: '数列',
+    scans: [],
     cards: [card({ cardId: 'c0' }), card({ cardId: 'c1' }), card({ cardId: 'c2' })],
-    blocks: [],
+    sections: [],
+    summary: '',
+    keywords: [],
     exercise: { q: '', a: '' },
     doubt: '',
     notice: '',

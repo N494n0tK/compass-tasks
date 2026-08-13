@@ -37,8 +37,10 @@ export function addToOrder(store: CompassStore, id: string): void {
 }
 
 /**
- * ノート画面のドリル（その授業の問題だけを解く面）へ飛ぶ。
+ * ノートのドリル（その授業の問題だけを解く面）へ飛ぶ。
  * 今日の ToDo / コックピットのノート復習カードから呼ぶ（docs/notebook/spec.md §8）。
+ *
+ * ノートは 7 番目のタブなので、その画面へ移るだけ。
  */
 export function openNoteDrill(store: CompassStore, noteId: string): void {
   store.setState({
@@ -50,4 +52,9 @@ export function openNoteDrill(store: CompassStore, noteId: string): void {
     revSel: null,
     focusOpen: false,
   });
+}
+
+/** ドリルから「今日のToDo」へ戻る */
+export function closeNoteDrill(store: CompassStore): void {
+  store.setState({ view: 'todo', nbMode: 'note' });
 }

@@ -1,16 +1,21 @@
 {
-  "schema": "compass-note@1",
+  "schema": "compass-note@2",
   "date": "2026-08-06",
   "subject": "理科",
   "unit": "",
   "recall": [
-    { "q": "オームの法則を式で書け", "a": "" },
-    { "q": "", "a": "電力 P = VI" }
+    { "q": "オームの法則を式で書け", "a": "", "origin": "self" },
+    { "q": "", "a": "電力 P = VI", "origin": "ai" }
   ],
-  "blocks": [
-    { "t": "ex", "qi": 7, "guide": "", "solution": "V = IR", "caution": "" },
-    { "t": "memo", "body": "未知の種別" }
+  "sections": [
+    { "heading": "オームの法則", "text": "", "ai": "" },
+    { "heading": "電力", "text": "P = VI", "ai": "" }
   ],
+  "keywords": [
+    { "term": "電力", "color": "orange", "note": "" },
+    { "term": "本文に無い語", "color": "red", "note": "" }
+  ],
+  "summary": "",
   "exercise": { "q": "", "a": "" },
   "doubt": "",
   "notice": ""
