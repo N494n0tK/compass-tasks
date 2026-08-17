@@ -167,6 +167,7 @@ const SAMPLE_EXPORT: ExportData = {
     missionGenLog: {},
     noteSumLog: [],
     focusLog: [{ day: '2026-08-04', subj: '数学', min: 25 }],
+    weekNotes: { '2026-07-27': '英語の復習を後回しにしがちだった' },
   },
 };
 

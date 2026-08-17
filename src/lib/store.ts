@@ -310,6 +310,11 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     noteSumLog: [],
     // 集中モードの実測（plan.md §4.3）。学習時間（見積り）とは別枠で持つ
     focusLog: [],
+    // 週次ふりかえり（plan.md §4.3）。保存するのは**自分で書いた文章だけ**で、
+    // 数字はカードを描くたびに導き直す
+    weekNotes: {},
+    // ふりかえりカードを ✕ で畳んだか。保存しない（翌週の月曜にはまた出る）
+    weekReviewHidden: false,
   };
 }
 

@@ -22,8 +22,10 @@
  *  4. エクスポートカード（`grid-column:1/-1`）
  *
  * レガシーに無い追加（docs/daily-mission/plan.md §4.3）は左カラムの続きに置く:
- * デイリーミッションの継続カレンダー → 集中モードの実測。どちらも「日別の学習量」と
- * 同じ「続いているか」を見るための枠なので、ヒートマップの下に並べるのが自然。
+ * デイリーミッションの継続カレンダー → 集中モードの実測 → ふりかえりの記録。
+ * 前の 2 つは「日別の学習量」と同じ「続いているか」を見るための枠なので、
+ * ヒートマップの下に並べるのが自然。最後の 1 つはそれらを自分の言葉で言い直したもので、
+ * 数字の下に置くと「数字 → 言葉」の順に読める。
  *
  * `[data-screen-label="Data"]>div` の mobile ルール（globals.css 553）が直下の子を
  * `<div>` 前提にしているので、直下は必ず `<div>` にすること（css-notes §7）。
@@ -46,6 +48,7 @@ import {
 } from '../../lib/logic/missionStats';
 import { orderedPlanIds } from '../../lib/logic/schedule';
 import { orderedSubjectNames, subjectColorFor } from '../../lib/logic/subjects';
+import { WEEK_NOTE_LIST_LIMIT, recentWeekNotes } from '../../lib/logic/weeklyReview';
 import type { Score } from '../../lib/model/types';
 import { downloadText } from '../parts/DataDownload';
 import { DataScoreDrawer } from '../parts/DataScoreDrawer';
@@ -141,6 +144,9 @@ export function DataScreen() {
   );
   // ── 集中モードの実測（plan.md §4.3）。**学習時間には合流させない**独立した記録
   const focus = useMemo(() => focusTotals(S.focusLog, T), [S.focusLog, T]);
+  // ── 週次ふりかえり（plan.md §4.3）。カードは月曜の Cockpit にしか出ないので、
+  //    書いたものを読み返す場所をここに置く（書いた文だけ。数字は保存していない）
+  const weekNotes = useMemo(() => recentWeekNotes(S.weekNotes), [S.weekNotes]);
 
   // ── アクティブな計画（HTML:2730-2735）。テスト名候補と教科の自動補完に使う
   // 式は lib/logic/schedule.ts の orderedPlanIds に一本化してある（TASK I0）
@@ -672,6 +678,52 @@ export function DataScreen() {
               {'タイマーを回した時間そのものです · 上の学習時間（完了タスクの見積り）とは別に数えるので、二重には足されません'}
             </div>
           </div>
+
+          {/* ── カード（追加）: ふりかえりの記録（plan.md §4.3）。
+              1 週ぶんも書いていなければ**カードごと出さない**（ミッションの継続カレンダーと同じ扱い）。
+              ここは読み返す場所で、書く場所は月曜の Cockpit にあるカードの方 */}
+          {weekNotes.length ? (
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={dotStyle('var(--vio)', 'none')} />
+                <span style={headingTextStyle}>ふりかえりの記録</span>
+                <span style={headingMetaStyle}>{'直近' + WEEK_NOTE_LIST_LIMIT + '週'}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {weekNotes.map((w) => (
+                  <div key={w.start} style={{ display: 'flex', gap: '11px' }}>
+                    <span
+                      style={{
+                        flex: 'none',
+                        width: '74px',
+                        paddingTop: '1px',
+                        font: "600 11px var(--f-num)",
+                        color: 'var(--tx3)',
+                      }}
+                    >
+                      {w.label}
+                    </span>
+                    {/* 自分で書いた文なので、改行はそのまま残す */}
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        font: "400 12.5px/1.8 var(--f-ui)",
+                        color: 'var(--tx1)',
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      {w.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div style={footnoteStyle}>
+                {'月曜にコックピットを開くと、先週ぶんのふりかえりを書けます'}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* ── カード3: テスト結果（HTML:1294-1321 / C-425〜C-441） */}
