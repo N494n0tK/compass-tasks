@@ -200,8 +200,13 @@ export function generateMissionTasks(input: MissionPlanInput): MissionPlanResult
 // 連続日数（保存しない。完了済みの生成 Extra から毎回導出する）
 // ─────────────────────────────────────────────────────────────
 
-/** missionId → その日ぶんを完了した日の集合 */
-function doneDaysByMission(extras: readonly Extra[]): Map<string, Set<ISODate>> {
+/**
+ * missionId → その日ぶんを完了した日の集合。
+ *
+ * 連続日数も達成率もカレンダー（`missionStats.ts`）も、結局この 1 本の索引だけを見る。
+ * extras の全走査になるので、複数のミッションを並べる画面では**1 回作って使い回す**こと。
+ */
+export function missionDoneDays(extras: readonly Extra[]): Map<string, Set<ISODate>> {
   const out = new Map<string, Set<ISODate>>();
   extras.forEach((x) => {
     if (!x.done) return;
@@ -222,8 +227,11 @@ function doneDaysByMission(extras: readonly Extra[]): Map<string, Set<ISODate>> 
  * - `dows` で実施日を絞っているミッションは**非実施日を飛ばして**連続とみなす
  *   （月水金のミッションは火木土日を挟んでも連続）。
  * - 実施日でなくてもやってあれば数える（曜日をあとから変えた場合に記録が消えないように）。
+ *
+ * `doneDays` は `missionDoneDays(extras).get(mission.id)`。索引を作る側と分けてあるので、
+ * 一覧画面は索引 1 個で全ミッションぶんを引ける。
  */
-function streakFrom(
+export function missionStreakFrom(
   mission: Pick<Mission, 'dows'>,
   doneDays: Set<ISODate> | undefined,
   today: ISODate
@@ -246,7 +254,7 @@ export function missionStreak(
   extras: readonly Extra[],
   today: ISODate
 ): number {
-  return streakFrom(mission, doneDaysByMission(extras).get(mission.id), today);
+  return missionStreakFrom(mission, missionDoneDays(extras).get(mission.id), today);
 }
 
 /** missionId → 連続日数。一覧で 1 件ずつ引くと extras を何度も走査するのでまとめて作る */
@@ -255,10 +263,10 @@ export function missionStreaks(
   extras: readonly Extra[],
   today: ISODate
 ): Record<string, number> {
-  const doneDays = doneDaysByMission(extras);
+  const doneDays = missionDoneDays(extras);
   const out: Record<string, number> = {};
   missions.forEach((m) => {
-    out[m.id] = streakFrom(m, doneDays.get(m.id), today);
+    out[m.id] = missionStreakFrom(m, doneDays.get(m.id), today);
   });
   return out;
 }

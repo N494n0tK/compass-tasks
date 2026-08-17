@@ -192,6 +192,24 @@ export interface StudyLogEntry {
   min: number;
 }
 
+/**
+ * 集中モードの**実測**1 セッションぶん（docs/daily-mission/plan.md §4.3）。**レガシーに無い追加**。
+ *
+ * 形は `StudyLogEntry` と同じ 3 フィールドだが、**別のキーに分けて持つ**のが肝。
+ * 完了した Extra / Seg の**見積り**分数はすでに `buildStudyEntries` が学習時間に載せているので、
+ * 実測を `studyLog` 側へ足すと同じ勉強が二重に数えられる。「見積り（学習時間）」と
+ * 「実測（集中した時間）」は別の指標として並べる。
+ *
+ * 開始時刻のようなタイムスタンプは持たない（日付と分だけ）。保存は毎回フル置換なので、
+ * 増える一方の配列に秒精度の情報まで積む理由がない。
+ */
+export interface FocusLogEntry {
+  day: ISODate;
+  subj: string;
+  /** 実際にタイマーが走った分（切り捨て）。1 分に満たないセッションは記録しない */
+  min: number;
+}
+
 /** `scores` — `score` は 0–100 にクランプ済み（HTML:3496-3503 / spec §4.7） */
 export interface Score {
   id: string;
@@ -354,6 +372,11 @@ export interface PersistentState {
    * 相棒としてしつこいだけになる（粒度を変えている理由）。
    */
   noteSumLog: string[];
+  /**
+   * 集中モードの実測（docs/daily-mission/plan.md §4.3）。
+   * **`studyLog` には合流させない**（完了タスクの見積りと二重計上になる。`FocusLogEntry` 参照）。
+   */
+  focusLog: FocusLogEntry[];
 }
 
 /**
@@ -392,6 +415,7 @@ export const PERSISTENT_KEYS = [
   'missions',
   'missionGenLog',
   'noteSumLog',
+  'focusLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -422,6 +446,14 @@ export const UNDO_KEYS = [
   // まとめタスクの提案済みログも同じ。Undo で消えた提案が「提案済み」のまま
   // 二度と出てこなくなるのを防ぐ
   'noteSumLog',
+  // 集中モードの実測。**`studyLog` の前例に合わせて入れる**。
+  // `studyLog` が UNDO_KEYS に居る理由は「勉強の記録には削除・編集 UI が無く（spec §4.6）、
+  // 1段 Undo が唯一の取り消し手段だから」で、`focusLog` も同じ性質を持つ ――
+  // タイマーを回しっぱなしで席を立った、対象を選び違えたまま集中した、といった誤記録を
+  // 直後の Undo で捨てられるようにしておく。
+  // なお `focusLog` は他のキーと突き合わせて読まない独立した記録なので、
+  // `prepGenLog` 系のような「巻き戻さないと整合が壊れる」理由ではない。
+  'focusLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type UndoKey = (typeof UNDO_KEYS)[number];

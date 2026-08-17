@@ -21,6 +21,10 @@
  *  3. テスト結果カード
  *  4. エクスポートカード（`grid-column:1/-1`）
  *
+ * レガシーに無い追加（docs/daily-mission/plan.md §4.3）は左カラムの続きに置く:
+ * デイリーミッションの継続カレンダー → 集中モードの実測。どちらも「日別の学習量」と
+ * 同じ「続いているか」を見るための枠なので、ヒートマップの下に並べるのが自然。
+ *
  * `[data-screen-label="Data"]>div` の mobile ルール（globals.css 553）が直下の子を
  * `<div>` 前提にしているので、直下は必ず `<div>` にすること（css-notes §7）。
  */
@@ -34,6 +38,12 @@ import {
   buildStudyCsv,
   sortScoresByDay,
 } from '../../lib/logic/export';
+import { focusTotals } from '../../lib/logic/focusLog';
+import {
+  MISSION_CALENDAR_WEEKS,
+  buildMissionStats,
+  type MissionDayState,
+} from '../../lib/logic/missionStats';
 import { orderedPlanIds } from '../../lib/logic/schedule';
 import { orderedSubjectNames, subjectColorFor } from '../../lib/logic/subjects';
 import type { Score } from '../../lib/model/types';
@@ -77,6 +87,33 @@ const headingMetaStyle: CSSProperties = {
 
 const footnoteStyle: CSSProperties = { fontSize: '11px', color: 'var(--tx3)' };
 
+/** ミニカレンダー 1 マスの一辺（px）。ヒートマップの `HEAT.CELL` と同じ大きさに揃える */
+const MISSION_CELL = 12;
+
+/**
+ * ミニカレンダー 1 マスの色。
+ *
+ * 色を持つのは「やった（教科色）」と「実施日なのに落とした（薄い赤）」だけ。
+ * 28 マス × ミッション件数が並ぶので、5 状態すべてに色を割ると模様になって
+ * *続いているか* が読めなくなる。予定の無い日は空白のままにする。
+ */
+function missionCellFill(state: MissionDayState, subjColor: string): string {
+  if (state === 'done') return subjColor;
+  if (state === 'missed') return 'color-mix(in srgb, var(--pink) 26%, transparent)';
+  if (state === 'off') return 'color-mix(in srgb, var(--tx3) 10%, transparent)';
+  return 'transparent';
+}
+
+/** 実測タイルの外枠（Review 画面の統計カードと同じ作り。カードの中なので `--bg2`） */
+const focusTileStyle: CSSProperties = {
+  flex: 1,
+  minWidth: '112px',
+  padding: '10px 13px',
+  background: 'var(--bg2)',
+  border: '1px solid var(--line)',
+  borderRadius: 'var(--rad-s)',
+};
+
 /** テスト記録フォームの入力欄（HTML:1312 / 1314 / 1316 が共通で持つ宣言） */
 const fieldStyle: CSSProperties = {
   padding: '9px 11px',
@@ -96,6 +133,14 @@ export function DataScreen() {
   // ── 集計（HTML:3379-3448）。期間フィルタが掛かるのは円グラフと凡例だけ（C-543）
   const agg = useMemo(() => aggregateData(S, plans, T), [S, plans, T]);
   const { pie, streak, heatmap } = agg;
+
+  // ── ミッションの継続（plan.md §4.3）。台帳の並び順のまま、直近4週ぶんを 1 行 1 ミッション
+  const missionStats = useMemo(
+    () => buildMissionStats(S.missions, S.extras, T),
+    [S.missions, S.extras, T]
+  );
+  // ── 集中モードの実測（plan.md §4.3）。**学習時間には合流させない**独立した記録
+  const focus = useMemo(() => focusTotals(S.focusLog, T), [S.focusLog, T]);
 
   // ── アクティブな計画（HTML:2730-2735）。テスト名候補と教科の自動補完に使う
   // 式は lib/logic/schedule.ts の orderedPlanIds に一本化してある（TASK I0）
@@ -491,6 +536,140 @@ export function DataScreen() {
               <span style={{ marginLeft: 'auto', textAlign: 'right' }}>
                 マスにカーソルを合わせるとその日の分数が出ます
               </span>
+            </div>
+          </div>
+
+          {/* ── カード（追加）: デイリーミッションの継続（plan.md §4.3）。
+              台帳が空なら**カードごと出さない**（まだ使っていない機能の空箱を置かない） */}
+          {missionStats.length ? (
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={dotStyle('var(--grn)', 'var(--gGrn)')} />
+                <span style={headingTextStyle}>デイリーミッション</span>
+                <span style={headingMetaStyle}>{'直近' + MISSION_CALENDAR_WEEKS + '週'}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {missionStats.map((row) => {
+                  const sub = subjectColorFor(subjColors, row.mission.subj);
+                  return (
+                    <div
+                      key={row.mission.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        // 一時停止中のミッションは薄く（台帳一覧 `AddTask` と同じ扱い）
+                        opacity: row.mission.active ? 1 : 0.55,
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            font: "600 12.5px var(--f-ui)",
+                            color: 'var(--tx0)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {row.mission.title}
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            marginTop: '4px',
+                            fontSize: '10.5px',
+                            color: 'var(--tx3)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              font: "700 10px var(--f-ui)",
+                              color: sub.c,
+                              background: sub.bg,
+                              borderRadius: 'var(--rad-s)',
+                              padding: '2px 7px',
+                              flex: 'none',
+                            }}
+                          >
+                            {row.mission.subj}
+                          </span>
+                          <span style={{ fontFamily: "var(--f-num)" }}>
+                            {'達成 ' + row.rateLabel}
+                          </span>
+                          {/* 1 日目は「連続」ではないので出さない（ToDo カードと同じ閾値） */}
+                          {row.streak >= 2 ? (
+                            <span style={{ font: "700 10.5px var(--f-num)", color: 'var(--org)' }}>
+                              {'🔥' + row.streak}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      {/* 28 マス。行＝週（上が古い）、列＝月〜日。ツールチップは
+                          ヒートマップと同じくブラウザ標準（JS ハンドラは付けない） */}
+                      <div
+                        style={{
+                          flex: 'none',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(7, ' + MISSION_CELL + 'px)',
+                          gap: '3px',
+                        }}
+                      >
+                        {row.calendar.weeks.map((week) =>
+                          week.map((cell) => (
+                            <span
+                              key={cell.iso}
+                              title={cell.tip}
+                              style={{
+                                width: MISSION_CELL + 'px',
+                                height: MISSION_CELL + 'px',
+                                borderRadius: '1px',
+                                background: missionCellFill(cell.state, sub.c),
+                              }}
+                            />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* 改行で余計な空白が入らないよう、文言は 1 本の文字列で渡す */}
+              <div style={footnoteStyle}>
+                {'教科色のマスができた日 · 赤いマスは実施曜日なのにやらなかった日 · 今日はまだ達成率に数えません'}
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── カード（追加）: 集中モードの実測（plan.md §4.3）。
+              見積り（学習時間）とは別の物差しなので、円グラフには混ぜず独立した枠に出す */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* 集中モードのタイマー環と同じ差し色（`TodoFocusOverlay`）。glow は付けない */}
+              <span style={dotStyle('var(--acc)', 'none')} />
+              <span style={headingTextStyle}>集中モード実測</span>
+              <span style={headingMetaStyle}>{focus.count + 'セッション'}</span>
+            </div>
+            <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
+              <div style={focusTileStyle}>
+                <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>今週（月〜日）</div>
+                <div style={{ font: "700 20px var(--f-num)", color: 'var(--tx0)' }}>
+                  {focus.week}
+                  <span style={{ fontSize: '12px', color: 'var(--tx2)' }}>分</span>
+                </div>
+              </div>
+              <div style={focusTileStyle}>
+                <div style={{ fontSize: '10px', color: 'var(--tx3)' }}>全期間</div>
+                <div style={{ font: "700 20px var(--f-num)", color: 'var(--tx0)' }}>
+                  {focus.all}
+                  <span style={{ fontSize: '12px', color: 'var(--tx2)' }}>分</span>
+                </div>
+              </div>
+            </div>
+            <div style={footnoteStyle}>
+              {'タイマーを回した時間そのものです · 上の学習時間（完了タスクの見積り）とは別に数えるので、二重には足されません'}
             </div>
           </div>
         </div>

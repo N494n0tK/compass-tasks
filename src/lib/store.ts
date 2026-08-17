@@ -306,6 +306,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     missionGenLog: {},
     // まとめタスクを提案済みのノート id（plan.md §4.1）。日付ではなく noteId 単位で一度きり
     noteSumLog: [],
+    // 集中モードの実測（plan.md §4.3）。学習時間（見積り）とは別枠で持つ
+    focusLog: [],
   };
 }
 

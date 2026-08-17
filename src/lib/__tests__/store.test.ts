@@ -338,6 +338,7 @@ describe('exportData', () => {
       'missions',
       'missionGenLog',
       'noteSumLog',
+      'focusLog',
     ]);
   });
 
@@ -408,12 +409,14 @@ describe('undo', () => {
     expect(Object.keys(payload)).toEqual(['plans', 'state']);
     expect(Object.keys(payload.state)).toEqual([...UNDO_KEYS]);
     // レガシーの 14 キー + 自動生成の台帳・ログ（extras と一緒に巻き戻す必要がある）
-    expect(UNDO_KEYS).toHaveLength(18);
+    // + 集中モードの実測（`studyLog` と同じく、消す UI が無いので Undo が唯一の取り消し手段）
+    expect(UNDO_KEYS).toHaveLength(19);
     expect(UNDO_KEYS.slice(14)).toEqual([
       'prepGenLog',
       'missions',
       'missionGenLog',
       'noteSumLog',
+      'focusLog',
     ]);
     expect(payload.plans).toBe(store.getPlans()); // レガシー同様、直列化専用の参照渡し
   });
