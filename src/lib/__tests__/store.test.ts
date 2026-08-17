@@ -332,7 +332,12 @@ describe('exportData', () => {
       'reviews',
       'order',
     ]);
-    expect(PERSISTENT_KEYS.slice(23)).toEqual(['prepAutoGen', 'prepGenLog']);
+    expect(PERSISTENT_KEYS.slice(23)).toEqual([
+      'prepAutoGen',
+      'prepGenLog',
+      'missions',
+      'missionGenLog',
+    ]);
   });
 
   it('keeps the key order stable regardless of how the state was built', () => {
@@ -401,9 +406,13 @@ describe('undo', () => {
     const payload = store.undoPayload();
     expect(Object.keys(payload)).toEqual(['plans', 'state']);
     expect(Object.keys(payload.state)).toEqual([...UNDO_KEYS]);
-    // レガシーの 14 キー + `prepGenLog`（extras と一緒に巻き戻す必要がある）
-    expect(UNDO_KEYS).toHaveLength(15);
-    expect(UNDO_KEYS.slice(0, 14)).not.toContain('prepGenLog');
+    // レガシーの 14 キー + 自動生成の台帳・ログ（extras と一緒に巻き戻す必要がある）
+    expect(UNDO_KEYS).toHaveLength(17);
+    expect(UNDO_KEYS.slice(14)).toEqual([
+      'prepGenLog',
+      'missions',
+      'missionGenLog',
+    ]);
     expect(payload.plans).toBe(store.getPlans()); // レガシー同様、直列化専用の参照渡し
   });
 

@@ -20,7 +20,13 @@
  */
 
 import { useMemo, type CSSProperties } from 'react';
-import { dayLabel, dowOf, fmtMD, isoShift, mondayOf, scheduleDateOf } from '../../lib/logic/dates';
+import { DOW, dayLabel, dowOf, fmtMD, isoShift, mondayOf, scheduleDateOf } from '../../lib/logic/dates';
+// デイリーミッション（docs/daily-mission/plan.md §3.4）。台帳への登録と、今日ぶんの生成
+import {
+  generateMissionTasks,
+  missionStreaks,
+  newMissionId,
+} from '../../lib/logic/missionAutogen';
 import { computeInitialPlacement, resolvePlanStart, type MiniDraft } from '../../lib/logic/schedule';
 import { orderedSubjectNames, subjectColorFor, type SubjColor } from '../../lib/logic/subjects';
 // `TIMETABLE` / `EMPTY_SLOTS` は予習の自動生成（logic/prepAutogen）と共有するため
@@ -33,6 +39,7 @@ import type {
   DayOverride,
   Dow,
   Extra,
+  Mission,
   Plan,
   Plans,
   Review,
@@ -56,16 +63,17 @@ const SIZE_MIN: Readonly<Record<SizeKey, number>> = { XS: 5, S: 10, M: 20, L: 30
 
 const SIZE_KEYS: readonly SizeKey[] = ['XS', 'S', 'M', 'L'];
 
-/** `addTypes`（HTML:3535） */
+/** `addTypes`（HTML:3535）+ 「毎日」（デイリーミッションの台帳登録, plan.md §3.4） */
 const ADD_TYPES: readonly { id: AddType; label: string }[] = [
   { id: 'single', label: '今日のタスク' },
   { id: 'review', label: '復習' },
   { id: 'prep', label: '予習' },
   { id: 'test', label: 'テスト' },
+  { id: 'mission', label: '毎日' },
 ];
 
-/** `dayHeads`（HTML:3536） */
-const DAY_HEADS: Readonly<Record<AddType, string>> = {
+/** `dayHeads`（HTML:3536）。`mission` は特定の日を持たないので**入らない**（日付欄ごと出さない） */
+const DAY_HEADS: Readonly<Partial<Record<AddType, string>>> = {
   single: '予定日',
   review: '復習日',
   prep: '期限日',
@@ -77,6 +85,14 @@ const DAY2_HEADS: Readonly<Partial<Record<AddType, string>>> = {
   prep: '開始予定日',
   test: '計画開始日',
 };
+
+/** 曜日チェックの並び（月始まり）。値は `dates.DOW` の添字 0(日)–6(土) */
+const MISSION_DOW_ORDER: readonly number[] = [1, 2, 3, 4, 5, 6, 0];
+
+/** 実施曜日の表示。空 = 毎日 */
+function dowsLabel(dows: readonly number[]): string {
+  return dows.length ? dows.map((d) => DOW[d]).join('・') : '毎日';
+}
 
 /** `addGeneratorChips` の元データ（HTML:3656-3659） */
 const GENERATOR_MODES: readonly { id: AppState['addGenerator']; label: string }[] = [
@@ -419,7 +435,10 @@ export function AddTask() {
     const errs: AppState['addErr'] = {};
     if (!t) errs.title = 'タスク名を入力してください';
     if (!subj) errs.subj = '教科を入力してください';
-    if (!S.addDay) errs.day = DAY_HEADS[S.addType] + 'を選んでください';
+    // 「毎日」は日付を持たない（実施日は曜日で決まる）ので日付の検証もしない
+    if (S.addType !== 'mission' && !S.addDay) {
+      errs.day = (DAY_HEADS[S.addType] || '') + 'を選んでください';
+    }
     if (Object.keys(errs).length) {
       store.setState({ addErr: errs, addDone: null });
       return;
@@ -482,6 +501,43 @@ export function AddTask() {
           '復習「' + subj + ' ' + t + '」を追加しました(次回 ' + dayLabel(dateCtx, S.addDay) + ')',
         view: 'review',
         go: 'Reviewで見る',
+      };
+    } else if (S.addType === 'mission') {
+      // 台帳に足すだけ。今日ぶんの実体（Extra）は生成ロジック側に作らせて、
+      // 起動時の自動生成とまったく同じ id・出典・ログ更新を通す（二重生成の判定も同じ）
+      const mission: Mission = {
+        id: newMissionId(),
+        title: t,
+        subj,
+        size: S.addSize,
+        dows: S.addDows.slice().sort((a, b) => a - b),
+        active: true,
+        createdAt: T,
+      };
+      // 日中に作ったミッションも今日から始められるように、曜日が合えばその場で 1 件積む
+      const gen = generateMissionTasks({
+        today: T,
+        missions: [mission],
+        genLog: store.getState().missionGenLog,
+      });
+      store.setState((s) => ({
+        missions: s.missions.concat([mission]),
+        extras: s.extras.concat(gen.extras),
+        missionGenLog: gen.genLog,
+      }));
+      gen.extras.forEach((e) => addToOrder(store, e.id));
+      done = {
+        label:
+          '毎日のミッション「' +
+          subj +
+          ' ' +
+          t +
+          '」を登録しました(' +
+          dowsLabel(mission.dows) +
+          (gen.extras.length ? ' · 今日ぶんを追加' : '') +
+          ')',
+        view: 'todo',
+        go: 'ToDoで見る',
       };
     } else {
       const due = S.addDay;
@@ -567,7 +623,7 @@ export function AddTask() {
       S.addSlotSel +
       '限'
     : '';
-  const addDayHead = DAY_HEADS[S.addType];
+  const addDayHead = DAY_HEADS[S.addType] || '';
   const addHasStart = S.addType === 'prep' || S.addType === 'test';
   const addDay2Head = DAY2_HEADS[S.addType] || '';
   const schemeVal = light ? 'light' : 'dark';
@@ -576,13 +632,44 @@ export function AddTask() {
   const addErrDay = S.addErr.day || false;
   const addDetailArrow = S.addDetailOpen ? '▾' : '▸';
   const addDetailHint = S.addType === 'review' ? '(メモ)' : '(細分化・メモ)';
-  const addShowSize = S.addType === 'single' || S.addType === 'review';
+  // 「毎日」は日付を持たず、細分化もしない（毎日1個やり切るのが習慣タスクの形）
+  const isMission = S.addType === 'mission';
+  const addShowDay = !isMission;
+  const addShowDetail = !isMission;
+  const addShowSize = S.addType === 'single' || S.addType === 'review' || isMission;
   const addSizeHead = S.addType === 'review' ? '目安時間(復習1回ぶん)' : 'サイズ(目安時間)';
   const addHasMini = S.addType !== 'review';
   const addShowGenerator = S.addType === 'test' || S.addType === 'prep';
   const addMiniHasSize = S.addType !== 'review';
+  const addSubmitLabel = isMission ? '＋ 毎日やることに追加' : '＋ 追加する';
   const addDoneLabel = S.addDone ? S.addDone.label : '';
   const addGoLabel = S.addDone ? S.addDone.go : '';
+
+  // ── 登録済みのミッション（plan.md §3.4）。連続日数は完了 Extra からの導出で、保存はしない
+  const missionStreakMap = useMemo(
+    () => missionStreaks(S.missions, S.extras, T),
+    [S.missions, S.extras, T]
+  );
+  const showMissionList = isMission || S.missions.length > 0;
+  const toggleAddDow = (d: number) =>
+    store.setState((s) => ({
+      addDows:
+        s.addDows.indexOf(d) >= 0
+          ? s.addDows.filter((x) => x !== d)
+          : s.addDows.concat([d]).sort((a, b) => a - b),
+    }));
+  const toggleMissionActive = (id: string) =>
+    store.setState((s) => ({
+      missions: s.missions.map((m) => (m.id === id ? { ...m, active: !m.active } : m)),
+    }));
+  /** 台帳から外すだけ。生成済み Extra（＝完了履歴と連続日数の根拠）は消さない */
+  const removeMission = (id: string) => {
+    const target = S.missions.find((m) => m.id === id);
+    store.setState((s) => ({ missions: s.missions.filter((m) => m.id !== id) }));
+    store.showToast(
+      '「' + (target ? target.title : 'ミッション') + '」を毎日やることから外しました(記録は残ります)'
+    );
+  };
 
   const pickToday = () =>
     store.setState((s) => ({ addDay: T, addErr: { ...s.addErr, day: null } }));
@@ -870,6 +957,7 @@ export function AddTask() {
               ) : null}
             </div>
 
+            {addShowDay ? (
             <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '230px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '7px' }}>
@@ -964,6 +1052,42 @@ export function AddTask() {
                 </div>
               ) : null}
             </div>
+            ) : null}
+
+            {isMission ? (
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '7px' }}>
+                  実施する曜日 — 全部外すと毎日
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {MISSION_DOW_ORDER.map((d) => {
+                    const on = S.addDows.indexOf(d) >= 0;
+                    return (
+                      <span
+                        key={d}
+                        onClick={() => toggleAddDow(d)}
+                        style={{
+                          font: "700 11.5px var(--f-ui)",
+                          color: on ? 'var(--onAcc)' : 'var(--tx2)',
+                          background: on ? 'var(--acc)' : 'var(--bg2)',
+                          border: '1px solid ' + (on ? 'var(--acc)' : 'var(--line2)'),
+                          borderRadius: 'var(--rad-s)',
+                          padding: '6px 12px',
+                          cursor: 'pointer',
+                          minWidth: '34px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {DOW[d]}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: '10.5px', color: 'var(--tx3)', marginTop: '7px' }}>
+                  {'実施日: ' + dowsLabel(S.addDows) + ' — 起動時にその日ぶんを今日のToDoへ1件積みます'}
+                </div>
+              </div>
+            ) : null}
 
             {addShowSize ? (
               <div>
@@ -993,7 +1117,8 @@ export function AddTask() {
             ) : null}
           </div>
 
-          {/* ── 詳細（細分化・メモ）（HTML:1406-1465） */}
+          {/* ── 詳細（細分化・メモ）（HTML:1406-1465）。「毎日」は細分化もメモも持たない */}
+          {addShowDetail ? (
           <div
             style={{
               background: 'var(--bg1)',
@@ -1369,6 +1494,7 @@ export function AddTask() {
               </div>
             ) : null}
           </div>
+          ) : null}
 
           <button
             onClick={submitAdd}
@@ -1383,7 +1509,7 @@ export function AddTask() {
               boxShadow: 'var(--gAcc)',
             }}
           >
-            ＋ 追加する
+            {addSubmitLabel}
           </button>
           <div
             style={{
@@ -1397,7 +1523,16 @@ export function AddTask() {
           </div>
         </div>
 
-        {/* ── 右カラム: 今日の時間割（HTML:1471-1499） */}
+        {/* ── 右カラム: 今日の時間割（HTML:1471-1499）＋ 毎日のミッション一覧 */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            height: 'fit-content',
+            minWidth: 0,
+          }}
+        >
         <div
           style={{
             background: 'var(--bg1)',
@@ -1567,6 +1702,133 @@ export function AddTask() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ── 登録済みの毎日のミッション（plan.md §3.4） */}
+        {showMissionList ? (
+          <div
+            style={{
+              background: 'var(--bg1)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--rad)',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              height: 'fit-content',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: 'var(--rad-s)',
+                  background: 'var(--grn)',
+                  boxShadow: 'var(--gGrn)',
+                }}
+              ></span>
+              <div style={{ font: "700 14px var(--f-ui)", color: 'var(--tx0)' }}>毎日やること</div>
+              <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--tx3)' }}>
+                {S.missions.length + '件'}
+              </span>
+            </div>
+            {S.missions.length ? (
+              S.missions.map((m) => {
+                const sub = subjectColorFor(subjColors, m.subj);
+                const streak = missionStreakMap[m.id] || 0;
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '9px',
+                      padding: '10px 11px',
+                      background: 'color-mix(in srgb, ' + sub.c + ' 7%, var(--bg2))',
+                      // 辺ごとに指定する（shorthand と混ぜると再レンダーで border-left が消える）
+                      borderTop: '1px solid var(--line)',
+                      borderRight: '1px solid var(--line)',
+                      borderBottom: '1px solid var(--line)',
+                      borderLeft: '3px solid ' + sub.c,
+                      borderRadius: 'var(--rad-s)',
+                      opacity: m.active ? 1 : 0.55,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          font: "600 12.5px var(--f-ui)",
+                          color: 'var(--tx0)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {m.title}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--tx3)', marginTop: '3px' }}>
+                        {m.subj + ' · ' + m.size + '·' + SIZE_MIN[m.size] + '分 · ' + dowsLabel(m.dows)}
+                      </div>
+                    </div>
+                    {streak >= 2 ? (
+                      <span
+                        style={{
+                          flex: 'none',
+                          font: "700 10.5px var(--f-num)",
+                          color: 'var(--org)',
+                        }}
+                      >
+                        {'🔥' + streak}
+                      </span>
+                    ) : null}
+                    <button
+                      onClick={() => toggleMissionActive(m.id)}
+                      aria-pressed={m.active}
+                      style={{
+                        flex: 'none',
+                        padding: '4px 9px',
+                        border: '1px solid ' + (m.active ? 'var(--grn)' : 'var(--line2)'),
+                        borderRadius: 'var(--rad-s)',
+                        background: m.active ? 'var(--grnBg)' : 'transparent',
+                        color: m.active ? 'var(--grn)' : 'var(--tx3)',
+                        font: "700 10px var(--f-ui)",
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {m.active ? 'ON' : 'OFF'}
+                    </button>
+                    <button
+                      className="hv-pink-text"
+                      onClick={() => removeMission(m.id)}
+                      aria-label={m.title + 'を毎日やることから外す'}
+                      style={{
+                        flex: 'none',
+                        width: '20px',
+                        height: '20px',
+                        border: 'none',
+                        borderRadius: 'var(--rad-s)',
+                        background: 'none',
+                        color: 'var(--tx3)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ fontSize: '11px', color: 'var(--tx3)', lineHeight: 1.7 }}>
+                まだありません。「英単語を1セクション」のように毎日くり返すことを登録すると、実施日の起動時に今日のToDoへ1件ずつ並びます。
+              </div>
+            )}
+            <div style={{ fontSize: '10.5px', color: 'var(--tx3)', lineHeight: 1.7 }}>
+              OFFにすると積むのを止められます(記録は残ります)。✕は一覧から外すだけで、完了した記録は消えません。
+            </div>
+          </div>
+        ) : null}
         </div>
       </div>
     </div>

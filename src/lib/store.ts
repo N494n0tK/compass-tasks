@@ -246,6 +246,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     duoChunk: '10',
     chartStart: '1',
     chartEnd: '4',
+    // 空 = 毎日（デイリーミッションの実施曜日の下書き）
+    addDows: [],
     addErr: {},
     addDone: null,
     recentSubjs: [],
@@ -295,6 +297,11 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     revAskReveal: false,
     prepAutoGen: { ...DEFAULT_PREP_AUTOGEN },
     prepGenLog: {},
+    // デイリーミッション（docs/daily-mission/plan.md §3）。旧データには無いキーなので、
+    // ここの既定値がそのまま「まだ 1 件も登録していない」状態になる（`dataPatch` は
+    // 保存データに在るキーしか上書きしない）
+    missions: [],
+    missionGenLog: {},
   };
 }
 

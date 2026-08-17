@@ -163,6 +163,8 @@ const SAMPLE_EXPORT: ExportData = {
     order: [],
     prepAutoGen: { enabled: true, offSubjects: [] },
     prepGenLog: {},
+    missions: [],
+    missionGenLog: {},
   },
 };
 

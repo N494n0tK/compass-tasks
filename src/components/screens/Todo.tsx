@@ -26,6 +26,7 @@
 
 import { Fragment, type DragEvent } from 'react';
 import { daysUntil, dayLabel } from '../../lib/logic/dates';
+import { missionRefOf, missionStreaks } from '../../lib/logic/missionAutogen';
 import { toH } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Seg, SubTaskFields } from '../../lib/model/types';
@@ -46,6 +47,8 @@ export function Todo() {
   const todayItems = buildTodayItems(state, plans, T);
   const otherItems = todayItems.filter((i) => i.kind !== 'seg');
   const totals = todayTotals(todayItems);
+  // デイリーミッションの連続日数（docs/daily-mission/plan.md §3.3-5）。保存せず完了 Extra から導出する
+  const missionStreakMap = missionStreaks(S.missions, S.extras, T);
   // HTML:4233 — ドーナツの `stroke-dasharray`（円周 327）
   const donutDash = totals.totalMin
     ? Math.round((totals.doneMin / totals.totalMin) * 327)
@@ -381,6 +384,9 @@ export function Todo() {
           {otherItems.map((it) => {
             const active = S.selId === it.id;
             const sub = subjectColorFor(subjColors, it.subj);
+            // ミッション由来のカードだけ連続日数を添える。1 日目は「連続」ではないので出さない
+            const missionRef = missionRefOf(it.id);
+            const streak = missionRef ? missionStreakMap[missionRef.missionId] || 0 : 0;
             return (
               <div
                 key={it.id}
@@ -447,6 +453,17 @@ export function Todo() {
                     {it.min + '分 · ' + it.src}
                   </div>
                 </div>
+                {streak >= 2 ? (
+                  <span
+                    style={{
+                      flex: 'none',
+                      font: "700 10.5px var(--f-num)",
+                      color: 'var(--org)',
+                    }}
+                  >
+                    {'🔥' + streak}
+                  </span>
+                ) : null}
                 {/* ノート由来の復習は、その授業の問題だけを並べたドリル面で解く（spec §8） */}
                 {it.noteId ? (
                   <button

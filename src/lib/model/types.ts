@@ -54,8 +54,12 @@ export type SizeKey = 'XS' | 'S' | 'M' | 'L';
 /** `subSizes[]` は既存分を `''` で埋めて長さを揃える（HTML:3026-3030 / spec §4.4） */
 export type SubSize = '' | SizeKey;
 
-/** Add 画面のタスク種別 */
-export type AddType = 'single' | 'review' | 'prep' | 'test';
+/**
+ * Add 画面のタスク種別。
+ * `'mission'`（毎日）だけレガシーに無い追加で、**その場でタスクを作らず台帳（`missions`）に足す**
+ * （docs/daily-mission/plan.md §3.4）。
+ */
+export type AddType = 'single' | 'review' | 'prep' | 'test' | 'mission';
 
 /** 計画の種別。`type: S.addType === 'test' ? 'test' : 'prep'`（HTML:3723） */
 export type PlanType = 'test' | 'prep';
@@ -243,6 +247,34 @@ export interface PrepAutoGenSettings {
  */
 export type PrepGenLog = Record<ISODate, number[]>;
 
+/**
+ * デイリーミッションの台帳 1 件（docs/daily-mission/plan.md §3.2）。**レガシーに無い追加**。
+ *
+ * 「毎日やること」そのものはタスクではなく**台帳**として持ち、今日ぶんの実体は
+ * `Extra` を自動生成して積む（予習の自動生成と同型）。こうすると ToDo 表示・完了トグル・
+ * 集中モード・学習時間の集計がすべて無改修で動く。
+ */
+export interface Mission {
+  /** `'dm' + base36`。生成した `Extra` の id に埋め込む（`dm-{missionId}-{YYYYMMDD}`） */
+  id: string;
+  title: string;
+  /** 時間割の教科名（色分け・集計に乗る） */
+  subj: string;
+  size: SizeKey;
+  /** 実施曜日 0(日)–6(土)。**空配列 = 毎日** */
+  dows: number[];
+  /** 一時停止フラグ（テスト期間中だけ止める等）。false でも台帳からは消えない */
+  active: boolean;
+  createdAt: ISODate;
+}
+
+/**
+ * デイリーミッションの重複防止ログ。**日付 → その日ぶんを生成済みの missionId**。
+ * `prepGenLog` と同じく extras との突き合わせにしないのは、ユーザーが消したミッションを
+ * 次の起動で復活させないため。
+ */
+export type MissionGenLog = Record<ISODate, string[]>;
+
 /** サイドバー・ドロワーの幅（localStorage `'compass-ui'` にも保存, spec §2.8 / §4.13） */
 export interface PanelW {
   nav: number;
@@ -297,6 +329,10 @@ export interface PersistentState {
   prepAutoGen: PrepAutoGenSettings;
   /** 予習の自動生成の重複防止ログ */
   prepGenLog: PrepGenLog;
+  /** デイリーミッションの台帳（docs/daily-mission/plan.md §3.2） */
+  missions: Mission[];
+  /** デイリーミッションの重複防止ログ */
+  missionGenLog: MissionGenLog;
 }
 
 /**
@@ -332,6 +368,8 @@ export const PERSISTENT_KEYS = [
   // ── ここから追加分（末尾追記のみ）
   'prepAutoGen',
   'prepGenLog',
+  'missions',
+  'missionGenLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -355,6 +393,10 @@ export const UNDO_KEYS = [
   // 予習の自動生成ログ。`extras` と一緒に巻き戻さないと、Undo で消えた予習が
   // 「生成済み」のまま二度と作られなくなる（docs/notebook/spec.md §5）
   'prepGenLog',
+  // デイリーミッションも同じ理由。台帳（`missions`）も入れるのは、ミッションを足した操作を
+  // Undo したときに台帳だけ残って翌起動でまた生成される、を防ぐため
+  'missions',
+  'missionGenLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type UndoKey = (typeof UNDO_KEYS)[number];
@@ -572,6 +614,11 @@ export interface EphemeralState {
   duoChunk: string;
   chartStart: string;
   chartEnd: string;
+  /**
+   * デイリーミッションの実施曜日の下書き（0(日)–6(土)）。**空 = 毎日**。
+   * 保存するのは登録後の `Mission.dows` だけなので、下書きは一時 state に置く。
+   */
+  addDows: number[];
   addErr: AddErr;
   addDone: AddDone | null;
   addSlotSel: number | null;

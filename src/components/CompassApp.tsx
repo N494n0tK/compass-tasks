@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { generateMissionTasks } from '../lib/logic/missionAutogen';
 import { generatePrepTasks } from '../lib/logic/prepAutogen';
 import { overdueSegs } from '../lib/logic/schedule';
 import type { AppState, ViewId } from '../lib/model/types';
@@ -91,8 +92,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   const [splashReady, setSplashReady] = useState(false);
   const [themeModeEl, setThemeModeEl] = useState<HTMLDivElement | null>(null);
   const saverRef = useRef<SaveController | null>(null);
-  /** 予習の自動生成をマウントごとに 1 回だけにする番人 */
-  const prepRanRef = useRef(false);
+  /** 起動時の自動生成（予習・デイリーミッション）をマウントごとに 1 回だけにする番人 */
+  const autoGenRanRef = useRef(false);
 
   const savePrefs = useMemo(() => () => writePrefs(store), []);
 
@@ -148,28 +149,41 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     };
   }, [uid, email, preview]);
 
-  // ── 予習の自動生成（docs/notebook/spec.md §5 / ワークフロー手順 7）
+  // ── 起動時の自動生成（予習: docs/notebook/spec.md §5 / ミッション: docs/daily-mission/plan.md §3.3）
   //    クラウド読み込みが終わって `cloudStatus` が 'loading' を抜けた**最初の 1 回**だけ走る。
-  //    そこまで待たないと、保存済みの `prepGenLog` / `dayOverrides` / 設定が反映されず
-  //    同じ日のタスクを二重に積んでしまう。`useRef` でマウントごと 1 回に固定する。
+  //    そこまで待たないと、保存済みのログ・台帳・設定が反映されず同じ日のタスクを二重に積んでしまう。
+  //    `useRef` でマウントごと 1 回に固定する。
+  //
+  //    2 種類を**1 回の setState** でまとめるのが肝。ログはそれぞれの結果から書くので
+  //    （`prepGenLog` は予習の、`missionGenLog` はミッションの戻り）互いを消さない。
   useEffect(() => {
-    if (prepRanRef.current) return;
+    if (autoGenRanRef.current) return;
     if (state.cloudStatus === 'loading') return;
-    prepRanRef.current = true;
+    autoGenRanRef.current = true;
     const s = store.getState();
-    const result = generatePrepTasks({
+    const prep = generatePrepTasks({
       today: dateCtx.today,
       dayOverrides: s.dayOverrides,
       settings: s.prepAutoGen,
       genLog: s.prepGenLog,
     });
-    if (!result.extras.length && result.genLog === s.prepGenLog) return;
+    const mission = generateMissionTasks({
+      today: dateCtx.today,
+      missions: s.missions,
+      genLog: s.missionGenLog,
+    });
+    const born = prep.extras.concat(mission.extras);
+    const logsChanged = prep.genLog !== s.prepGenLog || mission.genLog !== s.missionGenLog;
+    if (!born.length && !logsChanged) return;
     store.setState((prev) => ({
-      extras: prev.extras.concat(result.extras),
-      prepGenLog: result.genLog,
+      extras: prev.extras.concat(born),
+      prepGenLog: prep.genLog,
+      missionGenLog: mission.genLog,
     }));
-    result.extras.forEach((e) => addToOrder(store, e.id));
-    if (result.message) store.showToast(result.message);
+    born.forEach((e) => addToOrder(store, e.id));
+    // トーストは 1 本しか出せない（後勝ちで潰れる）ので、両方できたときは 1 文にまとめる
+    const messages = [prep.message, mission.message].filter((m): m is string => !!m);
+    if (messages.length) store.showToast(messages.join(' / '));
   }, [state.cloudStatus]);
 
   // ── キーボードショートカット（`_key`, HTML:2117-2141 / spec §2.7）
