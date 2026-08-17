@@ -297,6 +297,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbTreeOpen: {},
     nbFullNote: false,
     revAskReveal: false,
+    // 復習の7日予報で選んだ日（plan.md §4.2）。導出値の絞り込みなので保存しない
+    revDueFilter: null,
     prepAutoGen: { ...DEFAULT_PREP_AUTOGEN },
     prepGenLog: {},
     // デイリーミッション（docs/daily-mission/plan.md §3）。旧データには無いキーなので、

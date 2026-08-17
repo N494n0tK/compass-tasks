@@ -643,6 +643,14 @@ export interface EphemeralState {
   todoNewSize: SizeKey;
   revSel: string | null;
   revFilter: string | null;
+  /**
+   * 7日予報の帯で選んだ日（`null` = 絞り込みなし）。docs/daily-mission/plan.md §4.2。
+   *
+   * 教科の絞り込み（`revFilter`）と **AND** で効く。判定は集計と同じ `matchesForecastDay`
+   * ―― 今日を選んだときだけ期限切れも含む（帯の件数と表の行数を必ず一致させるため）。
+   * 予報そのものが導出値なので、この選択も保存しない（開き直せば全部の表に戻る）。
+   */
+  revDueFilter: ISODate | null;
   revSort: RevSort;
   revAsk: string | null;
   revAskGrade: ReviewGrade | null;

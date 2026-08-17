@@ -39,6 +39,7 @@ import type { Seg, SubTaskFields } from '../../lib/model/types';
 import { mutExtra, mutSeg, openNote, openNoteDrill, openWeakDrill } from '../parts/ShellActions';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
+import { TodoBoostCard } from '../parts/TodoBoostCard';
 import { SIZE_MIN, gl, orderedPlanIds, sizeChips, toggleItem } from '../parts/TodoActions';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -551,6 +552,9 @@ export function Todo() {
 
       {/* ══ 右カラム ══ */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* ── テスト前ブースト / 成績からの提案（plan.md §4.2）。
+            対象が無い日は何も描かないので、ドーナツがそのまま最上部に来る */}
+        <TodoBoostCard state={S} plans={P} subjColors={subjColors} today={T} />
         {/* ── サマリー（ドーナツ / ノルマ / 集中モード） */}
         <div
           className="todo-summary"
