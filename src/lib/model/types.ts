@@ -305,15 +305,6 @@ export interface Mission {
  */
 export type MissionGenLog = Record<ISODate, string[]>;
 
-/**
- * 週次ふりかえりの文章（docs/daily-mission/plan.md §4.3）。
- * **キーはその週の月曜**（`dates.mondayOf`）、値はユーザーが書いた文。
- *
- * 空文字のエントリは持たない（書いていない週はキーごと存在しない）。
- * 毎回フル置換で保存する構成なので、中身の無いキーが週ごとに増えていくのは避ける。
- */
-export type WeekNotes = Record<ISODate, string>;
-
 /** サイドバー・ドロワーの幅（localStorage `'compass-ui'` にも保存, spec §2.8 / §4.13） */
 export interface PanelW {
   nav: number;
@@ -386,18 +377,6 @@ export interface PersistentState {
    * **`studyLog` には合流させない**（完了タスクの見積りと二重計上になる。`FocusLogEntry` 参照）。
    */
   focusLog: FocusLogEntry[];
-  /**
-   * 週次ふりかえりの文章（docs/daily-mission/plan.md §4.3）。**キーはその週の月曜**。
-   *
-   * 数字（復習完了率・学習時間・ミッション・集中実測）は**1 つも保存しない**。
-   * 全部その場で導き直せるので、保存すると「あとから台帳や記録を直したのに、
-   * ふりかえりカードの数字だけ昔のまま」という食い違いが生まれる
-   * （`missionStats` が達成率を保存しないのと同じ判断）。ここに残すのは
-   * **自分で書いた文章だけ** ―― コーネルの `summary` が AI ではなく本人の欄である
-   * のと同じ意味で、週単位の「自分の言葉で言い直す」ぶんにあたる
-   * （docs/notebook/spec.md §3.6）。
-   */
-  weekNotes: WeekNotes;
 }
 
 /**
@@ -437,7 +416,6 @@ export const PERSISTENT_KEYS = [
   'missionGenLog',
   'noteSumLog',
   'focusLog',
-  'weekNotes',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -476,11 +454,6 @@ export const UNDO_KEYS = [
   // なお `focusLog` は他のキーと突き合わせて読まない独立した記録なので、
   // `prepGenLog` 系のような「巻き戻さないと整合が壊れる」理由ではない。
   'focusLog',
-  // 週次ふりかえりの文章。**`studyLog` / `focusLog` と同じ「内容キー」の扱い**にする ――
-  // 自分で書いた文には削除・編集の専用 UI が無く（欄から消すだけ）、書いたものを
-  // 誤って全消ししたときの取り消し手段が 1 段 Undo しかない。
-  // 逆に「巻き戻さないと他のキーとの整合が壊れる」たぐいの依存は持たない。
-  'weekNotes',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type UndoKey = (typeof UNDO_KEYS)[number];
@@ -729,15 +702,6 @@ export interface EphemeralState {
   focusPreset: number;
   cloudStatus: CloudStatus;
   cloudUser: string;
-  /**
-   * 週次ふりかえりカードを ✕ で畳んだか（docs/daily-mission/plan.md §4.3）。
-   *
-   * **保存しない**のが肝。「読んだから今日はもういい」を永続化すると、
-   * 書かずに閉じた週のふりかえりが二度と出てこなくなる。月曜のうちに書かなければ
-   * その週ぶんは書かれないまま流れる ―― それでよい、というのがこのカードの立場で、
-   * 翌週の月曜にはまたその週ぶんが出る。
-   */
-  weekReviewHidden: boolean;
   // ── ノート画面（docs/notebook/spec.md §8）。レガシーに無い追加。
   //    `notes` を**一時 state に置く**のが肝: `PERSISTENT_KEYS` に入らないので
   //    `compass-ui-data` が肥大せず、保存トリガ・Undo にも巻き込まれない。

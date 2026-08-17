@@ -16,9 +16,6 @@
  *
  * リスト算術は自前で書かず `lib/logic` と `parts/Shell*` を通す
  * （`buildTodayItems` / `todayLoadPct` / `toH` / `computeWeekRate` / `dayLabel` / `daysUntil`）。
- *
- * レガシーに無い追加（docs/daily-mission/plan.md §4.3）: 3 パネルの上段に、コマ帯と並べて
- * **月曜だけ出る週次ふりかえりカード**（`parts/WeeklyReviewCard`）を置く。
  */
 
 import { useMemo, type CSSProperties, type DragEvent } from 'react';
@@ -33,7 +30,6 @@ import { addToOrder, mutExtra, mutReview, mutSeg, openNoteDrill } from '../parts
 import { makeSearchMatcher } from '../parts/ShellSearch';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
-import { WeeklyReviewCard } from '../parts/WeeklyReviewCard';
 import { dateCtx, store, useAppStore } from '../useStore';
 
 /** `--dot` などのカスタムプロパティを style オブジェクトへ流し込む */
@@ -295,17 +291,8 @@ export function Cockpit() {
         animation: 'fadeUp .22s ease',
       }}
     >
-      {/*
-        今日のコマ帯（全幅）と、月曜だけ出る週次ふりかえりカードを 1 つの行にまとめる。
-        `.cockpit-grid` は `grid-template-rows:auto minmax(0,1fr)`（globals.css）＝
-        「上に帯・下に3パネル」の 2 行しか持たないので、カードをグリッドの直接の子にすると
-        3 行目ができて 3 パネルの高さ（`minmax(0,1fr)` + `overflow:hidden`）が崩れる。
-        行を増やさず上段の中に並べる。
-      */}
-      <div style={{ gridColumn: '1/-1' }}>
-        <KomaStrip state={S} store={store} today={T} todayItems={todayItems} />
-        <WeeklyReviewCard state={S} plans={plans} today={T} />
-      </div>
+      {/* 今日のコマ帯。3 パネルの上に全幅で敷く（globals.css の `.koma-strip`） */}
+      <KomaStrip state={S} store={store} today={T} todayItems={todayItems} />
 
       {/* 今日 */}
       <div
