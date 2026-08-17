@@ -18,7 +18,7 @@
  * 純ロジック。React / firebase を import しない。
  */
 
-import type { Extra, ISODate, Mission, MissionGenLog, SizeKey } from '../model/types';
+import type { Extra, ISODate, Mission, MissionGenLog, MissionKind, SizeKey } from '../model/types';
 import { DOW, dowOf, isoShift } from './dates';
 
 /** `missionGenLog` を保持する日数。これより古い日付のキーは捨てる（`prepGenLog` と同じ） */
@@ -45,6 +45,49 @@ export const MISSION_EXTRA_RE = /^dm-(dm[0-9a-z]+)-(\d{4})(\d{2})(\d{2})$/;
 /** 台帳 id。レガシー uid（HTML:2439）と同式に接頭辞を付けたもの */
 export function newMissionId(): string {
   return 'dm' + Date.now().toString(36) + Math.floor(Math.random() * 999);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 弱点ドリル（plan.md §4.1「弱点ドリルのミッション化」）
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 教科を指定しないミッションの表示名。
+ *
+ * `subj: ''` にしないのは、教科チップ（ToDo カード・台帳一覧）が空の色板になり、
+ * 完了ぶんが学習時間の円グラフで**名前の無い一切れ**になるため。名前が入っていれば
+ * 「どの教科でもない勉強を何分やったか」として素直に読める。
+ */
+export const MISSION_ALL_SUBJ = '全教科';
+
+/**
+ * プリセット「弱点問題を3問」。
+ *
+ * 弱点ドリルは *何をやるか考えるコスト* をゼロにするのが狙いなので、登録も
+ * 1 タップで済ませたい（タイトルもサイズも既に埋まっている状態から始める）。
+ *
+ * サイズは S(10分)。想起問題 1 問ぶんの復習は 5 分（`noteCards.NOTE_REVIEW_MIN`）だが、
+ * 毎日の習慣として続く量に寄せて 3 問で 10 分に丸めた ―― 見積りが大きいほど
+ * 「今日は時間がないから明日」で飛ばされる。
+ */
+export const WEAK_MISSION_PRESET: Readonly<{
+  title: string;
+  size: SizeKey;
+  kind: MissionKind;
+}> = { title: '弱点問題を3問', size: 'S', kind: 'weak' };
+
+/** 弱点ドリルのミッションか（ToDo カードに「弱点をやる」を出すかの判定） */
+export function isWeakMission(mission: Pick<Mission, 'kind'> | null | undefined): boolean {
+  return !!mission && mission.kind === 'weak';
+}
+
+/**
+ * 弱点ドリルを開くときに効かせる教科の絞り込み。全教科なら `null`（絞らない）。
+ * ミッションに実在の教科名が入っていれば、その教科の苦手だけを並べる。
+ */
+export function missionSubjFilter(mission: Pick<Mission, 'subj'>): string | null {
+  const subj = (mission.subj || '').trim();
+  return !subj || subj === MISSION_ALL_SUBJ ? null : subj;
 }
 
 /** ミッション + 日付 → 生成 Extra の id */

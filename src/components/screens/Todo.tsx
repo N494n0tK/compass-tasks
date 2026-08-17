@@ -24,17 +24,39 @@
  *   負荷計算・再配分・完了判定には影響しない（C-265）。
  */
 
-import { Fragment, type DragEvent } from 'react';
+import { Fragment, type CSSProperties, type DragEvent } from 'react';
 import { daysUntil, dayLabel } from '../../lib/logic/dates';
-import { missionRefOf, missionStreaks } from '../../lib/logic/missionAutogen';
+import {
+  isWeakMission,
+  missionRefOf,
+  missionStreaks,
+  missionSubjFilter,
+} from '../../lib/logic/missionAutogen';
+import { noteSummaryRefOf } from '../../lib/logic/noteSummaryTasks';
 import { toH } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Seg, SubTaskFields } from '../../lib/model/types';
-import { mutExtra, mutSeg, openNoteDrill } from '../parts/ShellActions';
+import { mutExtra, mutSeg, openNote, openNoteDrill, openWeakDrill } from '../parts/ShellActions';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
 import { SIZE_MIN, gl, orderedPlanIds, sizeChips, toggleItem } from '../parts/TodoActions';
 import { dateCtx, store, useAppStore } from '../useStore';
+
+/**
+ * 「復習・単発タスク」カードの右端に付く行き先ボタン。
+ * ノートで復習 / 弱点をやる / ノートを開く は**どれも「この 1 件をやる場所へ移る」**
+ * ので見た目を分けない（種類ごとに色を変えると、カードの列がボタンの見本市になる）。
+ */
+const CARD_GO_BTN: CSSProperties = {
+  padding: '4px 10px',
+  border: '1px solid var(--ink)',
+  borderRadius: 'var(--rad-s)',
+  background: 'var(--inkBg)',
+  color: 'var(--ink)',
+  font: "700 10.5px var(--f-ui)",
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
 
 export function Todo() {
   const { state, plans } = useAppStore();
@@ -387,6 +409,13 @@ export function Todo() {
             // ミッション由来のカードだけ連続日数を添える。1 日目は「連続」ではないので出さない
             const missionRef = missionRefOf(it.id);
             const streak = missionRef ? missionStreakMap[missionRef.missionId] || 0 : 0;
+            // 弱点ドリルのミッションか（台帳を引く。台帳から外したら普通のタスクに戻る）
+            const mission = missionRef
+              ? S.missions.find((m) => m.id === missionRef.missionId) || null
+              : null;
+            const weakMission = isWeakMission(mission) ? mission : null;
+            // まとめタスク（plan.md §4.1）。id の文字列規約からノートを引き直す
+            const sumNoteId = noteSummaryRefOf(it.id);
             return (
               <div
                 key={it.id}
@@ -471,18 +500,36 @@ export function Todo() {
                       e.stopPropagation();
                       openNoteDrill(store, it.noteId as string);
                     }}
-                    style={{
-                      padding: '4px 10px',
-                      border: '1px solid var(--ink)',
-                      borderRadius: 'var(--rad-s)',
-                      background: 'var(--inkBg)',
-                      color: 'var(--ink)',
-                      font: "700 10.5px var(--f-ui)",
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
+                    style={CARD_GO_BTN}
                   >
                     ノートで復習
+                  </button>
+                ) : null}
+                {/* 弱点ドリルのミッションは、問題抽出を「苦手な順」で開くだけで中身が決まる
+                    （plan.md §4.1）。完了は通常どおり手動チェック ―― 抽出画面での丸つけは
+                    「予定の外の解き直し」なので、何問やったらミッション達成かを機械が決められない */}
+                {weakMission ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openWeakDrill(store, missionSubjFilter(weakMission));
+                    }}
+                    style={CARD_GO_BTN}
+                  >
+                    弱点をやる
+                  </button>
+                ) : null}
+                {/* まとめは自分で書く欄なので、書く場所（ノートの紙面）へ連れて行くだけ。
+                    書き終えれば `commitNote` がこのカードを完了にする（plan.md §4.1） */}
+                {sumNoteId ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openNote(store, sumNoteId);
+                    }}
+                    style={CARD_GO_BTN}
+                  >
+                    ノートを開く
                   </button>
                 ) : null}
                 <span

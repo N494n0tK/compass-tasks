@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import type { Extra, ISODate, Mission, MissionGenLog, SizeKey } from '../../model/types';
 import {
+  MISSION_ALL_SUBJ,
   MISSION_SRC,
+  WEAK_MISSION_PRESET,
   buildMissionExtra,
   generateMissionTasks,
   isMissionDay,
+  isWeakMission,
   missionExtraId,
   missionRefOf,
   missionStreak,
   missionStreaks,
+  missionSubjFilter,
   newMissionId,
   pruneMissionGenLog,
 } from '../missionAutogen';
@@ -206,6 +210,46 @@ describe('generateMissionTasks — 重複防止（ログのみで判定）', () 
     });
     expect(res.extras.map((e) => e.title)).toEqual(['B']);
     expect(res.genLog[THU]).toEqual(['dma', 'dmb']);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// 弱点ドリル（plan.md §4.1）
+// ─────────────────────────────────────────────────────────────
+
+describe('弱点ドリルのミッション', () => {
+  /** プリセットどおりに登録した台帳 1 件（AddTask の「弱点問題を3問」と同じ形） */
+  const weak = mission({
+    id: 'dmw1',
+    title: WEAK_MISSION_PRESET.title,
+    subj: MISSION_ALL_SUBJ,
+    size: WEAK_MISSION_PRESET.size,
+    kind: WEAK_MISSION_PRESET.kind,
+  });
+
+  it('kind は台帳だけが持つ。生成 Extra は普通のタスクのまま', () => {
+    const res = generateMissionTasks({ today: THU, missions: [weak], genLog: {} });
+    expect(res.extras).toHaveLength(1);
+    const [e] = res.extras;
+    // Extra には kind を持たせない（台帳を id から引き直す＝`missionRefOf` の規約どおり）
+    expect('kind' in e).toBe(false);
+    expect(e.id).toBe('dm-dmw1-20260806');
+    expect(e.title).toBe('弱点問題を3問');
+    expect(e.subj).toBe(MISSION_ALL_SUBJ);
+    expect(e.min).toBe(10);
+    expect(missionRefOf(e.id)?.missionId).toBe('dmw1');
+  });
+
+  it('kind の無い既存ミッションは普通の毎日タスクのまま', () => {
+    expect(isWeakMission(weak)).toBe(true);
+    expect(isWeakMission(mission())).toBe(false);
+    expect(isWeakMission(null)).toBe(false);
+  });
+
+  it('全教科なら絞り込まない。教科を書いていればその教科だけ', () => {
+    expect(missionSubjFilter(weak)).toBeNull();
+    expect(missionSubjFilter({ subj: '' })).toBeNull();
+    expect(missionSubjFilter({ subj: ' 数学 ' })).toBe('数学');
   });
 });
 

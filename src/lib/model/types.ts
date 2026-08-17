@@ -248,6 +248,16 @@ export interface PrepAutoGenSettings {
 export type PrepGenLog = Record<ISODate, number[]>;
 
 /**
+ * ミッションの中身が既存機能に繋がっている場合の印（docs/daily-mission/plan.md §4.1）。
+ *
+ *  - `'weak'` … 弱点ドリル。ToDo カードから**問題抽出の「苦手な順」へ直行**できる
+ *
+ * 省略時はただの毎日タスク（タイトルどおりのことを自分でやる）。**任意フィールドなので
+ * 既存の台帳データはそのまま読める**。
+ */
+export type MissionKind = 'weak';
+
+/**
  * デイリーミッションの台帳 1 件（docs/daily-mission/plan.md §3.2）。**レガシーに無い追加**。
  *
  * 「毎日やること」そのものはタスクではなく**台帳**として持ち、今日ぶんの実体は
@@ -258,7 +268,7 @@ export interface Mission {
   /** `'dm' + base36`。生成した `Extra` の id に埋め込む（`dm-{missionId}-{YYYYMMDD}`） */
   id: string;
   title: string;
-  /** 時間割の教科名（色分け・集計に乗る） */
+  /** 時間割の教科名（色分け・集計に乗る）。弱点ドリルは全教科なので `'全教科'` が入る */
   subj: string;
   size: SizeKey;
   /** 実施曜日 0(日)–6(土)。**空配列 = 毎日** */
@@ -266,6 +276,8 @@ export interface Mission {
   /** 一時停止フラグ（テスト期間中だけ止める等）。false でも台帳からは消えない */
   active: boolean;
   createdAt: ISODate;
+  /** 既存機能への接続（`'weak'` = 弱点ドリル）。無ければただの毎日タスク */
+  kind?: MissionKind;
 }
 
 /**
@@ -333,6 +345,15 @@ export interface PersistentState {
   missions: Mission[];
   /** デイリーミッションの重複防止ログ */
   missionGenLog: MissionGenLog;
+  /**
+   * 「まとめを書く」を提案済みのノート id（docs/daily-mission/plan.md §4.1）。
+   *
+   * `prepGenLog` / `missionGenLog` が **日付 → その日ぶん**なのに対し、こちらは
+   * **noteId 単位で一度きり**。まとめは「その授業を 1 回自分の言葉にする」作業で
+   * 毎日くり返すものではないので、消した／無視したノートを翌朝また積むのは
+   * 相棒としてしつこいだけになる（粒度を変えている理由）。
+   */
+  noteSumLog: string[];
 }
 
 /**
@@ -370,6 +391,7 @@ export const PERSISTENT_KEYS = [
   'prepGenLog',
   'missions',
   'missionGenLog',
+  'noteSumLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -397,6 +419,9 @@ export const UNDO_KEYS = [
   // Undo したときに台帳だけ残って翌起動でまた生成される、を防ぐため
   'missions',
   'missionGenLog',
+  // まとめタスクの提案済みログも同じ。Undo で消えた提案が「提案済み」のまま
+  // 二度と出てこなくなるのを防ぐ
+  'noteSumLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type UndoKey = (typeof UNDO_KEYS)[number];
@@ -619,6 +644,11 @@ export interface EphemeralState {
    * 保存するのは登録後の `Mission.dows` だけなので、下書きは一時 state に置く。
    */
   addDows: number[];
+  /**
+   * デイリーミッションの種類の下書き（`''` = ただの毎日タスク）。
+   * プリセット「弱点問題を3問」を押すと `'weak'` になる。`addDows` と同じく下書きなので一時 state。
+   */
+  addMissionKind: MissionKind | '';
   addErr: AddErr;
   addDone: AddDone | null;
   addSlotSel: number | null;

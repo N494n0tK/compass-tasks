@@ -21,6 +21,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { todayISO } from '../lib/logic/dates';
 import { generateMissionTasks } from '../lib/logic/missionAutogen';
+import { generateNoteSummaryTasks } from '../lib/logic/noteSummaryTasks';
 import { generatePrepTasks } from '../lib/logic/prepAutogen';
 import { overdueSegs } from '../lib/logic/schedule';
 import type { AppState, ISODate, ViewId } from '../lib/model/types';
@@ -99,12 +100,16 @@ export const TOAST_DATE_ROLLOVER = '日付が変わったので今日を更新�
 export const ROLLOVER_CHECK_MS = 60_000;
 
 /**
- * 予習（docs/notebook/spec.md §5）とデイリーミッション（docs/daily-mission/plan.md §3.3）の
- * 自動生成を **1 回の `setState`** で反映する。**起動時と日付ロールオーバー時が同じここを通る**
+ * 予習（docs/notebook/spec.md §5）・デイリーミッション（docs/daily-mission/plan.md §3.3）・
+ * まとめタスク（同 §4.1）の自動生成を **1 回の `setState`** で反映する。
+ * **起動時と日付ロールオーバー時が同じここを通る**
  * （経路が分かれると、片方だけ直したときにもう片方が壊れる）。
  *
- * 2 種類をまとめるのが肝。ログはそれぞれの結果から書くので（`prepGenLog` は予習の、
- * `missionGenLog` はミッションの戻り）互いを消さない。
+ * 3 種類をまとめるのが肝。ログはそれぞれの結果から書くので（`prepGenLog` は予習の、
+ * `missionGenLog` はミッションの、`noteSumLog` はまとめの戻り）互いを消さない。
+ *
+ * **何度呼んでも増えない**（3 種ともログだけで重複を判定する）。ノートの読み込みが
+ * 遅れて 2 回目を通すことがあるので、この冪等性に頼っている。
  *
  * @returns トースト文言。何も生成されなければ `null`（トーストを出すかは呼び出し側の判断）
  */
@@ -121,17 +126,37 @@ function runAutoGen(store: CompassStore, today: ISODate): string | null {
     missions: s.missions,
     genLog: s.missionGenLog,
   });
-  const born = prep.extras.concat(mission.extras);
-  const logsChanged = prep.genLog !== s.prepGenLog || mission.genLog !== s.missionGenLog;
+  // ノートは別系統で遅れて読み込まれるので、未読込のときは何もしない（`notesLoaded` を渡す）。
+  // 空の一覧で走らせると提案済みログを掃除してしまい、読み込み後に蒸し返す
+  const summary = generateNoteSummaryTasks({
+    today,
+    notes: s.notes,
+    log: s.noteSumLog,
+    notesLoaded: s.notesLoaded,
+  });
+  const born = prep.extras.concat(mission.extras, summary.extras);
+  const logsChanged =
+    prep.genLog !== s.prepGenLog ||
+    mission.genLog !== s.missionGenLog ||
+    summary.log !== s.noteSumLog;
   if (!born.length && !logsChanged) return null;
-  store.setState((prev) => ({
-    extras: prev.extras.concat(born),
-    prepGenLog: prep.genLog,
-    missionGenLog: mission.genLog,
-  }));
+  store.setState((prev) => {
+    // 自動生成の id は規約で決まる（`dm-…` / `nbsum-…`）ので、ログと実体が食い違うと
+    // **同じ id のカードが 2 枚**並びうる。積むかどうかはログで決めたまま、
+    // 既にある id だけは弾く（重複の実害だけを消し、消したタスクは復活させない）
+    const have = new Set(prev.extras.map((x) => x.id));
+    return {
+      extras: prev.extras.concat(born.filter((e) => !have.has(e.id))),
+      prepGenLog: prep.genLog,
+      missionGenLog: mission.genLog,
+      noteSumLog: summary.log,
+    };
+  });
   born.forEach((e) => addToOrder(store, e.id));
-  // トーストは 1 本しか出せない（後勝ちで潰れる）ので、両方できたときは 1 文にまとめる
-  const messages = [prep.message, mission.message].filter((m): m is string => !!m);
+  // トーストは 1 本しか出せない（後勝ちで潰れる）ので、複数できたときは 1 文にまとめる
+  const messages = [prep.message, mission.message, summary.message].filter(
+    (m): m is string => !!m
+  );
   return messages.length ? messages.join(' / ') : null;
 }
 
@@ -142,6 +167,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   const saverRef = useRef<SaveController | null>(null);
   /** 起動時の自動生成（予習・デイリーミッション）をマウントごとに 1 回だけにする番人 */
   const autoGenRanRef = useRef(false);
+  /** ノート読み込み後の追い生成（まとめタスク）をマウントごとに 1 回だけにする番人 */
+  const noteGenRanRef = useRef(false);
 
   const savePrefs = useMemo(() => () => writePrefs(store), []);
 
@@ -212,6 +239,21 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     const message = runAutoGen(store, dateCtx.today);
     if (message) store.showToast(message);
   }, [state.cloudStatus]);
+
+  // ── ノート読み込み後の追い生成（まとめタスク: docs/daily-mission/plan.md §4.1）
+  //    ノートは `compass-ui-data` とは**別系統**（`NotebookController`）で読み込まれ、
+  //    スプラッシュのゲートにも参加しないので、上の 1 回目に間に合わないことが多い。
+  //    まとめタスクだけは `state.notes` を見ないと作れないので、読み込み完了で一度だけ通し直す。
+  //    予習・ミッションはログで守られていて二度通しても増えない（`runAutoGen` は冪等）。
+  useEffect(() => {
+    if (!autoGenRanRef.current || noteGenRanRef.current) return;
+    if (!state.notesLoaded) return;
+    noteGenRanRef.current = true;
+    const message = runAutoGen(store, dateCtx.today);
+    if (message) store.showToast(message);
+    // `cloudStatus` を依存に入れるのは、ノートの方が先に読み終わったときの順番のため。
+    // その場合この effect は 1 回目に空振りし、クラウド読込が終わった描画でもう一度走る
+  }, [state.notesLoaded, state.cloudStatus]);
 
   // ── 日付ロールオーバー（docs/daily-mission/plan.md §4.1）
   //    タブを開きっぱなしで日付が変わると、`dateCtx` が古いままなので ToDo も自動生成も

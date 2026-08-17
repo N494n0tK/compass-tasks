@@ -337,6 +337,7 @@ describe('exportData', () => {
       'prepGenLog',
       'missions',
       'missionGenLog',
+      'noteSumLog',
     ]);
   });
 
@@ -407,11 +408,12 @@ describe('undo', () => {
     expect(Object.keys(payload)).toEqual(['plans', 'state']);
     expect(Object.keys(payload.state)).toEqual([...UNDO_KEYS]);
     // レガシーの 14 キー + 自動生成の台帳・ログ（extras と一緒に巻き戻す必要がある）
-    expect(UNDO_KEYS).toHaveLength(17);
+    expect(UNDO_KEYS).toHaveLength(18);
     expect(UNDO_KEYS.slice(14)).toEqual([
       'prepGenLog',
       'missions',
       'missionGenLog',
+      'noteSumLog',
     ]);
     expect(payload.plans).toBe(store.getPlans()); // レガシー同様、直列化専用の参照渡し
   });

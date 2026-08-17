@@ -248,6 +248,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     chartEnd: '4',
     // 空 = 毎日（デイリーミッションの実施曜日の下書き）
     addDows: [],
+    // 空 = ただの毎日タスク（プリセット「弱点問題を3問」を押すと 'weak'）
+    addMissionKind: '',
     addErr: {},
     addDone: null,
     recentSubjs: [],
@@ -302,6 +304,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     // 保存データに在るキーしか上書きしない）
     missions: [],
     missionGenLog: {},
+    // まとめタスクを提案済みのノート id（plan.md §4.1）。日付ではなく noteId 単位で一度きり
+    noteSumLog: [],
   };
 }
 

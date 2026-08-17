@@ -227,7 +227,77 @@ describe('commitNote', () => {
   });
 });
 
+/**
+ * まとめタスク（docs/daily-mission/plan.md §4.1）。
+ * 取り込み・編集・削除がどれも `commitNote` / `removeNote` を通ることを確かめる
+ * （生成規則そのものは `lib/logic/__tests__/noteSummaryTasks.test.ts`）。
+ */
+describe('commitNote — まとめタスク', () => {
+  /** ノート読み込み済みの状態にする（未読込では提案しない仕様） */
+  const loadedStore = (): CompassStore => {
+    const store = newStore();
+    store.setState({ notesLoaded: true });
+    return store;
+  };
+
+  it('取り込んだノートのまとめが空なら、その場で 1 件積む', () => {
+    const store = loadedStore();
+    commitNote(store, note(), T);
+    const extras = store.getState().extras;
+    expect(extras.map((x) => x.id)).toEqual(['nbsum-nabc']);
+    expect(extras[0].title).toBe('「数列」のまとめを書く');
+    expect(extras[0].day).toBe(T);
+    // 今日の一覧に載るよう order にも入れる
+    expect(store.getState().order).toContain('nbsum-nabc');
+    expect(store.getState().noteSumLog).toEqual(['nabc']);
+  });
+
+  it('編集で何度保存しても増えない（提案は 1 回きり）', () => {
+    const store = loadedStore();
+    commitNote(store, note(), T);
+    store.setState({ extras: [] }); // ユーザーがタスクを消した
+    commitNote(store, note({ unit: '数列と漸化式' }), T, { debounce: true });
+    expect(store.getState().extras).toEqual([]);
+  });
+
+  it('ノート未読込のあいだは提案しない（読み込み後に蒸し返さない）', () => {
+    const store = newStore();
+    commitNote(store, note(), T);
+    expect(store.getState().extras).toEqual([]);
+    expect(store.getState().noteSumLog).toEqual([]);
+  });
+
+  it('まとめを書くと、そのタスクが自動で完了になる', () => {
+    const store = loadedStore();
+    commitNote(store, note(), T);
+    commitNote(store, note({ summary: '要点は3つ' }), T, { debounce: true });
+    const extras = store.getState().extras;
+    expect(extras.map((x) => x.done)).toEqual([true]);
+    // 完了させるだけで消さない（学習時間の集計に乗る）
+    expect(extras[0].id).toBe('nbsum-nabc');
+  });
+
+  it('最初からまとめが入っているノートには積まない', () => {
+    const store = loadedStore();
+    commitNote(store, note({ summary: 'ノートに書いたまとめの転記' }), T);
+    expect(store.getState().extras).toEqual([]);
+    expect(store.getState().noteSumLog).toEqual([]);
+  });
+});
+
 describe('removeNote', () => {
+  it('未完了のまとめタスクも一緒に片付ける（完了済みは残す）', () => {
+    const store = newStore();
+    store.setState({ notesLoaded: true });
+    commitNote(store, note(), T);
+    commitNote(store, note({ id: 'nxyz', unit: '仮定法' }), T);
+    store.setState((s) => ({ selId: 'nbsum-nabc', order: s.order }));
+    removeNote(store, 'nabc');
+    expect(store.getState().extras.map((x) => x.id)).toEqual(['nbsum-nxyz']);
+    expect(store.getState().order).not.toContain('nbsum-nabc');
+    expect(store.getState().selId).toBeNull();
+  });
+
   it('未完了だけ消し、完了は残す（N-030）', () => {
     const store = newStore();
     commitNote(store, note(), T);

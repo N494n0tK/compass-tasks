@@ -165,6 +165,7 @@ const SAMPLE_EXPORT: ExportData = {
     prepGenLog: {},
     missions: [],
     missionGenLog: {},
+    noteSumLog: [],
   },
 };
 

@@ -23,6 +23,8 @@ import { useMemo, type CSSProperties } from 'react';
 import { DOW, dayLabel, dowOf, fmtMD, isoShift, mondayOf, scheduleDateOf } from '../../lib/logic/dates';
 // デイリーミッション（docs/daily-mission/plan.md §3.4）。台帳への登録と、今日ぶんの生成
 import {
+  MISSION_ALL_SUBJ,
+  WEAK_MISSION_PRESET,
   generateMissionTasks,
   missionStreaks,
   newMissionId,
@@ -191,6 +193,8 @@ export function AddTask() {
           t.id === 'test' || t.id === 'prep' ? true : store.getState().addDetailOpen,
         addErr: {},
         addDone: null,
+        // 種類を選び直したらプリセットの下書きは捨てる（別のことを登録しようとしている）
+        addMissionKind: '',
       }),
   }));
 
@@ -433,8 +437,10 @@ export function AddTask() {
     const t = (S.addTitle || '').trim();
     const subj = (S.addSubj || '').trim();
     const errs: AppState['addErr'] = {};
+    /** 弱点ドリル（plan.md §4.1）。全教科の問題から出すので教科を必須にしない */
+    const isWeak = S.addType === 'mission' && S.addMissionKind === 'weak';
     if (!t) errs.title = 'タスク名を入力してください';
-    if (!subj) errs.subj = '教科を入力してください';
+    if (!subj && !isWeak) errs.subj = '教科を入力してください';
     // 「毎日」は日付を持たない（実施日は曜日で決まる）ので日付の検証もしない
     if (S.addType !== 'mission' && !S.addDay) {
       errs.day = (DAY_HEADS[S.addType] || '') + 'を選んでください';
@@ -508,11 +514,15 @@ export function AddTask() {
       const mission: Mission = {
         id: newMissionId(),
         title: t,
-        subj,
+        // 教科を書かなかった弱点ドリルは「全教科」。空文字のままにすると教科チップが
+        // 名無しの色板になり、完了ぶんが円グラフで名前の無い一切れになる
+        subj: subj || MISSION_ALL_SUBJ,
         size: S.addSize,
         dows: S.addDows.slice().sort((a, b) => a - b),
         active: true,
         createdAt: T,
+        // 台帳に印を付けておくと、ToDo カードから問題抽出（苦手な順）へ直行できる
+        ...(isWeak ? { kind: WEAK_MISSION_PRESET.kind } : null),
       };
       // 日中に作ったミッションも今日から始められるように、曜日が合えばその場で 1 件積む
       const gen = generateMissionTasks({
@@ -529,7 +539,7 @@ export function AddTask() {
       done = {
         label:
           '毎日のミッション「' +
-          subj +
+          mission.subj +
           ' ' +
           t +
           '」を登録しました(' +
@@ -606,7 +616,12 @@ export function AddTask() {
       addDone: done,
       addSlotSel: null,
       addSlotDate: null,
-      recentSubjs: [subj].concat(s.recentSubjs.filter((x) => x !== subj)).slice(0, 4),
+      // プリセットの下書きは 1 回で使い切る（次の登録に持ち越すと種類が化ける）
+      addMissionKind: '',
+      // 教科を書かずに登録できるのは弱点ドリルだけ。空文字を最近使った教科に混ぜない
+      recentSubjs: subj
+        ? [subj].concat(s.recentSubjs.filter((x) => x !== subj)).slice(0, 4)
+        : s.recentSubjs,
     }));
     store.showToast(done.label);
     focusEl('add-title');
@@ -651,6 +666,27 @@ export function AddTask() {
     [S.missions, S.extras, T]
   );
   const showMissionList = isMission || S.missions.length > 0;
+  /** プリセット「弱点問題を3問」が下書きに入っているか（plan.md §4.1） */
+  const weakPresetOn = isMission && S.addMissionKind === 'weak';
+  /**
+   * プリセットの ON/OFF。ON にすると **1 タップで登録できる状態**まで埋める
+   * （タイトル・サイズ・種類）。教科は空にする ―― 弱点は全教科から出すのが既定で、
+   * 教科を絞りたい人だけがあとから入れればいい。
+   */
+  const toggleWeakPreset = () => {
+    if (weakPresetOn) {
+      store.setState({ addMissionKind: '', addDone: null });
+      return;
+    }
+    store.setState({
+      addMissionKind: WEAK_MISSION_PRESET.kind,
+      addTitle: WEAK_MISSION_PRESET.title,
+      addSubj: '',
+      addSize: WEAK_MISSION_PRESET.size,
+      addErr: {},
+      addDone: null,
+    });
+  };
   const toggleAddDow = (d: number) =>
     store.setState((s) => ({
       addDows:
@@ -839,6 +875,40 @@ export function AddTask() {
               </div>
             </div>
 
+            {/* ── プリセット（plan.md §4.1「弱点ドリルのミッション化」）。
+                   毎日やることの中でも「弱点問題」は中身を自分で選ぶ必要がない ――
+                   問題抽出の「苦手な順」が既に答えを持っているので、1 タップで登録して
+                   ToDo からそこへ直行できるようにする */}
+            {isMission ? (
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '7px' }}>
+                  よく使うもの
+                </div>
+                <span
+                  onClick={toggleWeakPreset}
+                  role="button"
+                  aria-pressed={weakPresetOn}
+                  style={{
+                    display: 'inline-block',
+                    font: "700 11.5px var(--f-ui)",
+                    color: weakPresetOn ? 'var(--onAcc)' : 'var(--view)',
+                    background: weakPresetOn ? 'var(--view)' : 'var(--viewBg)',
+                    border: '1px solid var(--view)',
+                    borderRadius: 'var(--rad-s)',
+                    padding: '7px 14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {(weakPresetOn ? '✓ ' : '＋ ') + WEAK_MISSION_PRESET.title}
+                </span>
+                <div style={{ fontSize: '10.5px', color: 'var(--tx3)', marginTop: '7px' }}>
+                  {weakPresetOn
+                    ? '今日のToDoに「弱点をやる」ボタンが付き、問題抽出を苦手な順で開きます(教科は空なら全教科)'
+                    : '何をやるか決めずに済むミッション。押すと下の欄が埋まります'}
+                </div>
+              </div>
+            ) : null}
+
             <div>
               <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '7px' }}>
                 {'タスク名 '}
@@ -887,8 +957,15 @@ export function AddTask() {
             <div>
               <div style={{ fontSize: '11px', color: 'var(--tx3)', marginBottom: '7px' }}>
                 {'教科 '}
-                <span style={{ color: 'var(--pink)' }}>*</span>
-                {' — 自由入力OK。候補にない教科はそのまま新規追加されます'}
+                {/* 弱点ドリルだけ教科を必須にしない（空 = 全教科の苦手から出す） */}
+                {weakPresetOn ? (
+                  <span>{'(任意) — 空なら' + MISSION_ALL_SUBJ + 'の苦手から出します'}</span>
+                ) : (
+                  <>
+                    <span style={{ color: 'var(--pink)' }}>*</span>
+                    {' — 自由入力OK。候補にない教科はそのまま新規追加されます'}
+                  </>
+                )}
               </div>
               <input
                 id="add-subj"
@@ -1768,7 +1845,15 @@ export function AddTask() {
                         {m.title}
                       </div>
                       <div style={{ fontSize: '10.5px', color: 'var(--tx3)', marginTop: '3px' }}>
-                        {m.subj + ' · ' + m.size + '·' + SIZE_MIN[m.size] + '分 · ' + dowsLabel(m.dows)}
+                        {m.subj +
+                          ' · ' +
+                          m.size +
+                          '·' +
+                          SIZE_MIN[m.size] +
+                          '分 · ' +
+                          dowsLabel(m.dows) +
+                          // 中身が既存機能に繋がっているミッションはそれを明示する
+                          (m.kind === 'weak' ? ' · 弱点ドリル' : '')}
                       </div>
                     </div>
                     {streak >= 2 ? (
