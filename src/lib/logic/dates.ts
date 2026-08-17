@@ -34,10 +34,13 @@ export interface DayInfo {
 }
 
 /**
- * 起動時に一度だけ確定する日付コンテキスト。
+ * 「今日」を起点にした日付コンテキスト。
  * レガシーではコンストラクタで `this._base` / `this.DAYS` / `this.TODAY` / `this.DIDX` /
- * `this.YESTERDAY` として固定される（HTML:1996-2010）。**日付が変わっても再計算されない**
- * （リロードするまで固定）ので、ここでも生成時点のスナップショットとして扱う。
+ * `this.YESTERDAY` として固定され、日付が変わっても再計算されなかった（HTML:1996-2010）。
+ *
+ * ここでは**時計が勝手に進めることはしない**（レンダー中に値が変わると描画がちぐはぐになる）が、
+ * `createDateContext()` が返す実物は `rollover()` で**明示的に**次の日へ進められる
+ * （`LiveDateContext`）。`dateContextFor()` が返すものは純粋なスナップショット。
  */
 export interface DateContext {
   /** `this.TODAY`（= `DAYS[0].iso`） */
@@ -153,9 +156,39 @@ export function dateContextFor(today: ISODate): DateContext {
   };
 }
 
-/** 実時刻（Asia/Tokyo）から `DateContext` を作る。レガシー constructor 相当（HTML:1998-2010） */
-export function createDateContext(now: Date = new Date()): DateContext {
-  return dateContextFor(todayISO(now));
+/**
+ * 実時刻から作った、**日付をまたいだら進められる** `DateContext`。
+ * アプリ全体が `import` した1個の参照を共有するので（`components/useStore.ts` の `dateCtx`）、
+ * 日付が変わったときに**オブジェクトを差し替えずに中身だけ**入れ替える必要がある。
+ */
+export interface LiveDateContext extends DateContext {
+  /**
+   * 実時刻の「今日」が `this.today` と違えば、`today` と派生フィールドを進めて `true` を返す。
+   * 同じ日なら何もせず `false`。**オブジェクトの同一性は保つ**ので、
+   * すでに `import` / props で配られている参照もそのまま新しい値を見る。
+   *
+   * @param now テスト用の注入ポイント。既定は現在時刻。
+   */
+  rollover(now?: Date): boolean;
+}
+
+/**
+ * 実時刻（Asia/Tokyo）から `DateContext` を作る。レガシー constructor 相当（HTML:1998-2010）。
+ * レガシーと違い、`rollover()` を呼べば日付の変化に追従できる（plan.md §4.1）。
+ */
+export function createDateContext(now: Date = new Date()): LiveDateContext {
+  const ctx: LiveDateContext = {
+    ...dateContextFor(todayISO(now)),
+    rollover(at: Date = new Date()): boolean {
+      const next = todayISO(at);
+      if (next === ctx.today) return false;
+      // 参照を保ったまま中身だけ入れ替える（新しいオブジェクトを返すと、
+      // すでに配られている `dateCtx` が古いままになってしまう）
+      Object.assign(ctx, dateContextFor(next));
+      return true;
+    },
+  };
+  return ctx;
 }
 
 /** `this.isoAt(n)`（HTML:2000）— 今日から n 日後（負値可） */

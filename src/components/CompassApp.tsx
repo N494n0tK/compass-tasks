@@ -19,16 +19,18 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { todayISO } from '../lib/logic/dates';
 import { generateMissionTasks } from '../lib/logic/missionAutogen';
 import { generatePrepTasks } from '../lib/logic/prepAutogen';
 import { overdueSegs } from '../lib/logic/schedule';
-import type { AppState, ViewId } from '../lib/model/types';
+import type { AppState, ISODate, ViewId } from '../lib/model/types';
 import {
   createPersistence,
   createSplashGate,
   type CompassPersistence,
   type SplashGate,
 } from '../lib/persistence';
+import type { CompassStore } from '../lib/store';
 import { ReviewAskModal } from './parts/ReviewAskModal';
 import { addToOrder } from './parts/ShellActions';
 import { ShellAppSwitcher } from './parts/ShellAppSwitcher';
@@ -85,6 +87,52 @@ function renderScreen(state: AppState) {
     case 'extract':
       return <Notebook />;
   }
+}
+
+/** 日付が変わったのを検知したときのトースト（plan.md §4.1） */
+export const TOAST_DATE_ROLLOVER = '日付が変わったので今日を更新しました';
+
+/**
+ * 日付の変化を見に行く間隔（ms）。タブを開きっぱなしで放置されているときの保険で、
+ * 主な検知経路は `visibilitychange` / `focus`（戻ってきた瞬間に切り替わってほしい）。
+ */
+export const ROLLOVER_CHECK_MS = 60_000;
+
+/**
+ * 予習（docs/notebook/spec.md §5）とデイリーミッション（docs/daily-mission/plan.md §3.3）の
+ * 自動生成を **1 回の `setState`** で反映する。**起動時と日付ロールオーバー時が同じここを通る**
+ * （経路が分かれると、片方だけ直したときにもう片方が壊れる）。
+ *
+ * 2 種類をまとめるのが肝。ログはそれぞれの結果から書くので（`prepGenLog` は予習の、
+ * `missionGenLog` はミッションの戻り）互いを消さない。
+ *
+ * @returns トースト文言。何も生成されなければ `null`（トーストを出すかは呼び出し側の判断）
+ */
+function runAutoGen(store: CompassStore, today: ISODate): string | null {
+  const s = store.getState();
+  const prep = generatePrepTasks({
+    today,
+    dayOverrides: s.dayOverrides,
+    settings: s.prepAutoGen,
+    genLog: s.prepGenLog,
+  });
+  const mission = generateMissionTasks({
+    today,
+    missions: s.missions,
+    genLog: s.missionGenLog,
+  });
+  const born = prep.extras.concat(mission.extras);
+  const logsChanged = prep.genLog !== s.prepGenLog || mission.genLog !== s.missionGenLog;
+  if (!born.length && !logsChanged) return null;
+  store.setState((prev) => ({
+    extras: prev.extras.concat(born),
+    prepGenLog: prep.genLog,
+    missionGenLog: mission.genLog,
+  }));
+  born.forEach((e) => addToOrder(store, e.id));
+  // トーストは 1 本しか出せない（後勝ちで潰れる）ので、両方できたときは 1 文にまとめる
+  const messages = [prep.message, mission.message].filter((m): m is string => !!m);
+  return messages.length ? messages.join(' / ') : null;
 }
 
 export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
@@ -152,39 +200,52 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   // ── 起動時の自動生成（予習: docs/notebook/spec.md §5 / ミッション: docs/daily-mission/plan.md §3.3）
   //    クラウド読み込みが終わって `cloudStatus` が 'loading' を抜けた**最初の 1 回**だけ走る。
   //    そこまで待たないと、保存済みのログ・台帳・設定が反映されず同じ日のタスクを二重に積んでしまう。
-  //    `useRef` でマウントごと 1 回に固定する。
-  //
-  //    2 種類を**1 回の setState** でまとめるのが肝。ログはそれぞれの結果から書くので
-  //    （`prepGenLog` は予習の、`missionGenLog` はミッションの戻り）互いを消さない。
+  //    `useRef` でマウントごと 1 回に固定する。生成の中身は `runAutoGen`（ロールオーバーと共通）。
   useEffect(() => {
     if (autoGenRanRef.current) return;
     if (state.cloudStatus === 'loading') return;
     autoGenRanRef.current = true;
-    const s = store.getState();
-    const prep = generatePrepTasks({
-      today: dateCtx.today,
-      dayOverrides: s.dayOverrides,
-      settings: s.prepAutoGen,
-      genLog: s.prepGenLog,
-    });
-    const mission = generateMissionTasks({
-      today: dateCtx.today,
-      missions: s.missions,
-      genLog: s.missionGenLog,
-    });
-    const born = prep.extras.concat(mission.extras);
-    const logsChanged = prep.genLog !== s.prepGenLog || mission.genLog !== s.missionGenLog;
-    if (!born.length && !logsChanged) return;
-    store.setState((prev) => ({
-      extras: prev.extras.concat(born),
-      prepGenLog: prep.genLog,
-      missionGenLog: mission.genLog,
-    }));
-    born.forEach((e) => addToOrder(store, e.id));
-    // トーストは 1 本しか出せない（後勝ちで潰れる）ので、両方できたときは 1 文にまとめる
-    const messages = [prep.message, mission.message].filter((m): m is string => !!m);
-    if (messages.length) store.showToast(messages.join(' / '));
+    // モジュール読込 → クラウド読込完了の間に日付が変わっている可能性がある（夜更かし + 遅い回線）。
+    // 古い「今日」で 1 日ぶん生成してしまわないよう、生成の直前に一度だけ合わせる。
+    // ここは起動の一部なのでトーストは出さない（更新される前の画面をユーザーは見ていない）。
+    dateCtx.rollover();
+    const message = runAutoGen(store, dateCtx.today);
+    if (message) store.showToast(message);
   }, [state.cloudStatus]);
+
+  // ── 日付ロールオーバー（docs/daily-mission/plan.md §4.1）
+  //    タブを開きっぱなしで日付が変わると、`dateCtx` が古いままなので ToDo も自動生成も
+  //    昨日で止まる。可視化・フォーカス・60 秒ごとの見張りで検知して「今日」を進める。
+  useEffect(() => {
+    const maybeRollover = () => {
+      if (todayISO() === dateCtx.today) return;
+      // 起動時の自動生成がまだなら見送る。クラウド読込前に生成すると保存済みのログを
+      // 知らないまま積むことになり、同じ日のタスクが二重になる（上の effect と同じ理由）。
+      if (!autoGenRanRef.current) return;
+      // 集中モードのタイマーが動いている間は進めない。進めると (1) 計測中のセッションが
+      // 日付をまたいで壊れ、(2) 目の前の「今日のリスト」が予告なく差し替わる。
+      // 止めた／閉じたあとの次のチェック（60 秒以内）で進むので取りこぼさない。
+      if (store.getState().focusRunning) return;
+
+      dateCtx.rollover();
+      const message = runAutoGen(store, dateCtx.today);
+      // 生成が 0 件でも「今日」が変わったことを画面に反映しなければならない。
+      // `setState(null)` は内容を変えずに購読者へ通知する（store.ts の移植上の重要点 2）
+      store.setState(null);
+      store.showToast(TOAST_DATE_ROLLOVER + (message ? ' / ' + message : ''));
+    };
+    const onVisibility = () => {
+      if (!document.hidden) maybeRollover();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', maybeRollover);
+    const timer = setInterval(maybeRollover, ROLLOVER_CHECK_MS);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', maybeRollover);
+      clearInterval(timer);
+    };
+  }, []);
 
   // ── キーボードショートカット（`_key`, HTML:2117-2141 / spec §2.7）
   useEffect(() => {
@@ -270,13 +331,15 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
 
   // ── 派生値
   const subjColors = useSubjColors(state, plans);
+  // `dateCtx.today` はロールオーバーで書き換わるので依存に入れる（入れないと、
+  // 生成が 0 件で `state.segs` も変わらないロールオーバーで古い日付のまま固まる）
   const todayItems = useMemo(
     () => buildTodayItems(state, plans, dateCtx.today),
-    [state, plans]
+    [state, plans, dateCtx.today]
   );
   const overdueCount = useMemo(
     () => overdueSegs(state.segs, plans, dateCtx.today).length,
-    [state.segs, plans]
+    [state.segs, plans, dateCtx.today]
   );
   const themeStyle = useMemo(
     () => buildThemeStyle(state.theme, state.view),
