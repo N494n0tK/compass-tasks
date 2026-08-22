@@ -24,6 +24,7 @@ import { dowOf, fmtMD, isoShift, monthLabel } from '../../lib/logic/dates';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import { timetableSubjects } from '../../lib/logic/timetable';
 import type { Note } from '../../lib/model/notes';
+import { pullNotionNotes } from './NotionPull';
 import { useSubjColors } from './ShellSubjects';
 import { store, useAppStore } from '../useStore';
 
@@ -418,10 +419,11 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
         </div>
       </div>
 
+      {/* ノートの正本は Notion（docs/notebook/notion-pull.md）。受け取りが主で、手貼りは控え */}
       <button
-        onClick={() =>
-          store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
-        }
+        className="hv-acc-outline"
+        onClick={() => void pullNotionNotes(store, today)}
+        disabled={S.nbNotionBusy}
         style={{
           flex: 'none',
           padding: '11px 14px',
@@ -430,10 +432,28 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
           background: 'var(--grad)',
           color: 'var(--onAcc)',
           font: '700 12.5px var(--f-ui)',
+          cursor: S.nbNotionBusy ? 'default' : 'pointer',
+          opacity: S.nbNotionBusy ? 0.6 : 1,
+        }}
+      >
+        {S.nbNotionBusy ? 'Notionから受け取り中…' : '⟳ Notionから受け取る'}
+      </button>
+      <button
+        onClick={() =>
+          store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
+        }
+        style={{
+          flex: 'none',
+          padding: '9px 14px',
+          border: '1px solid var(--line2)',
+          borderRadius: 'var(--rad-s)',
+          background: 'none',
+          color: 'var(--tx2)',
+          font: '500 11.5px var(--f-ui)',
           cursor: 'pointer',
         }}
       >
-        ＋ JSONから取り込む
+        ＋ JSONを手で貼って取り込む
       </button>
     </aside>
   );

@@ -29,6 +29,7 @@ import { NoteExtract } from '../parts/NoteExtract';
 import { NoteImportModal } from '../parts/NoteImportModal';
 import { NoteView } from '../parts/NoteView';
 import { NotebookSidebar } from '../parts/NotebookSidebar';
+import { pullNotionNotes } from '../parts/NotionPull';
 import { makeSearchMatcher } from '../parts/ShellSearch';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -106,27 +107,45 @@ export function Notebook() {
               読み返すのは<strong style={{ color: 'var(--tx1)' }}>自分が書いたノートそのもの</strong>。
               AIがするのは、その各段への添削と想起問題を足すことだけです。
               <br />
-              授業を録音 → ノートを撮る → AIにプロンプトと一緒に渡す → 返ってきたJSONを貼る。
+              ノートの正本はNotion。授業のミーティングノートが平日17時にJSON化され、
+              ここで「受け取る」だけで並びます。
               <br />
               想起問題ごとに復習カードが作られ、その日のうちに「今日のToDo」へ1枚積まれます。
             </div>
-            <button
-              onClick={() =>
-                store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
-              }
-              style={{
-                marginTop: '5px',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: 'var(--rad-s)',
-                background: 'var(--grad)',
-                color: 'var(--onAcc)',
-                font: '700 12.5px var(--f-ui)',
-                cursor: 'pointer',
-              }}
-            >
-              ＋ JSONから取り込む
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+              <button
+                onClick={() => void pullNotionNotes(store, T)}
+                disabled={S.nbNotionBusy}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: 'var(--rad-s)',
+                  background: 'var(--grad)',
+                  color: 'var(--onAcc)',
+                  font: '700 12.5px var(--f-ui)',
+                  cursor: S.nbNotionBusy ? 'default' : 'pointer',
+                  opacity: S.nbNotionBusy ? 0.6 : 1,
+                }}
+              >
+                {S.nbNotionBusy ? 'Notionから受け取り中…' : '⟳ Notionから受け取る'}
+              </button>
+              <button
+                onClick={() =>
+                  store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
+                }
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid var(--line2)',
+                  borderRadius: 'var(--rad-s)',
+                  background: 'none',
+                  color: 'var(--tx2)',
+                  font: '500 12.5px var(--f-ui)',
+                  cursor: 'pointer',
+                }}
+              >
+                ＋ JSONを手で貼る
+              </button>
+            </div>
           </div>
         )}
       </div>

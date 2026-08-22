@@ -266,6 +266,28 @@ export interface PrepAutoGenSettings {
 export type PrepGenLog = Record<ISODate, number[]>;
 
 /**
+ * Notion 取り込みログの 1 件（docs/notebook/notion-pull.md）。**レガシーに無い追加**。
+ *
+ * `noteId` はそのコードブロックから作った / 上書きしたノートの id。
+ * 検証エラーで取り込めなかったブロックは `''` で記録し、**同じ内容で再挑戦しない**
+ * （Notion 側で直せば `edited` が変わるので、そのとき拾い直す）。
+ */
+export interface NotionPullEntry {
+  noteId: string;
+  /** そのブロックの Notion `last_edited_time`（ISO 8601）。一致すれば取り込み済み */
+  edited: string;
+}
+
+/**
+ * Notion 取り込みの冪等化ログ。**Notion のコードブロック id → 取り込み結果**。
+ *
+ * ノート本文の正本は Notion 側（「Compass取り込みJSON」ページ）にあり、
+ * Compass は受け取るだけ。同じブロックを毎回上書き取り込みし直さないための記録で、
+ * `prepGenLog` と同じく「ユーザーが消したノートを勝手に復活させない」役も担う。
+ */
+export type NotionPullLog = Record<string, NotionPullEntry>;
+
+/**
  * ミッションの中身が既存機能に繋がっている場合の印（docs/daily-mission/plan.md §4.1）。
  *
  *  - `'weak'` … 弱点ドリル。ToDo カードから**問題抽出の「苦手な順」へ直行**できる
@@ -377,6 +399,8 @@ export interface PersistentState {
    * **`studyLog` には合流させない**（完了タスクの見積りと二重計上になる。`FocusLogEntry` 参照）。
    */
   focusLog: FocusLogEntry[];
+  /** Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id → 取り込み結果 */
+  notionPullLog: NotionPullLog;
 }
 
 /**
@@ -416,6 +440,7 @@ export const PERSISTENT_KEYS = [
   'missionGenLog',
   'noteSumLog',
   'focusLog',
+  'notionPullLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -757,6 +782,8 @@ export interface EphemeralState {
   nbImportText: string;
   /** 上書き取り込みの対象ノート id（`null` = 新規） */
   nbImportTarget: string | null;
+  /** Notion からの受け取りが進行中か（ボタンの連打・起動時との重複を防ぐ） */
+  nbNotionBusy: boolean;
   /** 解答の開閉。キーは `'r:'+noteId+':'+cardId` / `'e:'+noteId` / `'x:'+…`（v3 の `open` と同じ流儀） */
   nbRevealed: Record<string, boolean>;
   /** サイドバーの教科アコーディオン */

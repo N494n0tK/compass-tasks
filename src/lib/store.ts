@@ -293,6 +293,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbImportOpen: false,
     nbImportText: '',
     nbImportTarget: null,
+    nbNotionBusy: false,
     nbRevealed: {},
     nbTreeOpen: {},
     nbFullNote: false,
@@ -310,6 +311,8 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     noteSumLog: [],
     // 集中モードの実測（plan.md §4.3）。学習時間（見積り）とは別枠で持つ
     focusLog: [],
+    // Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id 単位
+    notionPullLog: {},
   };
 }
 

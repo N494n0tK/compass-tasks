@@ -167,6 +167,7 @@ const SAMPLE_EXPORT: ExportData = {
     missionGenLog: {},
     noteSumLog: [],
     focusLog: [{ day: '2026-08-04', subj: '数学', min: 25 }],
+    notionPullLog: {},
   },
 };
 

@@ -49,6 +49,7 @@ import { buildTodayItems } from './parts/ShellTodayItems';
 import { TestsEditorDrawer } from './parts/TestsEditorDrawer';
 import { TodoFocusOverlay } from './parts/TodoFocusOverlay';
 import { NotebookController, setNotebookController } from './parts/NotebookPersistence';
+import { pullNotionNotes } from './parts/NotionPull';
 import { AddTask } from './screens/AddTask';
 import { Cockpit } from './screens/Cockpit';
 import { DataScreen } from './screens/DataScreen';
@@ -170,6 +171,9 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
   /** ノート読み込み後の追い生成（まとめタスク）をマウントごとに 1 回だけにする番人 */
   const noteGenRanRef = useRef(false);
 
+  /** 起動時の Notion 受け取りをマウントごとに 1 回だけにする番人 */
+  const notionPullRanRef = useRef(false);
+
   const savePrefs = useMemo(() => () => writePrefs(store), []);
 
   // ── 起動シーケンス（HTML:2096-2151 / spec §1.2-7）
@@ -254,6 +258,18 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     // `cloudStatus` を依存に入れるのは、ノートの方が先に読み終わったときの順番のため。
     // その場合この effect は 1 回目に空振りし、クラウド読込が終わった描画でもう一度走る
   }, [state.notesLoaded, state.cloudStatus]);
+
+  // ── 起動時の Notion 受け取り（docs/notebook/notion-pull.md）。ノートの正本は Notion で、
+  //    平日 17 時のエージェントが置いた JSON をここで拾う。**両方の読み込みが終わってから**
+  //    ―― `notionPullLog`（compass-ui-data）と `notes` が揃わないと、取り込み済みの判定も
+  //    上書き先の解決もできず、端末をまたいだ重複ノートを作ってしまう。
+  //    preview では走らせない（QA 用の紙面に実データを混ぜない。ボタンからは実行できる）。
+  useEffect(() => {
+    if (notionPullRanRef.current || preview) return;
+    if (!state.notesLoaded || state.cloudStatus === 'loading') return;
+    notionPullRanRef.current = true;
+    void pullNotionNotes(store, dateCtx.today, { auto: true });
+  }, [state.notesLoaded, state.cloudStatus, preview]);
 
   // ── 日付ロールオーバー（docs/daily-mission/plan.md §4.1）
   //    タブを開きっぱなしで日付が変わると、`dateCtx` が古いままなので ToDo も自動生成も

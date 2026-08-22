@@ -339,6 +339,7 @@ describe('exportData', () => {
       'missionGenLog',
       'noteSumLog',
       'focusLog',
+      'notionPullLog',
     ]);
   });
 
