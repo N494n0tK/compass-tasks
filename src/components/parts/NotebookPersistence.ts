@@ -23,6 +23,11 @@ import { generateNoteReviews, cascadeNoteRemoval, syncNoteReviews } from '../../
 import { migrateLegacyBlocks } from '../../lib/logic/noteImport';
 import { migrateLegacyKeyColor, normalizeKeyColor } from '../../lib/logic/noteKeywords';
 import {
+  cascadeNoteSummaryRemoval,
+  completeNoteSummaryTasks,
+  generateNoteSummaryTasks,
+} from '../../lib/logic/noteSummaryTasks';
+import {
   NOTE_KEYWORD_MAX,
   NOTE_SCAN_MAX,
   NOTE_SECTION_MAX,
@@ -33,6 +38,7 @@ import {
 import type { ISODate, ReviewGrade } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
+import { addToOrder } from './ShellActions';
 
 /** ノートのローカルミラー。`compass-ui` / `compass-ui-data` に続く 3 つめのキー */
 export const LS_NOTES = 'compass-notes';
@@ -346,6 +352,7 @@ export interface CommitNoteResult {
  * 2. 残ったカードの未完了復習のタイトル・教科を追従（`syncNoteReviews`）
  * 3. 系列が無いカードに復習を作る（`generateNoteReviews`。**冪等**）
  * 4. ノートを保存（楽観更新 → localStorage → Firestore）
+ * 5. まとめタスクを追従（`syncNoteSummaryTask`。書けたら完了・まだ空なら提案）
  */
 export function commitNote(
   store: CompassStore,
@@ -384,7 +391,49 @@ export function commitNote(
     else ctrl.save(note);
   }
 
+  // 保存のあと（＝ `state.notes` にこのノートが入ったあと）にまとめタスクを合わせる
+  syncNoteSummaryTask(store, note, today);
+
   return { created, removed };
+}
+
+/**
+ * まとめタスク（docs/daily-mission/plan.md §4.1）をノートの今の姿に合わせる。
+ * **まとめの編集も取り込みも `commitNote` を通る**ので、フックはここ 1 か所で足りる。
+ *
+ *  - まとめが書けている … その提案タスクを完了にする（ToDo でチェックを付け直させない）
+ *  - まだ空 … 今日ぶんの提案を積む（起動時とまったく同じ生成関数を通す）
+ *
+ * 取り込みは夕方が多いので、その場で積むのが効く ―― 書ける気分のうちに今日の
+ * ToDo へ載せたい。翌朝の起動まで待たせると、その日の記憶が薄れている。
+ */
+function syncNoteSummaryTask(store: CompassStore, note: Note, today: ISODate): void {
+  if (note.summary.trim()) {
+    store.setState((s) => {
+      const extras = completeNoteSummaryTasks(s.extras, note);
+      return extras === s.extras ? null : { extras };
+    });
+    return;
+  }
+  const s = store.getState();
+  // コントローラ未設定（preview の初回など）でも取りこぼさないよう、
+  // このノートを入れた一覧で判定する。`upsertNote` は保存済みなら差し替えるだけ
+  const gen = generateNoteSummaryTasks({
+    today,
+    notes: upsertNote(s.notes, note),
+    log: s.noteSumLog,
+    notesLoaded: s.notesLoaded,
+  });
+  if (!gen.extras.length && gen.log === s.noteSumLog) return;
+  store.setState((prev) => {
+    // id が `nbsum-{noteId}` で決まるので、既にあるなら積み直さない（`runAutoGen` と同じ理由）
+    const have = new Set(prev.extras.map((x) => x.id));
+    return {
+      extras: prev.extras.concat(gen.extras.filter((e) => !have.has(e.id))),
+      noteSumLog: gen.log,
+    };
+  });
+  gen.extras.forEach((e) => addToOrder(store, e.id));
 }
 
 /**
@@ -418,14 +467,26 @@ export function recordNoteAttempt(
   return true;
 }
 
-/** ノートを消し、そのノート由来の**未完了**復習も片付ける（完了済みは履歴として残す） */
+/**
+ * ノートを消し、そのノート由来の**未完了**復習とまとめタスクも片付ける
+ * （完了済みはどちらも学習履歴なので残す）。
+ *
+ * @returns 削除した復習の件数（トーストの文言に使う。まとめタスクは数に入れない）
+ */
 export function removeNote(store: CompassStore, noteId: string): number {
   let removed = 0;
   store.setState((s) => {
     const cascade = cascadeNoteRemoval(s.reviews, s.order, s.selId, noteId);
     removed = cascade.removedIds.length;
-    if (!removed) return null;
-    return { reviews: cascade.reviews, order: cascade.order, selId: cascade.selId };
+    // まとめタスクも同じ流儀で片付ける（`order` / `selId` は復習の結果に重ねる）
+    const sum = cascadeNoteSummaryRemoval(s.extras, cascade.order, cascade.selId, noteId);
+    if (!removed && !sum.removedIds.length) return null;
+    return {
+      reviews: cascade.reviews,
+      extras: sum.extras,
+      order: sum.order,
+      selId: sum.selId,
+    };
   });
   notebookController()?.remove(noteId);
   return removed;

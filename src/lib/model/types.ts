@@ -54,8 +54,12 @@ export type SizeKey = 'XS' | 'S' | 'M' | 'L';
 /** `subSizes[]` は既存分を `''` で埋めて長さを揃える（HTML:3026-3030 / spec §4.4） */
 export type SubSize = '' | SizeKey;
 
-/** Add 画面のタスク種別 */
-export type AddType = 'single' | 'review' | 'prep' | 'test';
+/**
+ * Add 画面のタスク種別。
+ * `'mission'`（毎日）だけレガシーに無い追加で、**その場でタスクを作らず台帳（`missions`）に足す**
+ * （docs/daily-mission/plan.md §3.4）。
+ */
+export type AddType = 'single' | 'review' | 'prep' | 'test' | 'mission';
 
 /** 計画の種別。`type: S.addType === 'test' ? 'test' : 'prep'`（HTML:3723） */
 export type PlanType = 'test' | 'prep';
@@ -188,6 +192,24 @@ export interface StudyLogEntry {
   min: number;
 }
 
+/**
+ * 集中モードの**実測**1 セッションぶん（docs/daily-mission/plan.md §4.3）。**レガシーに無い追加**。
+ *
+ * 形は `StudyLogEntry` と同じ 3 フィールドだが、**別のキーに分けて持つ**のが肝。
+ * 完了した Extra / Seg の**見積り**分数はすでに `buildStudyEntries` が学習時間に載せているので、
+ * 実測を `studyLog` 側へ足すと同じ勉強が二重に数えられる。「見積り（学習時間）」と
+ * 「実測（集中した時間）」は別の指標として並べる。
+ *
+ * 開始時刻のようなタイムスタンプは持たない（日付と分だけ）。保存は毎回フル置換なので、
+ * 増える一方の配列に秒精度の情報まで積む理由がない。
+ */
+export interface FocusLogEntry {
+  day: ISODate;
+  subj: string;
+  /** 実際にタイマーが走った分（切り捨て）。1 分に満たないセッションは記録しない */
+  min: number;
+}
+
 /** `scores` — `score` は 0–100 にクランプ済み（HTML:3496-3503 / spec §4.7） */
 export interface Score {
   id: string;
@@ -243,6 +265,68 @@ export interface PrepAutoGenSettings {
  */
 export type PrepGenLog = Record<ISODate, number[]>;
 
+/**
+ * Notion 取り込みログの 1 件（docs/notebook/notion-pull.md）。**レガシーに無い追加**。
+ *
+ * `noteId` はそのコードブロックから作った / 上書きしたノートの id。
+ * 検証エラーで取り込めなかったブロックは `''` で記録し、**同じ内容で再挑戦しない**
+ * （Notion 側で直せば `edited` が変わるので、そのとき拾い直す）。
+ */
+export interface NotionPullEntry {
+  noteId: string;
+  /** そのブロックの Notion `last_edited_time`（ISO 8601）。一致すれば取り込み済み */
+  edited: string;
+}
+
+/**
+ * Notion 取り込みの冪等化ログ。**Notion のコードブロック id → 取り込み結果**。
+ *
+ * ノート本文の正本は Notion 側（「Compass取り込みJSON」ページ）にあり、
+ * Compass は受け取るだけ。同じブロックを毎回上書き取り込みし直さないための記録で、
+ * `prepGenLog` と同じく「ユーザーが消したノートを勝手に復活させない」役も担う。
+ */
+export type NotionPullLog = Record<string, NotionPullEntry>;
+
+/**
+ * ミッションの中身が既存機能に繋がっている場合の印（docs/daily-mission/plan.md §4.1）。
+ *
+ *  - `'weak'` … 弱点ドリル。ToDo カードから**問題抽出の「苦手な順」へ直行**できる
+ *
+ * 省略時はただの毎日タスク（タイトルどおりのことを自分でやる）。**任意フィールドなので
+ * 既存の台帳データはそのまま読める**。
+ */
+export type MissionKind = 'weak';
+
+/**
+ * デイリーミッションの台帳 1 件（docs/daily-mission/plan.md §3.2）。**レガシーに無い追加**。
+ *
+ * 「毎日やること」そのものはタスクではなく**台帳**として持ち、今日ぶんの実体は
+ * `Extra` を自動生成して積む（予習の自動生成と同型）。こうすると ToDo 表示・完了トグル・
+ * 集中モード・学習時間の集計がすべて無改修で動く。
+ */
+export interface Mission {
+  /** `'dm' + base36`。生成した `Extra` の id に埋め込む（`dm-{missionId}-{YYYYMMDD}`） */
+  id: string;
+  title: string;
+  /** 時間割の教科名（色分け・集計に乗る）。弱点ドリルは全教科なので `'全教科'` が入る */
+  subj: string;
+  size: SizeKey;
+  /** 実施曜日 0(日)–6(土)。**空配列 = 毎日** */
+  dows: number[];
+  /** 一時停止フラグ（テスト期間中だけ止める等）。false でも台帳からは消えない */
+  active: boolean;
+  createdAt: ISODate;
+  /** 既存機能への接続（`'weak'` = 弱点ドリル）。無ければただの毎日タスク */
+  kind?: MissionKind;
+}
+
+/**
+ * デイリーミッションの重複防止ログ。**日付 → その日ぶんを生成済みの missionId**。
+ * `prepGenLog` と同じく extras との突き合わせにしないのは、ユーザーが消したミッションを
+ * 次の起動で復活させないため。
+ */
+export type MissionGenLog = Record<ISODate, string[]>;
+
 /** サイドバー・ドロワーの幅（localStorage `'compass-ui'` にも保存, spec §2.8 / §4.13） */
 export interface PanelW {
   nav: number;
@@ -297,6 +381,26 @@ export interface PersistentState {
   prepAutoGen: PrepAutoGenSettings;
   /** 予習の自動生成の重複防止ログ */
   prepGenLog: PrepGenLog;
+  /** デイリーミッションの台帳（docs/daily-mission/plan.md §3.2） */
+  missions: Mission[];
+  /** デイリーミッションの重複防止ログ */
+  missionGenLog: MissionGenLog;
+  /**
+   * 「まとめを書く」を提案済みのノート id（docs/daily-mission/plan.md §4.1）。
+   *
+   * `prepGenLog` / `missionGenLog` が **日付 → その日ぶん**なのに対し、こちらは
+   * **noteId 単位で一度きり**。まとめは「その授業を 1 回自分の言葉にする」作業で
+   * 毎日くり返すものではないので、消した／無視したノートを翌朝また積むのは
+   * 相棒としてしつこいだけになる（粒度を変えている理由）。
+   */
+  noteSumLog: string[];
+  /**
+   * 集中モードの実測（docs/daily-mission/plan.md §4.3）。
+   * **`studyLog` には合流させない**（完了タスクの見積りと二重計上になる。`FocusLogEntry` 参照）。
+   */
+  focusLog: FocusLogEntry[];
+  /** Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id → 取り込み結果 */
+  notionPullLog: NotionPullLog;
 }
 
 /**
@@ -332,6 +436,11 @@ export const PERSISTENT_KEYS = [
   // ── ここから追加分（末尾追記のみ）
   'prepAutoGen',
   'prepGenLog',
+  'missions',
+  'missionGenLog',
+  'noteSumLog',
+  'focusLog',
+  'notionPullLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -355,6 +464,21 @@ export const UNDO_KEYS = [
   // 予習の自動生成ログ。`extras` と一緒に巻き戻さないと、Undo で消えた予習が
   // 「生成済み」のまま二度と作られなくなる（docs/notebook/spec.md §5）
   'prepGenLog',
+  // デイリーミッションも同じ理由。台帳（`missions`）も入れるのは、ミッションを足した操作を
+  // Undo したときに台帳だけ残って翌起動でまた生成される、を防ぐため
+  'missions',
+  'missionGenLog',
+  // まとめタスクの提案済みログも同じ。Undo で消えた提案が「提案済み」のまま
+  // 二度と出てこなくなるのを防ぐ
+  'noteSumLog',
+  // 集中モードの実測。**`studyLog` の前例に合わせて入れる**。
+  // `studyLog` が UNDO_KEYS に居る理由は「勉強の記録には削除・編集 UI が無く（spec §4.6）、
+  // 1段 Undo が唯一の取り消し手段だから」で、`focusLog` も同じ性質を持つ ――
+  // タイマーを回しっぱなしで席を立った、対象を選び違えたまま集中した、といった誤記録を
+  // 直後の Undo で捨てられるようにしておく。
+  // なお `focusLog` は他のキーと突き合わせて読まない独立した記録なので、
+  // `prepGenLog` 系のような「巻き戻さないと整合が壊れる」理由ではない。
+  'focusLog',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type UndoKey = (typeof UNDO_KEYS)[number];
@@ -544,6 +668,14 @@ export interface EphemeralState {
   todoNewSize: SizeKey;
   revSel: string | null;
   revFilter: string | null;
+  /**
+   * 7日予報の帯で選んだ日（`null` = 絞り込みなし）。docs/daily-mission/plan.md §4.2。
+   *
+   * 教科の絞り込み（`revFilter`）と **AND** で効く。判定は集計と同じ `matchesForecastDay`
+   * ―― 今日を選んだときだけ期限切れも含む（帯の件数と表の行数を必ず一致させるため）。
+   * 予報そのものが導出値なので、この選択も保存しない（開き直せば全部の表に戻る）。
+   */
+  revDueFilter: ISODate | null;
   revSort: RevSort;
   revAsk: string | null;
   revAskGrade: ReviewGrade | null;
@@ -572,6 +704,16 @@ export interface EphemeralState {
   duoChunk: string;
   chartStart: string;
   chartEnd: string;
+  /**
+   * デイリーミッションの実施曜日の下書き（0(日)–6(土)）。**空 = 毎日**。
+   * 保存するのは登録後の `Mission.dows` だけなので、下書きは一時 state に置く。
+   */
+  addDows: number[];
+  /**
+   * デイリーミッションの種類の下書き（`''` = ただの毎日タスク）。
+   * プリセット「弱点問題を3問」を押すと `'weak'` になる。`addDows` と同じく下書きなので一時 state。
+   */
+  addMissionKind: MissionKind | '';
   addErr: AddErr;
   addDone: AddDone | null;
   addSlotSel: number | null;
@@ -617,6 +759,14 @@ export interface EphemeralState {
    */
   nbCheck: boolean;
   /**
+   * ノート内検索で「いま強調している語」（`''` = 強調なし）。
+   *
+   * 上の検索欄はノートのタブにいるあいだ**ノートの中身**をさがす（`logic/noteSearch.ts`）。
+   * 一覧から 1 件選ぶとポップオーバーは閉じるので、閉じたあとも紙面のどこに
+   * その語があるか分かるように、選んだ語をここに残して蛍光ペンを敷いたままにする。
+   */
+  nbFind: string;
+  /**
    * 紙面をどこまで出すか（spec §8.3）。
    *
    * `'mine'`（自分のノートだけ）は、このアプリのノートの立場そのもの
@@ -632,6 +782,8 @@ export interface EphemeralState {
   nbImportText: string;
   /** 上書き取り込みの対象ノート id（`null` = 新規） */
   nbImportTarget: string | null;
+  /** Notion からの受け取りが進行中か（ボタンの連打・起動時との重複を防ぐ） */
+  nbNotionBusy: boolean;
   /** 解答の開閉。キーは `'r:'+noteId+':'+cardId` / `'e:'+noteId` / `'x:'+…`（v3 の `open` と同じ流儀） */
   nbRevealed: Record<string, boolean>;
   /** サイドバーの教科アコーディオン */

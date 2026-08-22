@@ -22,31 +22,32 @@
  */
 
 import { useMemo } from 'react';
+import { noteMatchesQuery } from '../../lib/logic/noteSearch';
 import type { Note } from '../../lib/model/notes';
 import { NoteDrill } from '../parts/NoteDrill';
 import { NoteExtract } from '../parts/NoteExtract';
 import { NoteImportModal } from '../parts/NoteImportModal';
 import { NoteView } from '../parts/NoteView';
 import { NotebookSidebar } from '../parts/NotebookSidebar';
+import { pullNotionNotes } from '../parts/NotionPull';
 import { makeSearchMatcher } from '../parts/ShellSearch';
 import { dateCtx, store, useAppStore } from '../useStore';
 
 export function Notebook() {
   const { state: S } = useAppStore();
   const T = dateCtx.today;
-  // 検索中は裏の画面も絞り込む（HTML:2621-2630 / spec §2.5）
-  const { filtering, hit } = makeSearchMatcher(S);
+  // 検索中は裏の画面も絞り込む（HTML:2621-2630 / spec §2.5）。
+  // ただしノートの画面での検索語は**ノートの中身**を指すので、絞り込みも
+  // ヒット一覧と同じ見方（`noteMatchesQuery`）に合わせる ―― 一覧に出た語を
+  // 持つノートが左のツリーから消えていたら、そこから辿れない
+  const { q, filtering } = makeSearchMatcher(S);
 
   const visible: Note[] = useMemo(() => {
     let list = S.notes;
     if (S.nbSubjFilter) list = list.filter((n) => n.subject === S.nbSubjFilter);
-    if (filtering) {
-      list = list.filter(
-        (n) => hit(n.unit) || hit(n.subject) || n.cards.some((c) => hit(c.q) || hit(c.a)),
-      );
-    }
+    if (filtering) list = list.filter((n) => noteMatchesQuery(n, q));
     return list;
-  }, [S.notes, S.nbSubjFilter, filtering, hit]);
+  }, [S.notes, S.nbSubjFilter, filtering, q]);
 
   const selected: Note | null =
     visible.find((n) => n.id === S.nbSelNoteId) ||
@@ -106,27 +107,45 @@ export function Notebook() {
               読み返すのは<strong style={{ color: 'var(--tx1)' }}>自分が書いたノートそのもの</strong>。
               AIがするのは、その各段への添削と想起問題を足すことだけです。
               <br />
-              授業を録音 → ノートを撮る → AIにプロンプトと一緒に渡す → 返ってきたJSONを貼る。
+              ノートの正本はNotion。授業のミーティングノートが平日17時にJSON化され、
+              ここで「受け取る」だけで並びます。
               <br />
               想起問題ごとに復習カードが作られ、その日のうちに「今日のToDo」へ1枚積まれます。
             </div>
-            <button
-              onClick={() =>
-                store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
-              }
-              style={{
-                marginTop: '5px',
-                padding: '10px 20px',
-                border: 'none',
-                borderRadius: 'var(--rad-s)',
-                background: 'var(--grad)',
-                color: 'var(--onAcc)',
-                font: '700 12.5px var(--f-ui)',
-                cursor: 'pointer',
-              }}
-            >
-              ＋ JSONから取り込む
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+              <button
+                onClick={() => void pullNotionNotes(store, T)}
+                disabled={S.nbNotionBusy}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: 'var(--rad-s)',
+                  background: 'var(--grad)',
+                  color: 'var(--onAcc)',
+                  font: '700 12.5px var(--f-ui)',
+                  cursor: S.nbNotionBusy ? 'default' : 'pointer',
+                  opacity: S.nbNotionBusy ? 0.6 : 1,
+                }}
+              >
+                {S.nbNotionBusy ? 'Notionから受け取り中…' : '⟳ Notionから受け取る'}
+              </button>
+              <button
+                onClick={() =>
+                  store.setState({ nbImportOpen: true, nbImportTarget: null, nbImportText: '' })
+                }
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid var(--line2)',
+                  borderRadius: 'var(--rad-s)',
+                  background: 'none',
+                  color: 'var(--tx2)',
+                  font: '500 12.5px var(--f-ui)',
+                  cursor: 'pointer',
+                }}
+              >
+                ＋ JSONを手で貼る
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -8,8 +8,9 @@
  *
  * - `store`      … アプリ全体で 1 つのインスタンス（レガシーのコンポーネント 1 個に対応）
  * - `dateCtx`    … `this.TODAY` / `this.DAYS` / `this.DIDX`（HTML:1996-2010）。
- *                  レガシーは**コンストラクタで固定**し日付が変わっても再計算しないので、
- *                  ここでもモジュールロード時のスナップショットにする。
+ *                  モジュールロード時に作り、**日付が変わったら `dateCtx.rollover()` で
+ *                  中身だけ進める**（オブジェクトの同一性は保つので、この参照を import して
+ *                  いる側は何もしなくてよい）。進める判断は `CompassApp` が持つ。
  * - `useAppStore()`    … `{state, plans, version}` のスナップショット
  * - `useAppSelector(f)` … 部分購読（スナップショット同一性でメモ化）
  *
@@ -17,12 +18,16 @@
  */
 
 import { useCallback, useRef, useSyncExternalStore } from 'react';
-import { createDateContext, type DateContext } from '../lib/logic/dates';
+import { createDateContext, type LiveDateContext } from '../lib/logic/dates';
 import type { AppState, Plans } from '../lib/model/types';
 import { createStore, type CompassStore, type StoreSnapshot } from '../lib/store';
 
-/** `this._base` / `this.TODAY` / `this.DAYS` / `this.DIDX`（HTML:1996-2010）*/
-export const dateCtx: DateContext = createDateContext();
+/**
+ * `this._base` / `this.TODAY` / `this.DAYS` / `this.DIDX`（HTML:1996-2010）。
+ * **参照は不変・中身は `rollover()` で進む**。コンポーネント本体で毎レンダー読むぶんには
+ * 常に最新だが、`useMemo` に閉じ込めるときは `dateCtx.today` を依存配列に入れること。
+ */
+export const dateCtx: LiveDateContext = createDateContext();
 
 /** アプリ唯一のストア。`CompassApp` 以外からも import してよい（レガシーの `this` に相当） */
 export const store: CompassStore = createStore({ today: dateCtx.today });

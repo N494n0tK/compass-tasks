@@ -16,11 +16,24 @@
  * ここでは **`state.focusRunning` を購読する effect** にしてある（architecture §3 /
  * store.ts の注記）。`focusRunning:false` になれば cleanup が確実に走るので、
  * Escape（CompassApp）も Undo（store）も余分な後始末なしにタイマーを止められる。
+ *
+ * ## 実測の記録（plan.md §4.3）
+ *
+ * 記録は**その cleanup 1 箇所だけ**で行う。集中が終わる道は
+ * 一時停止 / ✕ / プリセット押し替え / タスク完了 / Escape / Undo / 残り 0 と 7 つもあるが、
+ * どれも最後は `focusRunning:false` を通るので、cleanup は**セッション 1 回につき必ず 1 回**走る。
+ * 「0 に到達 → そのまま閉じる」で 2 件書いてしまう事故も、0 到達の時点で `focusRunning` が
+ * false になっている＝cleanup は済んでいるので起こらない。
+ *
+ * 長さは残り秒の引き算ではなく**タイマーが刻んだ回数**で数える（走行中にプリセットを
+ * 押し替えると残り秒が増減するので、引き算だと実測が跳ねる）。
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { buildFocusEntry } from '../../lib/logic/focusLog';
 import type { AppState } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
+import { dateCtx } from '../useStore';
 import { mutExtra, mutSeg } from './ShellActions';
 import { ShellOverlay } from './ShellOverlay';
 import type { TodayItem } from './ShellTodayItems';
@@ -63,11 +76,29 @@ export interface TodoFocusOverlayProps {
 
 export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayProps) {
   const S = state;
+  const focusItem = focusItemOf(todayItems, S.selId);
+
+  /**
+   * 実測に付ける教科。タイマーの effect の依存に入れると、今日のリストが変わるたびに
+   * `setInterval` が張り直されて 1 秒の刻みがずれるので ref で渡す。
+   *
+   * **このタイマーの effect より前に置くこと**。React は宣言順に effect を走らせるので、
+   * 「集中開始」を押した commit では ①この代入 → ②タイマーの setup の順になり、
+   * セッション開始時点の教科が読める。
+   */
+  const focusSubjRef = useRef('');
+  useEffect(() => {
+    focusSubjRef.current = focusItem ? focusItem.subj : '';
+  });
 
   // ── `toggleFocus` の `setInterval`（HTML:4056-4063）を effect に置き換えたもの
   useEffect(() => {
     if (!S.focusRunning) return;
+    // セッション開始時の教科で固定する（途中で対象が変わっても、集中したのはこの教科）
+    const subj = focusSubjRef.current;
+    let ranSeconds = 0;
     const timer = setInterval(() => {
+      ranSeconds += 1;
       store.setState((st) => {
         if (st.focusRemaining <= 1) {
           // レガシーどおり setState の更新関数から出てから出す（HTML:4058）
@@ -77,12 +108,16 @@ export function TodoFocusOverlay({ state, store, todayItems }: TodoFocusOverlayP
         return { focusRemaining: st.focusRemaining - 1 };
       });
     }, 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      // セッション終了。日付は `dateCtx.today`（`focusRunning` 中はロールオーバーしないので、
+      // セッションの途中で日付が変わることはない）
+      const entry = buildFocusEntry(dateCtx.today, subj, ranSeconds);
+      if (entry) store.setState((st) => ({ focusLog: st.focusLog.concat([entry]) }));
+    };
   }, [S.focusRunning, store]);
 
   if (!S.focusOpen) return null;
-
-  const focusItem = focusItemOf(todayItems, S.selId);
 
   /** `closeFocus`（HTML:4052）。タイマー停止は上の effect の cleanup が担当 */
   const closeFocus = () => store.setState({ focusOpen: false, focusRunning: false });

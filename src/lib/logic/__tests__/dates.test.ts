@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDIDX,
   buildDays,
+  createDateContext,
   dateContextFor,
   dayLabel,
   daysUntil,
   dowOf,
   fmtD,
   fmtMD,
+  type DateContext,
   isSameMonth,
   isWeekend,
   isoAt,
@@ -174,6 +176,61 @@ describe('buildDays / buildDIDX / DateContext', () => {
     expect(daysUntil(ctx, '2026-08-12')).toBe(7);
     expect(daysUntil(ctx, '2026-08-01')).toBe(-4);
     expect(daysUntil(ctx, '2027-08-05')).toBe(365);
+  });
+});
+
+describe('createDateContext / rollover', () => {
+  /** 2026-08-05(水) 12:00 JST = 03:00Z */
+  const NOON = new Date('2026-08-05T03:00:00Z');
+
+  it('starts at the real "today" (Asia/Tokyo)', () => {
+    const live = createDateContext(NOON);
+    expect(live.today).toBe('2026-08-05');
+    expect(live.days).toHaveLength(13);
+  });
+
+  it('returns false and touches nothing while the date is unchanged', () => {
+    const live = createDateContext(NOON);
+    const days = live.days;
+    // 23:59:59 JST（= 14:59:59Z）はまだ同じ日
+    expect(live.rollover(new Date('2026-08-05T14:59:59Z'))).toBe(false);
+    expect(live.today).toBe('2026-08-05');
+    expect(live.days).toBe(days); // 派生フィールドも作り直さない
+  });
+
+  it('advances every derived field when the date changes', () => {
+    const live = createDateContext(NOON);
+    // 00:00 JST（= 15:00Z）で翌日
+    expect(live.rollover(new Date('2026-08-05T15:00:00Z'))).toBe(true);
+    expect(live.today).toBe('2026-08-06');
+    expect(live.yesterday).toBe('2026-08-05');
+    expect(live.tomorrow).toBe('2026-08-07');
+    expect(live.base).toBe(Date.parse('2026-08-06T00:00:00Z'));
+    expect(live.days[0].iso).toBe('2026-08-06');
+    expect(live.days[0].dow).toBe('木');
+    expect(live.days[12].iso).toBe('2026-08-18');
+    expect(live.didx['2026-08-06']).toBe(0);
+    expect(live.didx['2026-08-05']).toBeUndefined(); // 昨日は窓から外れる
+  });
+
+  it('keeps object identity so already-shared references see the new day', () => {
+    const live = createDateContext(NOON);
+    // アプリ側は `DateContext` として配って回る（props / import 済みの参照）
+    const shared: DateContext = live;
+    expect(dayLabel(shared, '2026-08-05')).toBe('今日');
+    expect(live.rollover(new Date('2026-08-05T15:00:00Z'))).toBe(true);
+    expect(shared).toBe(live);
+    expect(shared.today).toBe('2026-08-06');
+    expect(dayLabel(shared, '2026-08-05')).toBe('8/5(期限切れ)');
+    expect(dayLabel(shared, '2026-08-06')).toBe('今日');
+    expect(daysUntil(shared, '2026-08-13')).toBe(7);
+  });
+
+  it('jumps more than one day at a time (tab left open over a weekend)', () => {
+    const live = createDateContext(NOON);
+    expect(live.rollover(new Date('2026-08-09T03:00:00Z'))).toBe(true);
+    expect(live.today).toBe('2026-08-09');
+    expect(live.rollover(new Date('2026-08-09T03:00:01Z'))).toBe(false);
   });
 });
 

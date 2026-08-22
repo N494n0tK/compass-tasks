@@ -17,6 +17,7 @@
 import { Fragment } from 'react';
 import { fmtD } from '../../lib/logic/dates';
 import { computeWeekRate } from '../../lib/logic/aggregate';
+import { matchesForecastDay } from '../../lib/logic/reviewForecast';
 import {
   bulkAddToToday,
   bulkAddTargets,
@@ -28,6 +29,7 @@ import {
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { RevSort, Review as ReviewItem } from '../../lib/model/types';
 import { ReviewDetail } from '../parts/ReviewDetail';
+import { ReviewForecastStrip } from '../parts/ReviewForecastStrip';
 import { openAsk, statusOf, ttLabelOf } from '../parts/ReviewShared';
 import { addToOrder, mutReview } from '../parts/ShellActions';
 import { useSubjColors } from '../parts/ShellSubjects';
@@ -110,7 +112,13 @@ export function Review() {
     if (ka !== kb) return ka - kb;
     return a.due < b.due ? -1 : 1;
   });
-  const revFiltered = revSorted.filter((r) => !S.revFilter || r.subj === S.revFilter);
+  // 教科の絞り込み（HTML:3298）に、7日予報で選んだ日の絞り込みを AND で重ねる。
+  // 日の判定は帯の集計と同じ述語なので、棒の件数と行数が食い違うことはない（plan.md §4.2）
+  const revFiltered = revSorted.filter(
+    (r) =>
+      (!S.revFilter || r.subj === S.revFilter) &&
+      (!S.revDueFilter || matchesForecastDay(r, S.revDueFilter, T)),
+  );
   // 期限順のとき「今日まで」と「明日から」の間に仕切りを入れる（HTML:3299）
   const revFutIdx =
     S.revSort === 'due' ? revFiltered.findIndex((r) => !r.done && r.due > T) : -1;
@@ -263,6 +271,16 @@ export function Review() {
           ))}
         </div>
       </div>
+      {/* 7日予報（plan.md §4.2）。復習は今日の負荷にしか乗らないので、ここでしか
+          「木曜に 45 分たまる」は見えない。日をクリックするとその日ぶんだけの表になる */}
+      <ReviewForecastStrip
+        reviews={S.reviews}
+        today={T}
+        selected={S.revDueFilter}
+        onPick={(iso) =>
+          store.setState((s) => ({ revDueFilter: s.revDueFilter === iso ? null : iso }))
+        }
+      />
       <div
         className="review-table"
         style={{

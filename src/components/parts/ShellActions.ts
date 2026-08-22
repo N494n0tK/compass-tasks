@@ -58,3 +58,42 @@ export function openNoteDrill(store: CompassStore, noteId: string): void {
 export function closeNoteDrill(store: CompassStore): void {
   store.setState({ view: 'todo', nbMode: 'note' });
 }
+
+/**
+ * ノートを 1 冊開く（docs/daily-mission/plan.md §4.1 のまとめタスクから）。
+ * 選択状態の付け方は `openNoteDrill` / 問題抽出の「出典クリック」と同じ流儀。
+ */
+export function openNote(store: CompassStore, noteId: string): void {
+  store.setState((s) => ({
+    view: 'notebook',
+    nbMode: 'note',
+    nbSelNoteId: noteId,
+    nbEdit: false,
+    // 「想起問題だけ」のレンズだと紙面ごと畳まれていて**まとめ欄が出ない**。
+    // まとめを書きに来たのに書けない、では開いた意味がないので自分のノートまで戻す
+    nbLens: s.nbLens === 'recall' ? 'mine' : s.nbLens,
+    revSel: null,
+    focusOpen: false,
+  }));
+}
+
+/**
+ * 弱点ドリル ＝ 問題抽出を「苦手な順」で開く（docs/daily-mission/plan.md §4.1）。
+ *
+ * 狙いは *何をやるか考えるコストをゼロにする* こと。開いた瞬間に上から解けばいい状態に
+ * したいので、前に見たときの**理解度の絞り込みは必ず外す**（「◎ばっちり」で絞ったままだと
+ * 苦手な順に並べても苦手が 1 問も出てこない）。教科の絞り込みはミッション側の指定で上書きする。
+ *
+ * @param subj 教科で絞るなら教科名。全教科なら `null`
+ */
+export function openWeakDrill(store: CompassStore, subj: string | null = null): void {
+  store.setState({
+    view: 'extract',
+    nbExtractSort: 'weak',
+    nbExtractGrade: null,
+    nbSubjFilter: subj,
+    nbMode: 'note',
+    nbEdit: false,
+    focusOpen: false,
+  });
+}

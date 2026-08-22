@@ -246,6 +246,10 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     duoChunk: '10',
     chartStart: '1',
     chartEnd: '4',
+    // 空 = 毎日（デイリーミッションの実施曜日の下書き）
+    addDows: [],
+    // 空 = ただの毎日タスク（プリセット「弱点問題を3問」を押すと 'weak'）
+    addMissionKind: '',
     addErr: {},
     addDone: null,
     recentSubjs: [],
@@ -280,6 +284,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbSubjFilter: null,
     nbEdit: false,
     nbCheck: false,
+    nbFind: '',
     // 既定は「自分のノートだけ」。本文は自分の手書きの再現で、AI の添削は
     // スイッチで重ねる（先に AI の文章が目に入ると、自分のノートを読み返さなくなる）
     nbLens: 'mine',
@@ -288,12 +293,26 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbImportOpen: false,
     nbImportText: '',
     nbImportTarget: null,
+    nbNotionBusy: false,
     nbRevealed: {},
     nbTreeOpen: {},
     nbFullNote: false,
     revAskReveal: false,
+    // 復習の7日予報で選んだ日（plan.md §4.2）。導出値の絞り込みなので保存しない
+    revDueFilter: null,
     prepAutoGen: { ...DEFAULT_PREP_AUTOGEN },
     prepGenLog: {},
+    // デイリーミッション（docs/daily-mission/plan.md §3）。旧データには無いキーなので、
+    // ここの既定値がそのまま「まだ 1 件も登録していない」状態になる（`dataPatch` は
+    // 保存データに在るキーしか上書きしない）
+    missions: [],
+    missionGenLog: {},
+    // まとめタスクを提案済みのノート id（plan.md §4.1）。日付ではなく noteId 単位で一度きり
+    noteSumLog: [],
+    // 集中モードの実測（plan.md §4.3）。学習時間（見積り）とは別枠で持つ
+    focusLog: [],
+    // Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id 単位
+    notionPullLog: {},
   };
 }
 

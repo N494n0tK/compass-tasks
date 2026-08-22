@@ -7,12 +7,15 @@
  * 全ノートの想起問題と演習をフラットに並べ、解答は伏せたままドリルとして解く。
  * 出典行をクリックすると元のノートへ飛ぶ。
  *
- * v2 から足したのは 2 つ:
+ * v2 から足したのは 3 つ:
  *  - **解いたら理解度を付ける**（◎○△）。付けた記録は `NoteCard.attempts` に残る。
  *    ここは予定の外での解き直しなので、**復習の間隔には触らない**
  *    （`recordNoteAttempt` は履歴だけを足す。予定を動かすのは復習画面と ToDo の仕事）。
  *  - その記録を使った**並べ替えと絞り込み**（苦手な順 / 久しぶり順、理解度で絞る）。
  *    並べ替えの実体は `lib/logic/noteExtract.ts`（純関数）。
+ *  - **類題プロンプトのコピー**（plan.md §4.4）。苦手な問題を外部 AI に渡して類題を
+ *    作らせるための文面を組み立てる。文面の実体は `lib/logic/similarPrompt.ts`。
+ *    API は使わない（このアプリの AI 連携はコピペ運用が正典。spec §1）。
  *
  * v2 どおり**1 問 1 枚のカードにはしない**。枠を描くと問題どうしの切れ目が
  * 強くなりすぎて、上から順に解いていく紙面にならない。区切りは余白だけ。
@@ -28,11 +31,20 @@ import {
   type DrillItem,
   type ExtractGradeFilter,
 } from '../../lib/logic/noteExtract';
+import {
+  buildSimilarPrompt,
+  pickSimilarTargets,
+  similarCopyHint,
+  similarCopyToast,
+  SIMILAR_COPY_FAIL_TOAST,
+  SIMILAR_COPY_LABEL,
+} from '../../lib/logic/similarPrompt';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import { NOTE_GRADE_META, type Note } from '../../lib/model/notes';
 import type { NoteExtractSort, ReviewGrade } from '../../lib/model/types';
 import { NoteMath } from './NoteMath';
 import { recordNoteAttempt } from './NotebookPersistence';
+import { copyText } from './NotePrompts';
 import { RevealButton } from './NoteView';
 import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
@@ -118,6 +130,13 @@ export function NoteExtract() {
     [all, S.nbExtractSort, S.nbExtractGrade],
   );
 
+  /**
+   * 類題を作らせる対象。**いま画面に出ている `items` から選ぶ**（`all` ではない）ので、
+   * 教科・理解度の絞り込みがそのまま効く ―― 「この教科の類題だけ欲しい」は
+   * 絞り込みで言えるようにしておき、ボタン側に条件を増やさない。
+   */
+  const similarTargets = useMemo(() => pickSimilarTargets(items), [items]);
+
   const setAll = (open: boolean) =>
     store.setState((s) => {
       const next = { ...s.nbRevealed };
@@ -150,10 +169,18 @@ export function NoteExtract() {
     }
   };
 
+  /** 類題プロンプトをクリップボードへ。取り込みは無い（作った類題は紙で解くもの） */
+  const copySimilar = async () => {
+    if (!similarTargets.length) return;
+    const ok = await copyText(buildSimilarPrompt(similarTargets));
+    store.showToast(ok ? similarCopyToast(similarTargets.length) : SIMILAR_COPY_FAIL_TOAST);
+  };
+
   const sortHint = SORTS.find((x) => x.id === S.nbExtractSort)?.hint ?? '';
+  const similarHint = similarCopyHint(similarTargets.length);
 
   return (
-    <div style={{ maxWidth: '840px', animation: 'fadeUp .22s ease' }}>
+    <div className="nb-paper nb-paper--wide" style={{ animation: 'fadeUp .22s ease' }}>
       {/* ノート本体と同じ太細 2 本組。ここが紙面の頭だという合図 */}
       <div className="nb-masthead">
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
@@ -207,6 +234,27 @@ export function NoteExtract() {
               </button>
             );
           })}
+        </div>
+        {/* 苦手な問題を外部 AI に渡すための持ち出し口（plan.md §4.4）。
+            並べ替え・絞り込みと同じ列に置く ―― 「いま出ているこの並びが対象」だと見えるように */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+          <span style={{ font: '700 10px var(--f-ui)', color: 'var(--tx3)', letterSpacing: '.12em' }}>
+            類題
+          </span>
+          <button
+            className="hv-acc-outline"
+            onClick={() => void copySimilar()}
+            disabled={similarTargets.length === 0}
+            title={similarHint}
+            style={{
+              ...MINI_BTN,
+              opacity: similarTargets.length === 0 ? 0.4 : 1,
+              cursor: similarTargets.length === 0 ? 'default' : 'pointer',
+            }}
+          >
+            {SIMILAR_COPY_LABEL + (similarTargets.length ? ' ' + similarTargets.length : '')}
+          </button>
+          <span style={{ font: '400 10.5px var(--f-ui)', color: 'var(--tx3)' }}>{similarHint}</span>
         </div>
       </div>
 
