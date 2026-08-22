@@ -16,11 +16,38 @@
 4. プロジェクトの設定 → マイアプリでウェブアプリを追加し、構成値を取得
 5. `.env.local.example` をコピーして `.env.local` を作り、値を設定
    (Vercel にも同じ環境変数を追加する)
+6. 授業ノートを Notion から受け取るなら `NOTION_TOKEN` / `NOTION_NOTES_PAGE_ID` も設定
+   (手順は [docs/notebook/notion-pull.md](docs/notebook/notion-pull.md))
 
 ```bash
 npm install
 npm run dev
 ```
+
+## デプロイ(Vercel)
+
+本番は https://compass-tasks.vercel.app 。Vercel プロジェクト `compass-tasks` に
+CLI で手元の作業ツリーを上げる(Git 連携はしていない):
+
+```bash
+npx vercel --prod --scope n494n0
+```
+
+Production の環境変数は `npx vercel env ls --scope n494n0` で確認。必要なのは
+Firebase の `NEXT_PUBLIC_FIREBASE_*` 6 つと、Notion 受け取り用の `NOTION_TOKEN` /
+`NOTION_NOTES_PAGE_ID` / `NOTION_ALLOWED_EMAILS`(公開 URL では必須。本人以外が
+`/api/notion/pull` を叩けないようにする)。
+
+## ドキュメント
+
+- [docs/notebook/](docs/notebook/) … 授業ノート(仕様 `spec.md` / 決定事項 `decisions.md` / Notion 受け取り `notion-pull.md`)
+- [docs/daily-mission/plan.md](docs/daily-mission/plan.md) … デイリーミッション
+- [docs/rewrite/](docs/rewrite/) … Next.js 移行時のアプリ仕様と設計
+- [docs/design-qa.md](docs/design-qa.md) … デザイン刷新時の QA メモ
+
+コード中のコメントにある `CompassNotebook/チャートノート v2|v3.dc.html`(ノート画面の
+下敷きにしたプロトタイプ)は、リポジトリからは削除済み。参照したいときは git 履歴
+(2026-08-22 より前のコミット)にある。
 
 ## Firestore セキュリティルール
 

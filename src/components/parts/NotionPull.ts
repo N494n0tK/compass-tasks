@@ -25,6 +25,7 @@ import {
   type NotionNoteBlock,
 } from '../../lib/logic/notionPull';
 import { timetableSubjects } from '../../lib/logic/timetable';
+import { getFirebaseAuth, isFirebaseConfigured } from '../../lib/firebase';
 import { NOTE_SUBJECT_OTHER } from '../../lib/model/notes';
 import type { ISODate } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
@@ -41,6 +42,22 @@ export interface NotionPullOptions {
    * （未設定・新着ゼロ・通信失敗では黙る ―― 毎朝の起動のたびに叱られたくない）。
    */
   auto?: boolean;
+}
+
+/**
+ * 本人確認のヘッダ。公開 URL（Vercel）ではルート側が `NOTION_ALLOWED_EMAILS` で
+ * Firebase ログインの ID トークンを要求するので、ログイン中なら必ず付ける。
+ * preview / Firebase 未設定ではヘッダ無し（ローカルのルートは本人確認をしない）。
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!isFirebaseConfigured()) return {};
+  try {
+    const user = getFirebaseAuth().currentUser;
+    if (!user) return {};
+    return { Authorization: 'Bearer ' + (await user.getIdToken()) };
+  } catch {
+    return {};
+  }
 }
 
 /** ログへ 1 件書く。取り込み成功は noteId、検証エラーは `''`（同じ内容で再挑戦しない） */
@@ -68,7 +85,7 @@ export async function pullNotionNotes(
   try {
     let res: Response;
     try {
-      res = await fetch('/api/notion/pull');
+      res = await fetch('/api/notion/pull', { headers: await authHeaders() });
     } catch {
       if (!auto) store.showToast(TOAST_NOTION_FAIL_PREFIX + '通信に失敗しました');
       return;

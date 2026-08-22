@@ -60,11 +60,24 @@ Compass はそこから受け取って表示・復習する側に回る。
 未設定のままでもアプリは普通に動く（自動受け取りは黙って何もしない。ボタンを押すと
 設定を促すトーストが出る）。
 
+## Vercel（https://compass-tasks.vercel.app）
+
+- プロジェクト `compass-tasks`（チーム n494n0）。Git 連携はしておらず、`npx vercel --prod` で
+  手元の作業ツリーをそのまま上げる（`.gitignore` が `.vercelignore` を兼ねるので
+  `.env.local` は上がらない）
+- Production の環境変数: Firebase の `NEXT_PUBLIC_*` 6 つ ＋ `NOTION_TOKEN` ＋
+  `NOTION_NOTES_PAGE_ID` ＋ `NOTION_ALLOWED_EMAILS`
+- Firebase Auth の「承認済みドメイン」に `compass-tasks.vercel.app` が要る（Google ログインの
+  ポップアップがこのドメインで開けるように）
+
 ## 決めたこと
 
 - **手貼りモーダルは残す**。写真込みでやり直すカスタム GPT の経路と、Notion が落ちて
   いるときの控え。サイドバーでは受け取りボタンを主、手貼りを従に並べ替えた。
-- **API ルートに認証を付けない**。ローカル（`next dev` / `next start`）でしか動かさない
-  前提。外に公開するならこのルートに保護が要る。
+- **API ルートの本人確認は env で切り替える**（2026-08-22）。`NOTION_ALLOWED_EMAILS` が
+  空ならローカル専用の緩さ（誰でも叩ける）。設定すると Firebase ログインの ID トークンを
+  `Authorization: Bearer` で要求し、Google の公開鍵（`jose` の `createRemoteJWKSet`）で
+  検証して、`email_verified` かつ一覧にあるメールだけ通す。Vercel では必ず設定する
+  （ノートの中身と Notion の API 枠を他人に使わせないため）。
 - **Notion への書き戻しはしない**。まとめ・理解度は Compass 側の学習記録で、
   正本の分担を崩さない。
