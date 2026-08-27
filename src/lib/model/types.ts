@@ -596,6 +596,67 @@ export type NoteLens = 'recall' | 'mine' | 'ai';
  */
 export type NoteExtractSort = 'note' | 'weak' | 'stale';
 
+/**
+ * ノート一覧の右クリックメニュー（Finder の「項目を右クリック」に相当）。
+ * 位置は**カーソルのビューポート座標**。`position:fixed` でそこへ置く
+ * ―― サイドバーはスクロールするので、要素からの相対位置だと追随がずれる。
+ */
+export interface NoteMenu {
+  noteId: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * ノートを消す / 名前を変えるときの確認（`NoteDangerDialog`）。
+ *
+ * **復習をどうするかを本人に聞く**のがこのダイアログの目的。ノートを捨てても
+ * 「その問題をもう一度やる」予定まで一緒に消えていいとは限らないから。
+ */
+export interface NoteAsk {
+  kind: 'trash' | 'rename';
+  noteId: string;
+  /** ノートの表示名（削除後もトーストに出せるよう控える） */
+  unit: string;
+  /** `rename` のときの新しい単元名 */
+  nextUnit?: string;
+  /** 巻き込まれる**未完了**の復習の件数（0 なら復習の問いは出さない） */
+  reviewCount: number;
+  /** 巻き込まれるまとめタスクの件数 */
+  summaryCount: number;
+}
+
+/**
+ * ノート操作の 1 段取り消し（⌘Z）。
+ *
+ * ノート（`notes`）は一時 state なので、アプリ本体の 1 段 Undo（`UNDO_KEYS`）には
+ * 乗らない。乗せると LaTeX 本文まるごとが Undo スナップショットへ入って重くなる。
+ * そこで**ノート操作専用の取り消し履歴**をここに持つ。巻き戻すのに要るものだけ
+ * （操作前のノートと、その操作で消した復習・まとめ・並び）を控える。
+ */
+export interface NoteUndo {
+  kind: 'trash' | 'rename' | 'restore';
+  noteId: string;
+  /** トーストの文言に使う表示名 */
+  label: string;
+  /** 操作**前**のノート。巻き戻しはこれを書き戻すだけで済む */
+  note: Note;
+  /** その操作で消した未完了の復習 */
+  reviews: Review[];
+  /** その操作で消したまとめタスク */
+  extras: Extra[];
+  /** 操作前の並び（`order`）。消えた行の位置まで戻す */
+  order: string[];
+  /** 操作時刻（ms）。同じ操作を二重に積まないための目印 */
+  at: number;
+}
+
+/** ゴミ箱に置いておく日数。過ぎたものは起動時に本当に消える */
+export const NOTE_TRASH_DAYS = 30;
+
+/** ノート操作の取り消し履歴の深さ。直前の数手だけ戻せれば足りる */
+export const NOTE_UNDO_MAX = 20;
+
 /** Add 画面の自動細分化モード（`addGeneratorChips`, HTML:3656-3659） */
 export type AddGenerator = 'manual' | 'duo' | 'chart';
 
@@ -790,6 +851,40 @@ export interface EphemeralState {
   nbTreeOpen: Record<string, boolean>;
   /** ドリル中に「ノートの全体（解説・演習・疑問）」を開いているか */
   nbFullNote: boolean;
+  // ── Finder 風のノート操作（2026-08 の UX 刷新。docs/notebook/ux-refresh.md）
+  /**
+   * いま**潜っている**教科（`null` = すべての教科を並べる）。
+   * 教科をダブルクリックすると、その教科だけの一覧になる（Finder のフォルダを開く操作）。
+   *
+   * `nbSubjFilter`（下の絞り込みチップ）と役割が違う。チップは「他の教科も見えている中で
+   * 絞る」ための道具で、こちらは**一段下の階層へ移動する**。だから戻り方も違い、
+   * 潜っているあいだはパンくずと ⌘↑ で上がる。
+   */
+  nbFolder: string | null;
+  /**
+   * カレンダーで選んだ日（`null` = その月ぜんぶ）。
+   * 日付まで指すと、下の一覧はその日のノートだけになる。
+   */
+  nbDay: ISODate | null;
+  /** 右クリックメニュー（`null` = 出ていない） */
+  nbMenu: NoteMenu | null;
+  /** 一覧でその場で名前を書き換えているノート id（`null` = していない） */
+  nbRenameId: string | null;
+  /** 削除・改名の確認ダイアログ（`null` = 出ていない） */
+  nbAsk: NoteAsk | null;
+  /** ゴミ箱を開いているか */
+  nbTrashOpen: boolean;
+  /**
+   * ゴミ箱の中身。`notes` と同じ形のまま、`trashedAt` が入ったものだけをここへ分ける。
+   * **`notes` には混ぜない** ―― 混ぜると一覧・検索・復習生成・問題抽出の
+   * すべてに「捨てたものを除く」条件を書き足すことになり、必ずどこかで漏れる。
+   */
+  notesTrash: Note[];
+  /**
+   * ノート操作の取り消し履歴（⌘Z）。**新しいものが末尾**。
+   * 深追いしない（`NOTE_UNDO_MAX` 段）。取り消したいのはたいてい直前の 1 手だから。
+   */
+  nbUndo: NoteUndo[];
   /** 理解度モーダルでカードの解答を表示しているか */
   revAskReveal: boolean;
 }

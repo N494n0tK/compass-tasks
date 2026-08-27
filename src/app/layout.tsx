@@ -4,6 +4,18 @@ import { FontStylesheet } from "./FontStylesheet";
 // Next がバンドルするので外部 CDN への接続は増えない。
 import "katex/dist/katex.min.css";
 import "./globals.css";
+// 2026-08 の UX 刷新ぶん（docs/notebook/ux-refresh.md）。globals.css の後に読む
+// ―― トークンの定義はあちらにあり、こちらはそれを使う側だから。
+import "./motion.css";
+import "./nb-tree.css";
+import "./nb-row.css";
+import "./nb-cal.css";
+import "./nb-menu.css";
+import "./nb-dialog.css";
+import "./nb-trash.css";
+import "./nb-aiedit.css";
+import "./nb-summary.css";
+import "./clawd.css";
 
 export const metadata: Metadata = {
   title: "Compass 復習スケジュール",

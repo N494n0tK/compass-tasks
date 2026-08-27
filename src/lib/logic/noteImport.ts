@@ -564,10 +564,16 @@ export function parseNoteJson(text: string, options: NoteImportOptions): NoteImp
     summary: asString(raw.summary).trim() || existing?.summary || '',
     keywords,
     exercise,
-    doubt: asString(raw.doubt),
+    // 疑問も**自分が書く欄**（spec §3.6）。AI が拾えた回は上書きしてよいが、
+    // 拾えなかった回（空文字）に既存を消さない ―― まとめと同じ理由で、
+    // 貼り直すたびに自分で書いた疑問が黙って消えるのを防ぐ
+    doubt: asString(raw.doubt).trim() || existing?.doubt || '',
     notice: asString(raw.notice),
     createdAt: existing?.createdAt || today,
     updatedAt: today,
+    // 取り込んだノートは常に生きている。ゴミ箱にあるノートへ上書き取り込みすると、
+    // その操作をもって**戻ってくる**（貼り直した相手が捨てたままなのはおかしい）
+    trashedAt: '',
   };
 
   return { ok: true, note, warnings, diff: existing ? diffCards(existing, note) : null };

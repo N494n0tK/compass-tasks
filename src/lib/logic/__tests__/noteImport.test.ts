@@ -429,6 +429,28 @@ describe('parseNoteJson — 上書き取り込み（N-017〜N-020）', () => {
     expect(ok(res).summary).toBe('3型に帰着させれば解ける。$n=1$ は別に確認。');
   });
 
+  it('N-148 上書き取り込みで空の doubt を受けても、自分で書いた疑問は残る', () => {
+    const written: typeof base = { ...base, doubt: 'なぜ $n=1$ を別に確認するのか' };
+    const raw = JSON.parse(fixture('note-math-valid.json')) as Record<string, unknown>;
+    const res = parseNoteJson(JSON.stringify({ ...raw, doubt: '' }), {
+      today: T,
+      existing: written,
+      ...IDS,
+    });
+    expect(ok(res).doubt).toBe('なぜ $n=1$ を別に確認するのか');
+  });
+
+  it('N-148 JSON 側に doubt があればそちらが勝つ', () => {
+    const written: typeof base = { ...base, doubt: '古い疑問' };
+    const raw = JSON.parse(fixture('note-math-valid.json')) as Record<string, unknown>;
+    const res = parseNoteJson(JSON.stringify({ ...raw, doubt: '新しい疑問' }), {
+      today: T,
+      existing: written,
+      ...IDS,
+    });
+    expect(ok(res).doubt).toBe('新しい疑問');
+  });
+
   it('N-136 JSON 側に空でない summary があるときはそちらで上書きされる', () => {
     const written: typeof base = { ...base, summary: '前に書いたまとめ' };
     const raw = JSON.parse(fixture('note-math-valid.json')) as Record<string, unknown>;

@@ -40,6 +40,7 @@ function note(over: Partial<Note> = {}): Note {
     notice: '',
     createdAt: T,
     updatedAt: T,
+    trashedAt: '',
     ...over,
   };
 }

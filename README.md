@@ -18,6 +18,9 @@
    (Vercel にも同じ環境変数を追加する)
 6. 授業ノートを Notion から受け取るなら `NOTION_TOKEN` / `NOTION_NOTES_PAGE_ID` も設定
    (手順は [docs/notebook/notion-pull.md](docs/notebook/notion-pull.md))
+7. Notion のエージェントから Compass を呼ばせるなら `COMPASS_MCP_TOKEN` /
+   `COMPASS_MCP_UID` / `FIREBASE_SERVICE_ACCOUNT` も設定
+   (手順は [docs/notebook/mcp.md](docs/notebook/mcp.md))
 
 ```bash
 npm install
@@ -36,11 +39,13 @@ npx vercel --prod --scope n494n0
 Production の環境変数は `npx vercel env ls --scope n494n0` で確認。必要なのは
 Firebase の `NEXT_PUBLIC_FIREBASE_*` 6 つと、Notion 受け取り用の `NOTION_TOKEN` /
 `NOTION_NOTES_PAGE_ID` / `NOTION_ALLOWED_EMAILS`(公開 URL では必須。本人以外が
-`/api/notion/pull` を叩けないようにする)。
+`/api/notion/pull` を叩けないようにする)。Notion のエージェントから呼ばせるなら
+`COMPASS_MCP_TOKEN` / `COMPASS_MCP_UID` / `FIREBASE_SERVICE_ACCOUNT` も要る。
 
 ## ドキュメント
 
-- [docs/notebook/](docs/notebook/) … 授業ノート(仕様 `spec.md` / 決定事項 `decisions.md` / Notion 受け取り `notion-pull.md`)
+- [docs/notebook/](docs/notebook/) … 授業ノート(仕様 `spec.md` / 決定事項 `decisions.md` /
+  Notion 受け取り `notion-pull.md` / Notion から呼ばれる MCP `mcp.md`)
 - [docs/daily-mission/plan.md](docs/daily-mission/plan.md) … デイリーミッション
 - [docs/rewrite/](docs/rewrite/) … Next.js 移行時のアプリ仕様と設計
 - [docs/design-qa.md](docs/design-qa.md) … デザイン刷新時の QA メモ
@@ -87,6 +92,7 @@ users/{uid}/
 
 ## コード構成
 
+- `src/lib/server/` … Notion から呼ばれる MCP サーバー(`mcpTools.ts` / `firestoreRest.ts`)
 - `src/lib/reviewLogic.ts` … 復習間隔・スコア・統合・再分散の純ロジック
 - `src/lib/data.ts` … Firestore データアクセス層(UIから SDK を直接呼ばない)
 - `src/lib/firebase.ts` … Firebase 初期化と認証

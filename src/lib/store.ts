@@ -297,6 +297,15 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbRevealed: {},
     nbTreeOpen: {},
     nbFullNote: false,
+    // ── Finder 風のノート操作（docs/notebook/ux-refresh.md）
+    nbFolder: null,
+    nbDay: null,
+    nbMenu: null,
+    nbRenameId: null,
+    nbAsk: null,
+    nbTrashOpen: false,
+    notesTrash: [],
+    nbUndo: [],
     revAskReveal: false,
     // 復習の7日予報で選んだ日（plan.md §4.2）。導出値の絞り込みなので保存しない
     revDueFilter: null,

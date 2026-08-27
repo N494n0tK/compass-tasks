@@ -253,6 +253,18 @@ export interface Note {
   notice: string;
   createdAt: ISODate;
   updatedAt: ISODate;
+  /**
+   * ゴミ箱に入れた日（`''` = 生きているノート）。
+   *
+   * 消すのを**その場で確定させない**ための印。捨てたノートは 30 日
+   * （`NOTE_TRASH_DAYS`）ここに残り、その間は元に戻せる。過ぎたぶんは起動時に
+   * 本当に消える（`lib/logic/noteTrash.ts`）。
+   *
+   * ドキュメントは Firestore に残したまま印だけ立てる ―― 別のコレクションへ
+   * 移すと、戻すときに写真（IndexedDB）との対応や復習の系列 ID を作り直すことになる。
+   * アプリの中では `state.notesTrash` に分けて持ち、`state.notes` には混ぜない。
+   */
+  trashedAt: ISODate | '';
 }
 
 /** `recall` の上限（旧実装の `recallMax` は 3..8 で既定 5。上限だけ引き継ぐ） */
