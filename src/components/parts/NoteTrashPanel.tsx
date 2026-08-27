@@ -32,7 +32,7 @@ import { ShellOverlay } from './ShellOverlay';
 import { useSubjColors } from './ShellSubjects';
 import { store, useAppStore } from '../useStore';
 
-/** 行が抜けていくアニメーションの長さ。`nb-trash.css` の `nbt-out` と揃える */
+/** 行が抜けていくアニメーションの長さ。`nb-trash.css` の `nbtc-out` と揃える */
 const OUT_MS = 180;
 
 export interface NoteTrashPanelProps {
@@ -120,52 +120,52 @@ export function NoteTrashPanel({ today, onRestore, onClose }: NoteTrashPanelProp
 
   return (
     <ShellOverlay>
-      <div className="nbt-back" onClick={close}>
+      <div className="nbtc-back" onClick={close}>
         <div
           ref={sheet}
-          className="nbt-sheet"
+          className="nbtc-sheet"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="nbt-title"
+          aria-labelledby="nbtc-title"
           tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="nbt-head">
+          <div className="nbtc-head">
             <div>
-              <h2 id="nbt-title" className="nbt-title">
+              <h2 id="nbtc-title" className="nbtc-title">
                 ゴミ箱
               </h2>
-              <p className="nbt-lede">
+              <p className="nbtc-lede">
                 捨てたノートは{NOTE_TRASH_DAYS}日ここに残ります。戻せば復習も一緒に戻ります。
               </p>
             </div>
-            <button type="button" className="nbt-x" onClick={close} aria-label="ゴミ箱を閉じる">
+            <button type="button" className="nbtc-x" onClick={close} aria-label="ゴミ箱を閉じる">
               ✕
             </button>
           </div>
 
           {rows.length ? (
-            <ul className="nbt-list">
+            <ul className="nbtc-list">
               {rows.map((n, i) => {
                 const c = subjectColorFor(subjColors, n.subject || 'その他');
                 const left = trashDaysLeft(n, today);
                 return (
                   <li
                     key={n.id}
-                    className={'nbt-item' + (leaving === n.id ? ' is-out' : '')}
+                    className={'nbtc-item' + (leaving === n.id ? ' is-out' : '')}
                     style={{ ['--i' as string]: String(Math.min(i, 8)) }}
                   >
-                    <span className="nbt-subj" style={{ color: c.c, background: c.bg }}>
+                    <span className="nbtc-subj" style={{ color: c.c, background: c.bg }}>
                       {n.subject || 'その他'}
                     </span>
                     <div style={{ minWidth: 0 }}>
-                      <div className="nbt-unit">{n.unit || '(単元名なし)'}</div>
-                      <div className="nbt-meta">{trashedLabel(n.trashedAt)}</div>
+                      <div className="nbtc-unit">{n.unit || '(単元名なし)'}</div>
+                      <div className="nbtc-meta">{trashedLabel(n.trashedAt)}</div>
                     </div>
-                    <span className={'nbt-left' + leftClass(left)}>{leftLabel(left)}</span>
+                    <span className={'nbtc-left' + leftClass(left)}>{leftLabel(left)}</span>
                     <button
                       type="button"
-                      className="nbt-restore"
+                      className="nbtc-restore"
                       onClick={() => restore(n.id)}
                       aria-label={'「' + (n.unit || '(単元名なし)') + '」を元に戻す'}
                     >
@@ -176,15 +176,15 @@ export function NoteTrashPanel({ today, onRestore, onClose }: NoteTrashPanelProp
               })}
             </ul>
           ) : (
-            <div className="nbt-empty">
-              <div className="nbt-empty-h">ゴミ箱は空です</div>
-              <p className="nbt-empty-p">
+            <div className="nbtc-empty">
+              <div className="nbtc-empty-h">ゴミ箱は空です</div>
+              <p className="nbtc-empty-p">
                 ノートを右クリックして「削除」すると、ここに{NOTE_TRASH_DAYS}日ぶん残ります。
               </p>
             </div>
           )}
 
-          <div className="nbt-foot">
+          <div className="nbtc-foot">
             ⌘Z でも直前の操作を取り消せます。{NOTE_TRASH_DAYS}日を過ぎたものは自動で消えます。
           </div>
         </div>

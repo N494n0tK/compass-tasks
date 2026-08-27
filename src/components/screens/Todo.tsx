@@ -36,6 +36,7 @@ import { noteSummaryRefOf } from '../../lib/logic/noteSummaryTasks';
 import { toH } from '../../lib/logic/schedule';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import type { Seg, SubTaskFields } from '../../lib/model/types';
+import { Clawd } from '../parts/Clawd';
 import { mutExtra, mutSeg, openNote, openNoteDrill, openWeakDrill } from '../parts/ShellActions';
 import { useSubjColors } from '../parts/ShellSubjects';
 import { buildTodayItems, todayTotals, type TodayItem } from '../parts/ShellTodayItems';
@@ -624,6 +625,17 @@ export function Todo() {
             <div style={{ fontSize: '11.5px', color: 'var(--tx2)', lineHeight: 1.6 }}>
               完了 <b style={{ color: 'var(--acc)' }}>{totals.doneCount}</b> / {totals.totalCount}件<br />残り <b style={{ color: 'var(--tx0)' }}>{toH(totals.remainMin)}</b>
             </div>
+            {/* 全部やり切った日だけ Clawd がクラッカーを鳴らす。**そのときだけ**なので
+                `autoPlay` で置いた瞬間に 1 周流す ―― 終わらせた手応えは、
+                こちらから出向いて触りに行くものではない */}
+            {totals.totalCount > 0 && totals.doneCount === totals.totalCount ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clawd kind="cheer" size={44} autoPlay />
+                <span style={{ font: '700 12px var(--f-ui)', color: 'var(--grn)' }}>
+                  今日のぶん、やり切りました
+                </span>
+              </div>
+            ) : null}
           </div>
           <button
             className="focus-launch"

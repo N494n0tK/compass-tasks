@@ -32,6 +32,7 @@ import {
   type SplashGate,
 } from '../lib/persistence';
 import type { CompassStore } from '../lib/store';
+import { folderUp } from '../lib/logic/noteFolder';
 import {
   applyNoteUndo,
   noteLabel,
@@ -364,12 +365,13 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         store.undoLastAction();
         return;
       }
-      // ⌘↑ = 1 つ上のフォルダへ（Finder と同じ）。潜っているときだけ効く
-      if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp' && !editingText) {
+      // ⌘↑ = 1 つ上のフォルダへ（Finder と同じ）。潜っているときだけ効く。
+      // サイドバーはノート／問題抽出のどちらのタブでも共通に出ているので両方で拾う
+      if ((e.metaKey || e.ctrlKey) && key === 'arrowup' && !editingText) {
         const s = store.getState();
-        if (s.view === 'notebook' && s.nbFolder) {
+        if ((s.view === 'notebook' || s.view === 'extract') && s.nbFolder) {
           e.preventDefault();
-          store.setState({ nbFolder: null });
+          store.setState({ nbFolder: folderUp(s.nbFolder) });
           return;
         }
       }

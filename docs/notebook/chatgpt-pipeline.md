@@ -1,10 +1,12 @@
-# 授業ノートを ChatGPT で作る（Notion AI のクレジットを使わない経路）
+# Study OS を ChatGPT に移した（Notion AI を使わない）
 
-2026-08-27 追加。**Notion のカスタムエージェントで授業ノートを作るのをやめた。**
+2026-08-27〜28。**Notion のカスタムエージェント 4 体はすべて無効化した。**
 文字起こしを読んでノートと想起問題を作る仕事は Notion AI のクレジットを
 一気に食い潰す（2026-08-26 に上限到達し、全カスタムエージェントが一時停止した）。
 
-重い生成を ChatGPT に移し、Compass への取り込みだけをこちら（スクリプト）でやる。
+いまの分担は「**考えるのは ChatGPT、運ぶのはスクリプト、置き場は Notion**」。
+Notion はデータの置き場としては残る ―― AI ミーティングノート（授業の録音→文字起こし）は
+Notion の機能なので、ここだけは代わりが無い。使わなくなったのは **Notion AI** のほう。
 
 ```
 授業を録る（本人がやるのはここだけ）
@@ -40,6 +42,9 @@ Compass 側の受け取り（`/api/notion/pull`、[notion-pull.md](notion-pull.m
 | `scripts/import-notion-json.mjs` | Notion の JSON → MCP `import_note`（dry_run → commit） |
 | Claude のタスク `compass-import-chatgpt-json` | 平日 17:10 に上のスクリプトを走らせる |
 | Claude のタスク `notion-collect-class-notes` | 平日 16:30。その日の授業ページを保存フォルダへ移す |
+| `scripts/morning-brief.mjs` ＋ タスク `compass-morning-brief` | 平日 7:30。時間割・提出物・弱点3問を「☀️ 朝のメモ」へ |
+| `scripts/check-notes.mjs` ＋ タスク `compass-check-notes` | 平日 17:30。取り込んだノートの形を機械的に点検 |
+| Notion「🧠 ChatGPT用｜復習コーチ 指示書」 | 20:00 の出題・理解度記録を ChatGPT でやるための指示書 |
 
 ## スクリプト
 
@@ -83,17 +88,32 @@ env は `.env.local` から読む（`NOTION_TOKEN` / `NOTION_NOTES_PAGE_ID` / `C
 
 1 が圧倒的に安い。写真が JPEG になれば、指示書の写真ルールがそのまま効くはず（未検証）。
 
-## Notion のカスタムエージェントの今
+## 4 層をどこへ移したか
 
-| エージェント | いま |
-|---|---|
-| Note Builder（17:00 記録層） | **17:00 のトリガーを OFF にした**。生成は ChatGPT に移ったので、クレジットが戻っても勝手に走らない |
-| Verifier（17:30 検証層） | そのまま。読み中心なので軽い（クレジット復活まで停止中） |
-| Recall Coach（20:00 定着層） | そのまま（同上） |
-| Morning Brief（07:30 起動層） | そのまま（同上） |
+| 旧（Notion AI） | 新 | 何で動くか |
+|---|---|---|
+| Note Builder 17:00 | ChatGPT 16:45 ＋ スクリプト 17:10 | ChatGPT のスケジュール ＋ `import-notion-json.mjs` |
+| Verifier 17:30 | `check-notes.mjs` 17:30 | **AI なし**。規則で決まる部分だけを機械的に見る |
+| Recall Coach 20:00 | ChatGPT 20:00 | 「🧠 ChatGPT用｜復習コーチ 指示書」（**MCP 接続が要る**、下記） |
+| Morning Brief 07:30 | `morning-brief.mjs` 7:30 | **AI なし**。時間割・提出物・弱点3問を組み立てるだけ |
 
-ChatGPT のカスタム MCP（コネクタ）は Plus でも作成ダイアログまでは出るが、
-**認証が OAuth / 認証なし の 2 択で Bearer ヘッダを付けられない**。
-Compass MCP を ChatGPT から直接呼ぶなら、URL にトークンを載せる形
-（`…/api/mcp/<COMPASS_MCP_TOKEN>` ＋ 認証なし）になる ―― トークンが接続設定に残るのと引き換え。
-いまは使っていない。
+Notion のカスタムエージェント 4 体は **すべて「エージェントを無効化」済み**。
+クレジットが戻っても勝手に走らない。指示文のページは記録として残してある。
+
+Verifier と Morning Brief から AI を外したのは節約のためだけではない。
+どちらも「決まった形に並べる」「規則に合っているか見る」仕事で、
+LLM にやらせると毎回ぶれるうえ、`check-notes.mjs` のほうが見落とさない。
+
+## Recall Coach だけ ChatGPT に MCP 接続が要る
+
+出題と理解度の記録は Compass MCP を呼ぶので、ChatGPT 側にコネクタが要る。
+ChatGPT のカスタム MCP は Plus でも作れるが、**認証が OAuth / 認証なし の 2 択で
+Bearer ヘッダを付けられない**。だから URL にトークンを載せる:
+
+```
+https://compass-tasks.vercel.app/api/mcp/<COMPASS_MCP_TOKEN>   認証: 認証なし
+```
+
+トークンが接続設定に残るのと引き換え。漏れたと思ったら `COMPASS_MCP_TOKEN` を作り直して
+再デプロイすれば、その瞬間に古い URL は死ぬ（[mcp.md](mcp.md) §6）。
+手順は Notion の「🧠 ChatGPT用｜復習コーチ 指示書」の一番下にある。

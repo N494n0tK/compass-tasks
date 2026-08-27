@@ -24,6 +24,7 @@
 import { useMemo } from 'react';
 import { noteMatchesQuery } from '../../lib/logic/noteSearch';
 import type { Note } from '../../lib/model/notes';
+import { Clawd } from '../parts/Clawd';
 import { NoteDrill } from '../parts/NoteDrill';
 import { NoteExtract } from '../parts/NoteExtract';
 import { NoteImportModal } from '../parts/NoteImportModal';
@@ -93,6 +94,9 @@ export function Notebook() {
               animation: 'fadeUp .22s ease',
             }}
           >
+            {/* Clawd くん。何も無い面はいちばん寂しいので、ここには大きめに居てもらう。
+                触ると 1 周ぶん動く（既定は 1 コマ目で静止） */}
+            <Clawd kind="type" size={96} />
             <div style={{ font: '700 21px var(--f-disp)', color: 'var(--tx0)' }}>
               {S.notesLoaded ? 'ノートがまだありません' : 'ノートを読み込んでいます…'}
             </div>

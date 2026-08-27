@@ -21,6 +21,7 @@
  * （紙面から浮くうえ、「復習も消すか」を聞けない）。
  */
 
+import { folderEnterPatch } from '../../lib/logic/noteFolder';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { noteCascadeCounts } from '../../lib/logic/noteTrash';
 import { ShellOverlay } from './ShellOverlay';
@@ -257,7 +258,9 @@ export function NoteContextMenu() {
       key: 'folder',
       mark: '▤',
       label: 'この教科だけ表示',
-      run: () => store.setState({ nbFolder: subject, nbMenu: null }),
+      // 潜る入口は 1 つ（`folderEnterPatch`）に寄せる。教科チップの絞り込みを
+      // 畳むところまで含まれているので、ここで書き足さない
+      run: () => store.setState({ ...folderEnterPatch(subject), nbMenu: null }),
     });
   }
 

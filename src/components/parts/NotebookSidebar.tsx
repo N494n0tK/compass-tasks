@@ -28,6 +28,7 @@ import { fmtMD, isoShift } from '../../lib/logic/dates';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import { timetableSubjects } from '../../lib/logic/timetable';
 import type { Note } from '../../lib/model/notes';
+import { notesInFolder } from '../../lib/logic/noteFolder';
 import { NoteContextMenu } from './NoteContextMenu';
 import { NotebookCalendar } from './NotebookCalendar';
 import { NotebookTree } from './NotebookTree';
@@ -48,6 +49,20 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
   const { state: S, plans } = useAppStore();
   const subjColors = useSubjColors(S, plans);
   const side = S.nbSide;
+
+  /**
+   * 潜っている教科（`nbFolder`）の絞り込みは**ここで掛ける**。
+   *
+   * `Notebook.tsx` の `visible` ではなく、子に渡す直前でやるのが肝。あちらは
+   * 紙面に出すノート（`selected`）の供給源でもあるので、そこで絞ると
+   * 英語のノートを読みながら数学へ潜った瞬間に紙面が別のノートへ飛ぶ。
+   * 潜るのは**一覧の移動**であって「読んでいるものを閉じろ」ではない
+   * ―― Finder でフォルダに入っても、開いている書類は閉じない。
+   *
+   * ここで掛けるとカレンダー側にも効く（教科ツリーだけの機能にしない）。
+   * ツリーは中で `folderGroups` を通すが、あれは冪等なので二重でも壊れない。
+   */
+  const shown = useMemo(() => notesInFolder(notes, S.nbFolder), [notes, S.nbFolder]);
 
   /** 絞り込みチップに出す教科は、ノートが 1 冊でもある教科（v2 は固定 6 科目） */
   const subjects = useMemo(() => {
@@ -116,11 +131,11 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
       </div>
 
       {side === 'tree' ? (
-        <NotebookTree notes={notes} onSelect={select} onContextMenu={openMenu} />
+        <NotebookTree notes={shown} onSelect={select} onContextMenu={openMenu} />
       ) : null}
       {side === 'cal' ? (
         <NotebookCalendar
-          notes={notes}
+          notes={shown}
           today={today}
           onSelect={select}
           onContextMenu={openMenu}
@@ -129,8 +144,10 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
 
       <div style={{ flex: 1, minHeight: '10px' }} />
 
-      {/* ── 教科で絞り込み（v2 の subjChips） */}
-      {subjects.length > 1 ? (
+      {/* ── 教科で絞り込み（v2 の subjChips）。
+             潜っているあいだは出さない ―― フォルダと同じ仕事を二重に持つうえ、
+             中で別の教科を押しても一覧を空にしかできない */}
+      {subjects.length > 1 && !S.nbFolder ? (
         <div style={{ flex: 'none' }}>
           <div style={SECTION_LABEL}>教科で絞り込み</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
@@ -215,6 +232,35 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
           })}
         </div>
       </div>
+
+      {/* ゴミ箱。**空のときは出さない** ―― 捨てたものが無いのに扉だけあると、
+          サイドバーの一番下の一等地が常時ふさがる。捨てた瞬間から 30 日だけ現れる */}
+      {S.notesTrash.length ? (
+        <button
+          className="hv-bg3"
+          onClick={() => store.setState({ nbTrashOpen: true })}
+          style={{
+            flex: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '7px',
+            padding: '7px 9px',
+            border: '1px solid var(--line2)',
+            borderRadius: 'var(--rad-s)',
+            background: 'none',
+            color: 'var(--tx2)',
+            font: '500 11px var(--f-ui)',
+            cursor: 'pointer',
+          }}
+        >
+          <span aria-hidden="true">🗑</span>
+          ゴミ箱
+          <span style={{ flex: 1 }} />
+          <span style={{ font: '600 10.5px var(--f-num)', color: 'var(--tx3)' }}>
+            {S.notesTrash.length + '件'}
+          </span>
+        </button>
+      ) : null}
 
       {/* ノートの正本は Notion（docs/notebook/notion-pull.md）。受け取りが主で、手貼りは控え */}
       <button

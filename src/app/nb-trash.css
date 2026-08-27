@@ -12,91 +12,91 @@
    ゴミ箱を開くのは「探しに来た」ときで、一覧の続きを読む場面ではないから。
    z-index は理解度モーダル(55)より下、シェル(〜40)より上。削除の確認ダイアログ(#6)は
    ゴミ箱の上に重なることがあるので、この面は 52 に置いて席を空けてある。 */
-.nbt-back{
+.nbtc-back{
   position:fixed; inset:0; z-index:52;
   display:flex; align-items:center; justify-content:center; padding:24px;
   background:rgba(5,9,20,.62); backdrop-filter:blur(3px);
-  animation:nbt-fade .18s cubic-bezier(.22,1,.36,1);
+  animation:nbtc-fade .18s cubic-bezier(.22,1,.36,1);
 }
-.nbt-sheet{
+.nbtc-sheet{
   width:540px; max-width:94vw; max-height:82vh;
   display:flex; flex-direction:column;
   background:var(--bg1); border:1px solid var(--line2); border-radius:var(--rad);
-  animation:nbt-rise .22s cubic-bezier(.22,1,.36,1);
+  animation:nbtc-rise .22s cubic-bezier(.22,1,.36,1);
   outline:none;
 }
 
 /* ── 見出し（プリントの標題欄。太い罫で本文と切る） */
-.nbt-head{
+.nbtc-head{
   flex:none; display:grid; grid-template-columns:1fr auto; align-items:start; gap:10px;
   padding:16px 18px 12px; border-bottom:1px solid var(--line2);
 }
-.nbt-title{ margin:0; font:700 15px var(--f-disp); color:var(--tx0); letter-spacing:.02em }
-.nbt-lede{ margin:5px 0 0; font:400 11px var(--f-ui); color:var(--tx3) }
-.nbt-x{
+.nbtc-title{ margin:0; font:700 15px var(--f-disp); color:var(--tx0); letter-spacing:.02em }
+.nbtc-lede{ margin:5px 0 0; font:400 11px var(--f-ui); color:var(--tx3) }
+.nbtc-x{
   border:1px solid var(--line2); border-radius:var(--rad-s); background:none;
   color:var(--tx2); font:500 13px var(--f-ui); line-height:1;
   padding:5px 9px; cursor:pointer;
   transition:background .16s cubic-bezier(.22,1,.36,1), color .16s cubic-bezier(.22,1,.36,1);
 }
-.nbt-x:hover{ background:var(--bg3); color:var(--tx0) }
-.nbt-x:active{ transform:translateY(1px) }
+.nbtc-x:hover{ background:var(--bg3); color:var(--tx0) }
+.nbtc-x:active{ transform:translateY(1px) }
 
 /* ── 一覧 */
-.nbt-list{ margin:0; padding:0; list-style:none; overflow:auto; flex:1 1 auto }
-.nbt-item{
+.nbtc-list{ margin:0; padding:0; list-style:none; overflow:auto; flex:1 1 auto }
+.nbtc-item{
   display:grid; grid-template-columns:auto minmax(0,1fr) auto auto;
   align-items:center; gap:10px;
   padding:9px 18px; border-bottom:1px solid var(--line);
   /* 行はほんの少しずつ遅らせて出す。上から降りてきた並びだと分かればよいので 22ms */
-  animation:nbt-row .18s cubic-bezier(.22,1,.36,1) both;
+  animation:nbtc-row .18s cubic-bezier(.22,1,.36,1) both;
   animation-delay:calc(var(--i,0) * 22ms);
 }
-.nbt-item:last-child{ border-bottom:none }
+.nbtc-item:last-child{ border-bottom:none }
 /* 戻した行は、消える向き（右へ抜ける）に短く送ってから state を書き換える */
-.nbt-item.is-out{ animation:nbt-out .18s cubic-bezier(.22,1,.36,1) forwards; pointer-events:none }
+.nbtc-item.is-out{ animation:nbtc-out .18s cubic-bezier(.22,1,.36,1) forwards; pointer-events:none }
 
-.nbt-subj{
+.nbtc-subj{
   font:700 10px var(--f-ui); border-radius:var(--rad-s); padding:2px 8px; white-space:nowrap;
 }
-.nbt-unit{
+.nbtc-unit{
   font:600 12px var(--f-ui); color:var(--tx1);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.nbt-meta{ font:400 10px var(--f-num); color:var(--tx3); letter-spacing:.04em }
+.nbtc-meta{ font:400 10px var(--f-num); color:var(--tx3); letter-spacing:.04em }
 
 /* 残り日数。期限切れ間近だけ色が付く（蛍光オレンジは「いま」専用なので最終日に限る） */
-.nbt-left{ font:600 10px var(--f-num); color:var(--tx3); letter-spacing:.04em; white-space:nowrap }
-.nbt-left.is-soon{ color:var(--org) }
-.nbt-left.is-last{ color:var(--pink); background:var(--pinkBg); border-radius:var(--rad-s); padding:2px 7px }
+.nbtc-left{ font:600 10px var(--f-num); color:var(--tx3); letter-spacing:.04em; white-space:nowrap }
+.nbtc-left.is-soon{ color:var(--org) }
+.nbtc-left.is-last{ color:var(--pink); background:var(--pinkBg); border-radius:var(--rad-s); padding:2px 7px }
 
-.nbt-restore{
+.nbtc-restore{
   border:1px solid var(--line2); border-radius:var(--rad-s); background:none;
   color:var(--tx2); font:600 11px var(--f-ui); padding:4px 11px; cursor:pointer; white-space:nowrap;
   transition:border-color .16s cubic-bezier(.22,1,.36,1), color .16s cubic-bezier(.22,1,.36,1),
              background .16s cubic-bezier(.22,1,.36,1);
 }
-.nbt-restore:hover{ border-color:var(--view); color:var(--view); background:var(--viewBg) }
-.nbt-restore:active{ transform:translateY(1px) }
+.nbtc-restore:hover{ border-color:var(--view); color:var(--view); background:var(--viewBg) }
+.nbtc-restore:active{ transform:translateY(1px) }
 
 /* ── 空のとき */
-.nbt-empty{ padding:34px 18px 38px; text-align:center; animation:nbt-row .2s cubic-bezier(.22,1,.36,1) both }
-.nbt-empty-h{ font:600 12px var(--f-ui); color:var(--tx2) }
-.nbt-empty-p{ margin:6px 0 0; font:400 11px var(--f-ui); color:var(--tx3) }
+.nbtc-empty{ padding:34px 18px 38px; text-align:center; animation:nbtc-row .2s cubic-bezier(.22,1,.36,1) both }
+.nbtc-empty-h{ font:600 12px var(--f-ui); color:var(--tx2) }
+.nbtc-empty-p{ margin:6px 0 0; font:400 11px var(--f-ui); color:var(--tx3) }
 
 /* ── 脚注（30日で本当に消えることを、面の底にもう一度書いておく） */
-.nbt-foot{
+.nbtc-foot{
   flex:none; padding:9px 18px 11px; border-top:1px solid var(--line2);
   font:400 10px var(--f-ui); color:var(--tx3);
 }
 
-@keyframes nbt-fade{ from{opacity:0} to{opacity:1} }
-@keyframes nbt-rise{ from{transform:translateY(10px) scale(.985);opacity:0} to{transform:none;opacity:1} }
-@keyframes nbt-row{ from{transform:translateY(6px);opacity:0} to{transform:none;opacity:1} }
-@keyframes nbt-out{ from{transform:none;opacity:1} to{transform:translateX(14px);opacity:0} }
+@keyframes nbtc-fade{ from{opacity:0} to{opacity:1} }
+@keyframes nbtc-rise{ from{transform:translateY(10px) scale(.985);opacity:0} to{transform:none;opacity:1} }
+@keyframes nbtc-row{ from{transform:translateY(6px);opacity:0} to{transform:none;opacity:1} }
+@keyframes nbtc-out{ from{transform:none;opacity:1} to{transform:translateX(14px);opacity:0} }
 
 @media(prefers-reduced-motion:reduce){
-  .nbt-back,.nbt-sheet,.nbt-item,.nbt-item.is-out,.nbt-empty{transition:none;animation:none}
-  .nbt-x,.nbt-restore{transition:none}
-  .nbt-x:active,.nbt-restore:active{transform:none}
+  .nbtc-back,.nbtc-sheet,.nbtc-item,.nbtc-item.is-out,.nbtc-empty{transition:none;animation:none}
+  .nbtc-x,.nbtc-restore{transition:none}
+  .nbtc-x:active,.nbtc-restore:active{transform:none}
 }

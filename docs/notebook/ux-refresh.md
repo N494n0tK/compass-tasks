@@ -116,6 +116,26 @@ store.showToast('メッセージ');                 // 画面下のトースト
 CSS ファイルはすでに空の状態で置いてあり、`src/app/layout.tsx` から読み込み済み。
 **自分の CSS ファイルにだけ書く**（`globals.css` には書かない）。
 
+### クラス名の接頭辞（予約表）
+
+CSS はファイルが分かれていても**同じ 1 枚のグローバル**に積まれる。読み込み順は
+`layout.tsx` の並び順で、同じ詳細度なら後から読んだ方が勝つ。実際に
+`.nbt-head` を教科ツリーとゴミ箱が両方名乗って、フォルダの見出しが崩れた。
+**ファイルごとに接頭辞を 1 つ持ち、他所のものを名乗らない**こと（keyframes も同じ）。
+
+| ファイル | 接頭辞 |
+|---|---|
+| `nb-tree.css` | `.nbt-`（開閉） / `.nbf-`（潜り込み・パンくず） |
+| `nb-row.css` | `.nbr-` |
+| `nb-cal.css` | `.nbcal-` |
+| `nb-menu.css` | `.nb-menu` |
+| `nb-dialog.css` | `.nbdlg-` |
+| `nb-trash.css` | `.nbtc-` |
+| `nb-aiedit.css` | `.nb-aic` |
+| `nb-summary.css` | `.nbsum-` |
+| `motion.css` | `.mo-` |
+| `clawd.css` | `.clawd` |
+
 ---
 
 ## 4. 部品どうしの取り決め
