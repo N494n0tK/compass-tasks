@@ -135,3 +135,24 @@ describe('parseNoteAiComment（AI の添削 → コメント行。ux-refresh.md 
     expect(b.map((x) => x.kind)).toEqual(['line', 'gap', 'line']);
   });
 });
+
+describe('数式の取り違え（行を畳む判定）', () => {
+  it('隣り合ったインライン数式を「開いた $$」と読み違えない', () => {
+    // `$a$$b$` の境目は別行立ての開きではない。素朴に `$$` を数えると
+    // ここから下の行が全部 1 本に融合していた
+    const out = parseNoteAiComment('係数 $a$$b$ を見よ\n二行め\n三行め');
+    const lines = out.filter((b) => b.kind === 'line');
+    expect(lines.length).toBe(3);
+  });
+
+  it('本当に行をまたぐ別行立ては 1 行に畳む', () => {
+    const out = parseNoteAiComment('式は $$\nx = 1\n$$ である\n次の行');
+    const lines = out.filter((b) => b.kind === 'line');
+    expect(lines.length).toBe(2);
+  });
+
+  it('閉じないまま終わっても落ちない', () => {
+    expect(() => parseNoteAiComment('開いたまま $$\nx = 1')).not.toThrow();
+    expect(() => parseNoteAiComment('価格は $100 です')).not.toThrow();
+  });
+});

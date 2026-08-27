@@ -147,12 +147,19 @@ function outsideMath(line: string, mask: readonly boolean[]): string {
 /**
  * 別行立ての数式が行をまたいでいるぶんを 1 行に畳む。
  *
- * `$$` の数が奇数の行は「開いたまま終わった行」なので、閉じる行までを 1 本にする。
- * `noteBody.ts` は同じ状況で解釈をあきらめて `raw` を返すが、こちらは
- * **1 行 = 1 コメント行**という並びを崩したくないので、畳んで 1 行として扱う。
+ * 開いたまま終わった行は、閉じる行までを 1 本にする。`noteBody.ts` は同じ状況で
+ * 解釈をあきらめて `raw` を返すが、こちらは**1 行 = 1 コメント行**という並びを
+ * 崩したくないので、畳んで 1 行として扱う。
+ *
+ * ⚠ **`$$` の出現回数を数えてはいけない。** 素朴に数えると、隣り合ったインライン数式
+ * `$a$$b$` の境目を「別行立ての開き」と読んでしまい、そこから下の行が全部 1 本の
+ * コメントに融合する（`NoteMath` 側はこれを正しくインライン 2 つと読むので、
+ * 色を付ける範囲と数式になる範囲がずれる）。
+ * そこで**完全に閉じている数式を先に取り除き、残りかすに `$$` が居るか**で判定する。
+ * `$a$$b$` は残りかすが空 = 閉じている、`$x$ $$a` は `$$a` が残る = 開いている。
  */
 function joinDisplayMath(lines: readonly string[]): string[] {
-  const odd = (s: string) => ((s.match(/\$\$/g) || []).length) % 2 === 1;
+  const odd = (s: string) => s.replace(MATH_RE, '').indexOf('$$') >= 0;
   const out: string[] = [];
   let buf: string[] | null = null;
   for (const line of lines) {

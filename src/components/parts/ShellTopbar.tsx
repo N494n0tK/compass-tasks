@@ -40,6 +40,7 @@ import {
 } from './ShellSearch';
 import { Clawd, clawdForView, type ClawdKind } from './Clawd';
 import { TITLES } from './ShellTheme';
+import { todayTotals, type TodayItem } from './ShellTodayItems';
 
 /**
  * Clawd を触ったときの一言。画面ごとに住人が違うので、返す言葉も住人ぶん用意する。
@@ -50,7 +51,6 @@ const CLAWD_HELLO: Record<ClawdKind, string> = {
   play: 'Clawdは玉で遊んでいる',
   cheer: 'Clawdが祝ってくれた',
 };
-import { todayTotals, type TodayItem } from './ShellTodayItems';
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
 

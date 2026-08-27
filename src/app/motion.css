@@ -88,22 +88,22 @@
 
 /* 画面まるごと。既存の各画面は inline で `fadeUp .22s ease` を持っているので、
    それを外してこの class に替えると、曲線が他の動き（--mo-ease）と揃う */
-.mo-view{animation:moView var(--mo-base) var(--mo-ease) both}
+.mo-view{animation:moView var(--mo-base) var(--mo-ease) backwards}
 
 /* `--i` を渡さなければただの出現、渡せば一覧の順番待ち。1 つの class で両方賄う。
    `both` は遅延中の姿（opacity:0）を保つため ―― 無いと待っている間だけ見えてしまう */
 .mo-in,.mo-stagger>*{
-  animation:moIn var(--mo-base) var(--mo-ease) both;
+  animation:moIn var(--mo-base) var(--mo-ease) backwards;
   animation-delay:calc(var(--i,0) * var(--mo-step));
 }
 .mo-in-l{
-  animation:moInL var(--mo-base) var(--mo-ease) both;
+  animation:moInL var(--mo-base) var(--mo-ease) backwards;
   animation-delay:calc(var(--i,0) * var(--mo-step));
 }
-.mo-fade{animation:moFade var(--mo-base) ease both}
-.mo-pop{animation:moPop var(--mo-base) var(--mo-ease) both}
+.mo-fade{animation:moFade var(--mo-base) ease backwards}
+.mo-pop{animation:moPop var(--mo-base) var(--mo-ease) backwards}
 /* 入れ替わりも `--i` を見る（見出しと小見出しのように、2 行を半拍ずらしたいとき） */
-.mo-swap{animation:moSwap var(--mo-fast) var(--mo-ease) both;animation-delay:calc(var(--i,0) * var(--mo-step))}
+.mo-swap{animation:moSwap var(--mo-fast) var(--mo-ease) backwards;animation-delay:calc(var(--i,0) * var(--mo-step))}
 /* 消えるほうは戻ってこないので forwards。使う側は「この時間だけ待ってから state を消す」
    （待たずに消すと DOM ごと消えて、動きは 1 フレームも見えない） */
 .mo-out{animation:moOut var(--mo-fast) var(--mo-ease-io) forwards;pointer-events:none}
@@ -220,7 +220,7 @@
 
 /* 検索の面は入力欄の下辺からぶら下がる。だから上辺を起点に開く
    （globals.css の `fadeUp .14s` は真下から湧いて、どこから開いたか言っていない） */
-.app-search-popover.mo-pop{transform-origin:top center;animation:moPop var(--mo-base) var(--mo-ease) both}
+.app-search-popover.mo-pop{transform-origin:top center;animation:moPop var(--mo-base) var(--mo-ease) backwards}
 /* 1 件ずつ順に降りてくる。ヒットが「並んだ」ことが分かると、数を読む前に多い / 少ないが伝わる。
    ここも元の transition（地・罫）を書き直したうえで transform を足している */
 .app-search-hit{transition:background var(--mo-fast) ease,border-color var(--mo-fast) ease,transform var(--mo-press) var(--mo-ease)}
@@ -228,7 +228,7 @@
 .app-alert-pill{transition:filter var(--mo-fast) ease,transform var(--mo-press) var(--mo-ease)}
 /* 見出しの版（画面名）は画面ごとに差し替わる。差し色の縦罫も一緒に引き直して、
    「別の紙に変わった」をトップバーの左端でも言う */
-.app-view-title.mo-title::before{animation:moRail var(--mo-slow) var(--mo-ease) both;transform-origin:top}
+.app-view-title.mo-title::before{animation:moRail var(--mo-slow) var(--mo-ease) backwards;transform-origin:top}
 @keyframes moRail{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 
 /* ── トースト ────────────────────────────────────────────────────────── */
@@ -237,7 +237,7 @@
    animation の transform が取り合いになって、出るたびに左へ跳ねる。
    ついでに枠は指を通す ―― 画面下中央に 2.4 秒、押せない板が居座るのは事故のもと */
 .mo-toast{position:fixed;left:50%;bottom:26px;z-index:130;transform:translateX(-50%);pointer-events:none}
-.mo-toast__card{animation:moToastIn var(--mo-base) var(--mo-ease) both}
+.mo-toast__card{animation:moToastIn var(--mo-base) var(--mo-ease) backwards}
 .mo-toast__card.is-out{animation:moToastOut var(--mo-fast) var(--mo-ease-io) forwards}
 @keyframes moToastIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes moToastOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(6px) scale(.98)}}

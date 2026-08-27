@@ -25,6 +25,7 @@ import {
   cascadeNoteSummaryRemoval,
   completeNoteSummaryTasks,
   generateNoteSummaryTasks,
+  noteSummaryExtraId,
 } from '../../lib/logic/noteSummaryTasks';
 import { type Note, type NoteScan } from '../../lib/model/notes';
 import type { AppState, ISODate, ReviewGrade } from '../../lib/model/types';
@@ -375,6 +376,25 @@ function syncNoteSummaryTask(store: CompassStore, note: Note, today: ISODate): v
     });
     return;
   }
+  /**
+   * まとめが**空に戻された**とき、済みの印も戻す。
+   *
+   * 書いた時点で `completeNoteSummaryTasks` が「まとめを書く」を完了にするが、
+   * そのあと消して空にすると、`noteSumLog` に載っているぶん新しい提案も積まれず、
+   * **「まとめは空なのに ToDo は完了」**という嘘が残る。逆関数が無いので、
+   * ここで済みの印だけ外して「まだ書けていない」に戻す。
+   */
+  store.setState((s) => {
+    const id = noteSummaryExtraId(note.id);
+    let touched = false;
+    const extras = s.extras.map((e) => {
+      if (e.id !== id || !e.done) return e;
+      touched = true;
+      return { ...e, done: false };
+    });
+    return touched ? { extras } : null;
+  });
+
   const s = store.getState();
   // コントローラ未設定（preview の初回など）でも取りこぼさないよう、
   // このノートを入れた一覧で判定する。`upsertNote` は保存済みなら差し替えるだけ

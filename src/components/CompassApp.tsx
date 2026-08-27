@@ -553,7 +553,10 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
               <ShellAppSwitcher store={store} onClose={closeAppSwitcher} />
             ) : null}
             {state.tooltip ? <ShellTooltip tooltip={state.tooltip} /> : null}
-            {state.toast ? <ShellToast toast={state.toast} /> : null}
+            {/* **条件を付けない。** `state.toast ? … : null` にすると、消える瞬間に
+                部品ごと外れて引っ込む動きが素通りする（`ShellToast` は文言を持ち直して
+                退場を鳴らす作りで、props が `string | null` なのはそのため） */}
+            <ShellToast toast={state.toast} />
           </OverlayHostContext.Provider>
         </div>
       </div>

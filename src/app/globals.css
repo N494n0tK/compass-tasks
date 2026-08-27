@@ -1510,13 +1510,9 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   border:1px solid color-mix(in srgb,var(--nb-ai-ink) 55%,transparent);
   border-radius:var(--rad-s);padding:1px 6px;
 }
-.nb-aiedit__body{
-  flex:1;min-width:0;
-  font:400 calc(var(--nb-size) - 1.5px)/1.85 var(--f-ui);
-  color:var(--nb-ai-ink);
-  overflow-wrap:break-word;
-}
-.nb-aiedit__body .katex-display,.nb-aiedit__body .katex-display>.katex{text-align:left}
+/* `.nb-aiedit__body`（閲覧側の紫の本文）は 2026-08 の刷新で `.nb-aic`（app/nb-aiedit.css の
+   JavaScript コメント風）に置き換わって消えた。`.nb-aiedit` と `__chip` は
+   **編集モードの textarea の容れ物として現役**なので残す。 */
 
 /* ── キュー欄。罫にぴったり寄せて右揃え（本文と視線がぶつからない） */
 .nb-cue{

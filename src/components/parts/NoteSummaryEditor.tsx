@@ -137,6 +137,16 @@ export function NoteSummaryEditor({ note, today, mark, edit, show = true }: Note
       // state と localStorage へは即座に入るので、ここで落ちても書いたものは残る。
       commitNote(store, { ...target, summary: text, updatedAt: today }, today, { debounce: true });
       if (quiet) return;
+      /**
+       * **「保存しました」と言った内容が Esc の戻り先になる。**
+       *
+       * ここを書き始めのままにしておくと、3 行書いて手が止まり（自動保存が走って
+       * 「保存しました」が出て）、閉じるつもりで Esc を押した瞬間に全文が空へ戻り、
+       * その空が上書き保存される ―― 画面が公言した状態を黙って裏切ることになる。
+       * 700ms の間合いではほとんどの休止で保存が走るので、「書き始めへ戻す」が
+       * 効くのは最初の 700ms だけ。実質は害しか残らない。
+       */
+      baseRef.current = text;
       setSaved(true);
       if (savedTimerRef.current !== null) clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaved(false), SUMMARY_SAVED_MS);
@@ -226,9 +236,12 @@ export function NoteSummaryEditor({ note, today, mark, edit, show = true }: Note
   };
 
   /**
-   * 書くのをやめる（Esc）。書き始めの内容へ戻す。
-   * 間合いの自動保存が既に走っていることがあるので、**戻したものも保存し直す** ――
-   * さもないと画面だけ元に戻って、保存されているのは途中の文になる。
+   * 書くのをやめる（Esc）。**最後に保存されたところ**まで戻して閉じる。
+   *
+   * 戻り先は `baseRef` で、自動保存が走るたびにそこまで進む（`commit` を見よ）。
+   * つまり Esc で消えるのは「まだ保存されていない打ちかけ」だけで、
+   * 一度「保存しました」と出た内容は消えない。
+   * 戻したものも保存し直すのは、画面だけ元に戻って保存が途中の文のままになるのを防ぐため。
    * 「取り消し」なので「保存しました」は出さない（`quiet`）。
    */
   const cancel = () => {
@@ -285,7 +298,15 @@ export function NoteSummaryEditor({ note, today, mark, edit, show = true }: Note
             className="nbsum__input"
             value={draft}
             onChange={(e) => onType(e.target.value)}
-            onCompositionStart={() => (imeRef.current = true)}
+            onCompositionStart={() => {
+              imeRef.current = true;
+              // 変換を始めた時点で保留中の間合いを畳む。残しておくと、英数を打った
+              // 700ms 以内に変換へ入ったときに**未確定のかな**がそのまま保存される
+              if (idleRef.current !== null) {
+                clearTimeout(idleRef.current);
+                idleRef.current = null;
+              }
+            }}
             onCompositionEnd={(e) => {
               imeRef.current = false;
               onType(e.currentTarget.value);
@@ -347,7 +368,7 @@ export function NoteSummaryEditor({ note, today, mark, edit, show = true }: Note
             {chars ? chars + '字 · ' + lines + '行' : SUMMARY_LINES + '行以内が目安'}
           </span>
           <span className="nbsum__keys" aria-hidden="true">
-            ⌘Enter で確定 · Esc で取り消し
+            ⌘Enter で確定 · Esc で閉じる（打ちかけは戻る）
           </span>
           {/* 保存の合図。トーストは出さない（打鍵のたびに画面下が光ると集中が切れる） */}
           <span className="nbsum__slot" role="status" aria-live="polite">
