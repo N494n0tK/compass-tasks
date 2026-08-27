@@ -25,36 +25,25 @@ import type { CSSProperties } from 'react';
 import { dowOf, fmtMD } from '../../lib/logic/dates';
 import { subjectColorFor, type SubjColors } from '../../lib/logic/subjects';
 import type { Note } from '../../lib/model/notes';
-import type { AppState, Plans } from '../../lib/model/types';
-import { buildSubjColors } from './ShellSubjects';
 import { useAppStore } from '../useStore';
 
 /** CSS 変数を style に混ぜるための型合わせ（他の画面と同じ書き方） */
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
 
-/**
- * 教科色表は `state` / `plans` が同じなら必ず同じ表になる。
- *
- * `useSubjColors()` は**行ごとに** `useMemo` を持つので、そのまま各行から呼ぶと、
- * 一覧に 30 行あるとき state が動くたびに 30 回 `buildSubjColors()`
- * （studyLog の全走査 + 円グラフの並べ替え）が回る。行は検索を 1 文字打つたびに
- * 描き直されるところなので、同じレンダーの行で 1 回だけ作って使い回す。
- * 参照が変わったときだけ作り直すので、表の中身は `useSubjColors()` と完全に同じ。
- */
-let cacheState: AppState | null = null;
-let cachePlans: Plans | null = null;
-let cacheColors: SubjColors | null = null;
-function subjColorsOf(state: AppState, plans: Plans): SubjColors {
-  if (!cacheColors || cacheState !== state || cachePlans !== plans) {
-    cacheState = state;
-    cachePlans = plans;
-    cacheColors = buildSubjColors(state, plans);
-  }
-  return cacheColors;
-}
-
 export interface NoteRowProps {
   note: Note;
+  /**
+   * 教科色表。**行では作らず、並べる親から配る。**
+   *
+   * `useSubjColors()` は行ごとに `useMemo` を持つので、そのまま各行から呼ぶと
+   * 一覧に 30 行あるとき state が動くたびに 30 回 `buildSubjColors()`
+   * （studyLog の全走査 + 円グラフの並べ替え）が回る。行は検索を 1 文字打つたびに
+   * 描き直されるところなので、そこは削りたい。
+   * 親（`NotebookTree` / `NotebookCalendar`）は見出しの色付けで**すでに同じ表を持っている**ので、
+   * 配るだけで済む ―― 行の中にモジュール規模の可変キャッシュを置くより素直で、
+   * SSR や同時レンダーの心配も要らない。
+   */
+  colors: SubjColors;
   /** いま開いているノートか */
   on: boolean;
   onClick: (n: Note) => void;
@@ -68,17 +57,25 @@ export interface NoteRowProps {
   showSubject?: boolean;
 }
 
-export function NoteRow({ note, on, onClick, onContextMenu, showSubject }: NoteRowProps) {
-  const { state: S, plans } = useAppStore();
+export function NoteRow({ note, colors, on, onClick, onContextMenu, showSubject }: NoteRowProps) {
+  const { state: S } = useAppStore();
   /**
    * 教科名が空のノートは `NotebookTree` が「その他」のフォルダにまとめる。
    * ここでも同じ既定にしないと、フォルダの見出しと行の帯で色が食い違う。
    */
   const subject = note.subject || 'その他';
-  const color = subjectColorFor(subjColorsOf(S, plans), subject);
+  const color = subjectColorFor(colors, subject);
   /** 右クリックメニューが開いている行。どれに対する操作なのかを行側でも示す */
   const menuTarget = S.nbMenu?.noteId === note.id;
   /** ゴミ箱の一覧（#7）から並べられた行。生きているノートと同じ濃さで出さない */
+  /**
+   * ゴミ箱のノートとして並べられた行。
+   *
+   * **いまこの枝を通る経路は無い** ―― ゴミ箱の一覧（`NoteTrashPanel`）は
+   * 「開けない行」なので独自に組んであり、`state.notes` にゴミ箱のノートは混ざらない。
+   * それでも残しているのは、`trashedAt` を見るのが**データを見る側の判断**だからで、
+   * 将来この行で捨てたノートを並べたときに「見た目だけ生きている」事故を防ぐ。
+   */
   const trashed = !!note.trashedAt;
   const unit = note.unit || '(単元名なし)';
   const facts = note.date

@@ -131,6 +131,7 @@ export function NotebookTree({ notes, onSelect, onContextMenu }: NotebookTreePro
                   <NoteRow
                     key={n.id}
                     note={n}
+                    colors={subjColors}
                     on={n.id === S.nbSelNoteId}
                     onClick={onSelect}
                     onContextMenu={onContextMenu}
@@ -205,6 +206,7 @@ export function NotebookTree({ notes, onSelect, onContextMenu }: NotebookTreePro
                           >
                             <NoteRow
                               note={n}
+                              colors={subjColors}
                               on={n.id === S.nbSelNoteId}
                               onClick={onSelect}
                               onContextMenu={onContextMenu}

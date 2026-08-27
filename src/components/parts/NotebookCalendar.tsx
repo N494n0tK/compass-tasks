@@ -18,6 +18,7 @@ import { dowOf, fmtMD, longDayLabel, monthLabel } from '../../lib/logic/dates';
 import type { Note } from '../../lib/model/notes';
 import { DOW_HEADS, MINI_BTN, SECTION_LABEL, daysInMonth, shiftMonth } from './NotebookShared';
 import { NoteRow } from './NoteRow';
+import { useSubjColors } from './ShellSubjects';
 import { store, useAppStore } from '../useStore';
 
 export interface NotebookCalendarProps {
@@ -37,7 +38,9 @@ const ARROW_STEP: Record<string, number | undefined> = {
 };
 
 export function NotebookCalendar({ notes, today, onSelect, onContextMenu }: NotebookCalendarProps) {
-  const { state: S } = useAppStore();
+  const { state: S, plans } = useAppStore();
+  // 教科色は行ごとに作らず、ここで 1 回だけ作って配る（`NoteRow` の props を見よ）
+  const subjColors = useSubjColors(S, plans);
   const month = S.nbMonth || today.slice(0, 8) + '01';
   const offset = new Date(month + 'T00:00:00Z').getUTCDay();
   const dim = daysInMonth(month);
@@ -269,6 +272,7 @@ export function NotebookCalendar({ notes, today, onSelect, onContextMenu }: Note
             <NoteRow
               key={n.id}
               note={n}
+              colors={subjColors}
               on={n.id === S.nbSelNoteId}
               onClick={onSelect}
               onContextMenu={onContextMenu}

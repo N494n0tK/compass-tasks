@@ -261,6 +261,10 @@
   }
   .mo-lift:hover,.mo-press:active,.mo-tap:active,.app-nav-item:active,.app-search-hit:active,
   .app-nav-item:hover::before{transform:none!important}
+  /* モバイルの沈み込み（上の `:not([data-nav="add"])`）は詳細度 (0,3,0) で、
+     すぐ上の行（(0,2,0)）では勝てない。同じ形で名指しし返す ――
+     動きを止めている人には、画面幅にかかわらず動かないのが正しい */
+  .app-nav-item:not([data-nav="add"]):active{transform:none!important}
   /* しるし（選択中の縦罫）・畳んだ高さは、transition を切っただけで
      「途中経過なしに、その姿になる」に変わる。行き先の指定はそのまま残す。
      消えるものだけは animation を切ると消えなくなるので、結果だけ先に当てる */

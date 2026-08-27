@@ -109,15 +109,21 @@ export function ShellNav({
    * トーストと違って行は自分の場所を持っているので、黙って抜けると
    * 「何が消えたのか」も「そもそも消えたのか」も分からない。
    */
-  const [dying, setDying] = useState<string | null>(null);
-  const dieTimer = useRef<number | null>(null);
+  /**
+   * **id ごとにタイマーを持つ。** 単一のスロットにすると、160ms 以内に 2 行目を消したとき
+   * 1 本目のタイマーを取り消さずに上書きしてしまい、1 本目の `.mo-out` が途中で剥がれて
+   * 「一瞬戻ってから消える」というちらつきになる。
+   */
+  const [dying, setDying] = useState<ReadonlySet<string>>(() => new Set());
+  const dieTimers = useRef(new Map<string, number>());
   /** 消し終える前に画面を離れることがある（ナビは常駐だが、モバイル↔デスクトップの切替や HMR で外れる） */
-  useEffect(
-    () => () => {
-      if (dieTimer.current !== null) clearTimeout(dieTimer.current);
-    },
-    []
-  );
+  useEffect(() => {
+    const timers = dieTimers.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
 
   const removeCountdown = (id: string) => {
     const drop = () =>
@@ -126,12 +132,20 @@ export function ShellNav({
       drop();
       return;
     }
-    setDying(id);
-    dieTimer.current = window.setTimeout(() => {
-      dieTimer.current = null;
-      setDying(null);
-      drop();
-    }, ROW_OUT_MS);
+    if (dieTimers.current.has(id)) return; // 同じ行の連打
+    setDying((prev) => new Set(prev).add(id));
+    dieTimers.current.set(
+      id,
+      window.setTimeout(() => {
+        dieTimers.current.delete(id);
+        setDying((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        drop();
+      }, ROW_OUT_MS),
+    );
   };
 
   /** 追加を受け付けなかったとき、欠けている欄そのものが首を振る（`.mo-nudge`） */
@@ -335,7 +349,7 @@ export function ShellNav({
                 key={c.id}
                 // 足したときは下から起き上がり（新しい行だけが鳴る）、消すときは縮んで薄くなる。
                 // 頭の 8 行までしかずらさない（motion.css の決まり 2）
-                className={'mo-in mo-lift' + (dying === c.id ? ' mo-out' : '')}
+                className={'mo-in mo-lift' + (dying.has(c.id) ? ' mo-out' : '')}
                 style={cssVars({
                   '--i': Math.min(i, 7),
                   display: 'grid',
