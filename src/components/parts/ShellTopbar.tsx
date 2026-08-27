@@ -15,6 +15,12 @@
  * （`logic/noteSearch.ts`）。ノートの画面で「タスク名・教科」をさがしても、
  * 手元にある紙面と関係のない結果が返るだけだから。
  * どちらをさがしているかは入力欄の左のチップ（`.app-search-scope`）に出す。
+ *
+ * ── 動き（ux-refresh.md §10 / `app/motion.css` の語彙）────────────────
+ * 足したのは「**変わったことを言う**」ぶんだけ。画面を移ったら見出しを書き直し、
+ * 検索の面は入力欄の下辺から開き、ヒットは頭の 8 件だけ順に降ろす。
+ * 一度きりの動きは class の付け替えではなく **key** で鳴らす ―― React が同じ DOM を
+ * 使い回すあいだ、CSS の animation は二度と鳴らないから。
  */
 
 import type { CSSProperties } from 'react';
@@ -120,7 +126,7 @@ export function ShellTopbar({
     >
       <button
         type="button"
-        className="mobile-app-launcher"
+        className="mobile-app-launcher mo-tap"
         onClick={onOpenAppSwitcher}
         aria-label="Compassアプリ一覧を開く"
         aria-haspopup="dialog"
@@ -146,8 +152,12 @@ export function ShellTopbar({
             strokeLinecap="round"
           ></line>
         </svg>
-        {/* いま何をさがしているかを、入力する前に言っておく */}
-        <span className="app-search-scope">{noteScope ? 'ノート内' : 'タスク'}</span>
+        {/* いま何をさがしているかを、入力する前に言っておく。
+            画面を移るとさがす相手そのものが変わるので、チップは黙って差し替えず
+            key で入れ替わりを鳴らす（同じ場所で字だけ変わると、まず気づかれない） */}
+        <span key={noteScope ? 'note' : 'task'} className="app-search-scope mo-swap">
+          {noteScope ? 'ノート内' : 'タスク'}
+        </span>
         <input
           id="app-search-input"
           className="app-search-input"
@@ -169,7 +179,7 @@ export function ShellTopbar({
         />
         {S.query.trim().length > 0 ? (
           <button
-            className="app-search-clear"
+            className="app-search-clear mo-tap"
             onClick={() => store.setState({ query: '', searchOpen: true })}
             aria-label="検索語を消去"
           >
@@ -178,7 +188,9 @@ export function ShellTopbar({
         ) : null}
         <span className="app-search-shortcut">⌘K</span>
         {S.searchOpen ? (
-          <div className="app-search-popover">
+          // `mo-pop` は入力欄の下辺を起点に開く（motion.css）。どこから出てきた面なのかが
+          // 分かると、閉じるために目を戻す先も分かる
+          <div className="app-search-popover mo-pop">
             <div className="app-search-popover__head">
               <span className="app-search-popover__title">
                 {noteScope ? 'ノート内検索' : '検索'}
@@ -189,7 +201,7 @@ export function ShellTopbar({
                   : '入力と同時に絞り込みます'}
               </span>
               <button
-                className="app-search-clear"
+                className="app-search-clear mo-tap"
                 onClick={() => store.setState({ searchOpen: false, query: '' })}
                 aria-label="検索を閉じる"
                 style={{ marginLeft: 'auto' }}
@@ -218,10 +230,14 @@ export function ShellTopbar({
                       key={i}
                       type="button"
                       className={
-                        'app-search-hit app-search-hit--' +
+                        'app-search-hit mo-in app-search-hit--' +
                         h.kind +
                         (h.color ? ' nb-key--' + h.color : '')
                       }
+                      // 頭の 8 件だけ順に降ろす（--i の頭打ちは motion.css の決まり 2）。
+                      // key が添字なので、打ち込むたびに鳴り直すことはない
+                      // ―― 動くのは「面が開いた」ときと「候補が増えた」ときだけ
+                      style={cssVars({ '--i': Math.min(i, 7) })}
                       onClick={() => openHit(h)}
                       // 細かい在りか（「本文 · 基本 3 型」など）はここに置く。
                       // 1 行に出すと、どの冊子かが省略記号に飲まれてしまう
@@ -249,16 +265,18 @@ export function ShellTopbar({
               <>
                 <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>教科で絞り込み</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {subjChips.map((s) => (
+                  {subjChips.map((s, i) => (
                     <span
                       key={s.name}
+                      className="mo-in mo-lift mo-press"
                       onClick={() =>
                         store.setState({
                           query: canonicalSubject(store.getState().query) === s.name ? '' : s.name,
                           searchOpen: true,
                         })
                       }
-                      style={{
+                      style={cssVars({
+                        '--i': Math.min(i, 7),
                         font: "700 10.5px var(--f-ui)",
                         color: s.c,
                         background: s.bg,
@@ -266,7 +284,7 @@ export function ShellTopbar({
                         borderRadius: 'var(--rad-s)',
                         padding: '4px 10px',
                         cursor: 'pointer',
-                      }}
+                      })}
                     >
                       {s.name}
                     </span>
@@ -301,14 +319,16 @@ export function ShellTopbar({
                   {searchResults.map((r, i) => (
                     <div
                       key={i}
-                      style={{
+                      className="mo-in"
+                      style={cssVars({
+                        '--i': Math.min(i, 7),
                         display: 'flex',
                         alignItems: 'center',
                         gap: '9px',
                         padding: '9px 10px',
                         background: 'var(--bg2)',
                         borderRadius: 'var(--rad-s)',
-                      }}
+                      })}
                     >
                       <span
                         style={{
@@ -335,6 +355,7 @@ export function ShellTopbar({
                       </div>
                       {r.canAdd ? (
                         <button
+                          className="mo-press"
                           onClick={() => {
                             if (r.kind === 'seg') {
                               mutSeg(store, r.id, (x) => ((x.day = T), x));
@@ -385,17 +406,25 @@ export function ShellTopbar({
           </div>
         ) : null}
       </div>
-      <div className="app-view-title">
-        <div className="app-view-title__name">{title[0]}</div>
-        <div className="app-view-title__sub">{title[1]}</div>
+      {/* 画面を移っても、ここは黙って字だけ差し替わる ―― それでは「移った」ことが
+          言えていないので、key で丸ごと書き直させる。左端の差し色の縦罫（::before）も
+          一緒に引き直されるので、紙が差し替わったことがトップバーの左端に出る。
+          小見出しは半拍（--i:1 = 24ms）だけ遅らせて、見出し → 説明の順に読ませる */}
+      <div className="app-view-title mo-title" key={title[0]}>
+        <div className="app-view-title__name mo-swap">{title[0]}</div>
+        <div className="app-view-title__sub mo-swap" style={cssVars({ '--i': 1 })}>
+          {title[1]}
+        </div>
       </div>
       <div
         className="app-top-actions"
         style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}
       >
         {overdueCount > 0 ? (
+          // 遅れが出た / 片づいた は、出たり消えたりすること自体が知らせ。
+          // 何も無いところに黙って現れないよう、出るときだけ下から起こす
           <button
-            className="app-alert-pill"
+            className="app-alert-pill mo-in mo-press"
             onClick={() =>
               store.setState({
                 view: 'tests',
@@ -412,7 +441,12 @@ export function ShellTopbar({
         <div className="app-day-meter" role="group" aria-label="今日の進捗">
           <span className="app-day-meter__date">{todayHeader}</span>
           <span className="app-day-meter__count">
-            {totals.doneCount}
+            {/* 今日の消化数。1 つ終えるたびにここが増えるのに、字が入れ替わるだけでは
+                気づかれない。key を数そのものにして、変わった回だけ短く弾ませる
+                （分母は自分の手柄ではないので動かさない） */}
+            <span key={totals.doneCount} className="mo-tick">
+              {totals.doneCount}
+            </span>
             <i>/</i>
             {totals.totalCount}
           </span>

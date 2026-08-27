@@ -1,8 +1,268 @@
 /* ============================================================================
    Compass — アプリ全体の動き（画面遷移・一覧・押し心地）
-   docs/notebook/ux-refresh.md §10
+   docs/notebook/ux-refresh.md §1「動きの約束」/ §3 の #10
 
    globals.css を分割せずに増やし続けると 2000 行を超えて誰も読めなくなるので、
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
+
+   ここは **全担当が共通で使う「動きの語彙」**。新しく @keyframes を書き足す前に、
+   まずこの一覧に要るものが無いか見ること。名前はすべて `mo` / `.mo-` 始まりで、
+   globals.css の slideIn / popIn / fadeIn / fadeUp / toastIn とは衝突しない。
+
+   動かす目的は 1 つだけ ―― **何が起きたかを言う**。
+   「開いた / 閉じた」「消えた / 戻った」「押した」「変わった」を伝えないなら入れない。
+   学習アプリなので、視界の端でずっと動いているものは作らない（集中を削る）。
+
+   ── 速さとイージング（:root の CSS 変数）─────────────────────────────
+   | 変数 | 値 | いつ使うか |
+   |---|---|---|
+   | `--mo-press`   | .09s | 押した瞬間の沈み込み |
+   | `--mo-fast`    | .16s | 色・地の移り変わり（ホバー、しるしの点灯） |
+   | `--mo-base`    | .22s | 現れる / 消える |
+   | `--mo-slow`    | .28s | 開く / 閉じる・畳む |
+   | `--mo-ease`    | cubic-bezier(.22,1,.36,1) | 既定（減速）。**出てくるもの**はこれ |
+   | `--mo-ease-io` | cubic-bezier(.4,0,.2,1)   | 畳む・引っ込める（出足を殺す） |
+   | `--mo-step`    | 24ms | 一覧を 1 行ずつずらす間隔 |
+
+   ── クラス ────────────────────────────────────────────────────────────
+   | クラス | 何を伝えるか |
+   |---|---|
+   | `.mo-view`      | 画面が入れ替わった（紙が差し替わる） |
+   | `.mo-in`        | 現れた（下から）。`--i` を渡すと一覧の順番待ちになる |
+   | `.mo-in-l`      | 現れた（左から）。サイドバー・入れ子の行 |
+   | `.mo-fade`      | 現れた（透明度だけ）。**すでに transform を使っている要素**はこちら |
+   | `.mo-pop`       | 面が開いた（メニュー・ポップオーバー）。origin は使う側で決める |
+   | `.mo-out`       | 消えた（縮んで薄く）。DOM から外す前に `--mo-fast` だけ付ける |
+   | `.mo-collapse` + `.is-out` | 行が畳まれて詰まった（高さは `1fr→0fr`） |
+   | `.mo-stagger`   | 直下の子 8 つに `--i` を自動で配る（子に class を足せないとき） |
+   | `.mo-lift`      | 触れている（1px 立ち上がる） |
+   | `.mo-press`     | 押した（面。scale .985） |
+   | `.mo-tap`       | 押した（アイコンなど小さいもの。scale .9） |
+   | `.mo-swap`      | 中身が別のものに入れ替わった |
+   | `.mo-tick`      | 数字が変わった |
+   | `.mo-done`      | 終わった・入った（小さな手応え） |
+   | `.mo-nudge`     | 受け付けなかった（短く首を振る） |
+   | `.mo-mark`      | しるし（box-shadow の縦罫）が点る。既存のしるしに足すだけで効く |
+   | `.mo-rail` + `.is-on` | しるしの縦罫が伸びる。`::after` が空いている要素専用 |
+
+   ── 使うときの決まり ──────────────────────────────────────────────────
+   1. **一度きりの `animation` は key を変えて再生させる**。React は同じ DOM を使い回すので、
+      class を付け替えても animation は鳴らない。`<span key={n} className="mo-tick">{n}</span>`。
+   2. **`--i` は 7 で頭打ちにして渡す**（`Math.min(i, 7)`）。20 行あるところで素直に配ると
+      最後の行が 0.5 秒遅れて「重い」に化ける。人が順番として読めるのは頭の数行だけ。
+   3. **transform を既に持っている要素に `.mo-in` を足さない**（animation の transform が
+      その位置指定を上書きして飛ぶ）。`.mo-fade` を使うか、包む div を 1 枚足す。
+   4. 高さは `grid-template-rows: 0fr → 1fr`。`height:auto` は補間できない。
    ============================================================================ */
+
+:root{
+  --mo-press:.09s;
+  --mo-fast:.16s;
+  --mo-base:.22s;
+  --mo-slow:.28s;
+  --mo-ease:cubic-bezier(.22,1,.36,1);
+  --mo-ease-io:cubic-bezier(.4,0,.2,1);
+  --mo-step:24ms;
+}
+
+/* ── keyframes ────────────────────────────────────────────────────────────
+   移動量はどれも 6–12px。これ以上動かすと「飛んできた」に見えて、
+   紙面の落ち着き（校内プリント）から浮く。 */
+@keyframes moView{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes moIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes moInL{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes moFade{from{opacity:0}to{opacity:1}}
+@keyframes moPop{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes moOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(3px) scale(.96)}}
+@keyframes moSwap{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* 数字は「増えた」を一瞬だけ大きくして言う。1.16 倍・.22s は、隣の字を押しのけずに
+   目の端でも気づける下限（inline-block なので行の高さは動かない） */
+@keyframes moTick{0%{transform:scale(1)}38%{transform:scale(1.16)}100%{transform:scale(1)}}
+/* 「入った / 終わった」。いったん縮んでから戻すと、押した手応えの続きとして読める */
+@keyframes moDone{0%{transform:scale(.94)}52%{transform:scale(1.06)}100%{transform:scale(1)}}
+/* 受け付けなかったとき。2 往復で止める ―― これ以上続けると叱られている感じになる */
+@keyframes moNudge{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+
+/* ── 現れる / 消える ────────────────────────────────────────────────── */
+
+/* 画面まるごと。既存の各画面は inline で `fadeUp .22s ease` を持っているので、
+   それを外してこの class に替えると、曲線が他の動き（--mo-ease）と揃う */
+.mo-view{animation:moView var(--mo-base) var(--mo-ease) both}
+
+/* `--i` を渡さなければただの出現、渡せば一覧の順番待ち。1 つの class で両方賄う。
+   `both` は遅延中の姿（opacity:0）を保つため ―― 無いと待っている間だけ見えてしまう */
+.mo-in,.mo-stagger>*{
+  animation:moIn var(--mo-base) var(--mo-ease) both;
+  animation-delay:calc(var(--i,0) * var(--mo-step));
+}
+.mo-in-l{
+  animation:moInL var(--mo-base) var(--mo-ease) both;
+  animation-delay:calc(var(--i,0) * var(--mo-step));
+}
+.mo-fade{animation:moFade var(--mo-base) ease both}
+.mo-pop{animation:moPop var(--mo-base) var(--mo-ease) both}
+/* 入れ替わりも `--i` を見る（見出しと小見出しのように、2 行を半拍ずらしたいとき） */
+.mo-swap{animation:moSwap var(--mo-fast) var(--mo-ease) both;animation-delay:calc(var(--i,0) * var(--mo-step))}
+/* 消えるほうは戻ってこないので forwards。使う側は「この時間だけ待ってから state を消す」
+   （待たずに消すと DOM ごと消えて、動きは 1 フレームも見えない） */
+.mo-out{animation:moOut var(--mo-fast) var(--mo-ease-io) forwards;pointer-events:none}
+
+/* 子に class を足せない一覧（親だけ触れるとき）用。9 行目から先は頭打ちの 7 で揃える */
+.mo-stagger>*{--i:7}
+.mo-stagger>*:nth-child(1){--i:0}
+.mo-stagger>*:nth-child(2){--i:1}
+.mo-stagger>*:nth-child(3){--i:2}
+.mo-stagger>*:nth-child(4){--i:3}
+.mo-stagger>*:nth-child(5){--i:4}
+.mo-stagger>*:nth-child(6){--i:5}
+.mo-stagger>*:nth-child(7){--i:6}
+.mo-stagger>*:nth-child(8){--i:7}
+
+/* 行が消えて、空いた高さが詰まる。`.mo-out` だけだと薄くなった跡の高さが残り、
+   数百 ms 遅れて「カクッ」と詰まる。詰まりまで見せたいときはこれで包む。
+   高さの補間は 0fr↔1fr（§1 の約束。height:auto は補間できない） */
+.mo-collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--mo-slow) var(--mo-ease-io)}
+.mo-collapse>*{overflow:hidden;min-height:0}
+.mo-collapse.is-out{grid-template-rows:0fr}
+
+/* ── 触る / 押す ──────────────────────────────────────────────────────
+   `.mo-lift` より **後** に押し込みを書く。両方付いている要素を押している間は
+   :hover も :active も当たっていて、詳細度が同じなら後に書いたほうが勝つから。 */
+.mo-lift{transition:transform var(--mo-fast) var(--mo-ease),background var(--mo-fast) ease,border-color var(--mo-fast) ease}
+.mo-lift:hover{transform:translateY(-1px)}
+
+/* 面（行・カード・幅のあるボタン）。1.5% は「押した」と分かる下限で、
+   これ以上縮めると中の字が跳ねて読めなくなる */
+.mo-press{transition:transform var(--mo-press) var(--mo-ease)}
+.mo-press:active{transform:scale(.985)}
+/* 20px 角のアイコンボタン。面と同じ 1.5% では気づけないので、こちらは 10% 縮める */
+.mo-tap{transition:transform var(--mo-press) var(--mo-ease)}
+.mo-tap:active{transform:scale(.9)}
+
+/* ── 変わった手応え ────────────────────────────────────────────────── */
+
+/* transform は inline 要素に効かないので inline-block にする。数字を包む <span> は
+   たいてい素の inline なので、これが無いと何も起きない（baseline は変わらない） */
+.mo-tick{display:inline-block;animation:moTick var(--mo-base) var(--mo-ease)}
+.mo-done{display:inline-block;animation:moDone var(--mo-slow) var(--mo-ease)}
+.mo-nudge{animation:moNudge var(--mo-base) ease}
+
+/* 「いま選んでいる」しるし。既存のしるしが box-shadow の縦罫（`inset 2px 0 0 var(--view)`）
+   なら `.mo-mark` を足すだけで、点滅ではなく点り方になる */
+.mo-mark{transition:box-shadow var(--mo-base) var(--mo-ease),background var(--mo-fast) ease}
+/* 縦罫そのものを伸ばしたいとき。`::after` を他で使っていない要素にだけ使う */
+.mo-rail{position:relative}
+.mo-rail::after{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:currentColor;transform:scaleY(0);
+  transition:transform var(--mo-base) var(--mo-ease);
+  pointer-events:none;
+}
+.mo-rail.is-on::after{transform:scaleY(1)}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ここから下は、この語彙を殻（ナビ・トップバー・トースト）へ実際に効かせるぶん。
+   画面ごとの部品は各担当のファイルで、上の語彙を使って書く。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 左ナビ ────────────────────────────────────────────────────────────
+   `transition` は一括指定なので、`.mo-press` を後から足すと **元の transition ごと
+   置き換わる**（追記はできない）。すでに transition を持っている要素には、
+   ここで元のぶんも書き直して並べる。 */
+.compass-brand{transition:background var(--mo-fast) ease,transform var(--mo-press) var(--mo-ease)}
+.theme-switch>button{
+  transition:background var(--mo-fast) ease,color var(--mo-fast) ease,transform var(--mo-press) var(--mo-ease);
+}
+
+/* globals.css の .13s は色だけの移り。しるし（box-shadow）と地も一緒に動かす */
+.app-nav-item{
+  transition:
+    background var(--mo-fast) ease,
+    color var(--mo-fast) ease,
+    box-shadow var(--mo-base) var(--mo-ease);
+}
+/* アイコンは触れると濃くなるだけでなく、行の進む向きへ 1px だけ寄る。
+   「この行は押せる」を、地の色が変わらないテーマでも言えるようにするため */
+.app-nav-item::before{transition:opacity var(--mo-fast) ease,transform var(--mo-fast) var(--mo-ease)}
+.app-nav-item:hover::before{transform:translateX(1px)}
+
+@media(min-width:821px){
+  /* 選んでいる画面のしるし（左端 4px）。globals.css は box-shadow で一瞬で点けるので、
+     同じ寸法・同じ色の罫を ::after に描き直して伸び縮みさせる。
+     **止まったときの姿は globals と同じ** ―― 見た目は変えず、点き方だけを足す。
+     モバイル（≤820px）では同じしるしが行の「上辺」に出る別物なので差し替えない。
+     ドラッグ中の落とし先（.is-dragover）だけは box-shadow で描かれているので残す。 */
+  .app-nav-item.is-active:not(.is-dragover){box-shadow:none!important}
+  .app-nav-item::after{
+    content:"";display:block;position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--nav-hue);opacity:0;transform:scaleY(0);
+    transition:transform var(--mo-base) var(--mo-ease),opacity var(--mo-fast) ease;
+    pointer-events:none;
+  }
+  /* 触れている間は、しるしが「ここへ来る」ことを半分だけ見せる。
+     押す前に行き先が分かるので、画面を間違えて開く回数が減る */
+  .app-nav-item:hover::after{opacity:.35;transform:scaleY(.45)}
+  /* globals.css の `.is-active::after{display:none}` を名指しで戻す（読み込みは motion.css が後） */
+  .app-nav-item.is-active::after{display:block;opacity:1;transform:scaleY(1)}
+
+  /* 押した瞬間だけ沈む。globals.css が `:hover{transform:none!important}` で transform を
+     止めているので、ここは !important で名指しし返すしかない */
+  .app-nav-item:active{transform:scale(.985)!important}
+}
+@media(max-width:820px){
+  /* 下部バーは指で押すところ。面が小さく hover も無いので、沈み込みは深めに取る。
+     [data-nav="add"] だけは globals.css が独自の scale(.93) を持っているので触らない */
+  .app-nav-item:not([data-nav="add"]):active{transform:scale(.94)!important}
+}
+
+/* ── トップバー ──────────────────────────────────────────────────────── */
+
+/* 検索の面は入力欄の下辺からぶら下がる。だから上辺を起点に開く
+   （globals.css の `fadeUp .14s` は真下から湧いて、どこから開いたか言っていない） */
+.app-search-popover.mo-pop{transform-origin:top center;animation:moPop var(--mo-base) var(--mo-ease) both}
+/* 1 件ずつ順に降りてくる。ヒットが「並んだ」ことが分かると、数を読む前に多い / 少ないが伝わる。
+   ここも元の transition（地・罫）を書き直したうえで transform を足している */
+.app-search-hit{transition:background var(--mo-fast) ease,border-color var(--mo-fast) ease,transform var(--mo-press) var(--mo-ease)}
+.app-search-hit:active{transform:scale(.99)}
+.app-alert-pill{transition:filter var(--mo-fast) ease,transform var(--mo-press) var(--mo-ease)}
+/* 見出しの版（画面名）は画面ごとに差し替わる。差し色の縦罫も一緒に引き直して、
+   「別の紙に変わった」をトップバーの左端でも言う */
+.app-view-title.mo-title::before{animation:moRail var(--mo-slow) var(--mo-ease) both;transform-origin:top}
+@keyframes moRail{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+/* ── トースト ────────────────────────────────────────────────────────── */
+
+/* 位置決めは外側の枠が持ち、動くのは中の紙だけ。こうしないと `translateX(-50%)`（中央寄せ）と
+   animation の transform が取り合いになって、出るたびに左へ跳ねる。
+   ついでに枠は指を通す ―― 画面下中央に 2.4 秒、押せない板が居座るのは事故のもと */
+.mo-toast{position:fixed;left:50%;bottom:26px;z-index:130;transform:translateX(-50%);pointer-events:none}
+.mo-toast__card{animation:moToastIn var(--mo-base) var(--mo-ease) both}
+.mo-toast__card.is-out{animation:moToastOut var(--mo-fast) var(--mo-ease-io) forwards}
+@keyframes moToastIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes moToastOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(6px) scale(.98)}}
+
+/* ── 動きを止めたい人 ──────────────────────────────────────────────────
+   §1 の約束。globals.css は `.compass-shell *` の transition を潰しているが、
+   (1) animation は残る (2) トースト・ツールチップは .compass-shell の外にある
+   ので、ここで語彙ぜんぶを名指しで止める。**遅延も消す** ―― 動かないのに
+   出るのが遅いだけ、が一番たちが悪い。 */
+@media(prefers-reduced-motion:reduce){
+  .mo-view,.mo-in,.mo-in-l,.mo-fade,.mo-pop,.mo-swap,.mo-stagger>*,
+  .mo-tick,.mo-done,.mo-nudge,
+  .mo-toast__card,.mo-toast__card.is-out,
+  .app-search-popover.mo-pop,.app-view-title.mo-title::before{
+    animation:none!important;
+  }
+  .mo-lift,.mo-press,.mo-tap,.mo-mark,.mo-rail::after,.mo-collapse,
+  .app-nav-item,.app-nav-item::before,.app-nav-item::after,
+  .compass-brand,.theme-switch>button,.app-search-hit,.app-alert-pill{
+    transition:none!important;
+  }
+  .mo-lift:hover,.mo-press:active,.mo-tap:active,.app-nav-item:active,.app-search-hit:active,
+  .app-nav-item:hover::before{transform:none!important}
+  /* しるし（選択中の縦罫）・畳んだ高さは、transition を切っただけで
+     「途中経過なしに、その姿になる」に変わる。行き先の指定はそのまま残す。
+     消えるものだけは animation を切ると消えなくなるので、結果だけ先に当てる */
+  .mo-out{animation:none!important;opacity:0}
+}

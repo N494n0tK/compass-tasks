@@ -10,8 +10,16 @@
  * モバイルの下部バー化・FAB は CSS だけで起きる（globals.css の ≤820px ブロック）。
  * `.nav-dot` は `display:none!important` だが **span 自体は出力する**（`.app-nav-item span` の
  * 子数ルールに関係する, css-notes §2.3）。
+ *
+ * ── 動き（ux-refresh.md §10 / `app/motion.css` の語彙）────────────────
+ * 選んでいる画面のしるし（左端 4px の縦罫）は motion.css 側で伸び縮みするようにした。
+ * ここ（TSX）で足したのは、CSS だけでは鳴らせない 3 つ:
+ *   1. 遅れの数が変わった（`.mo-tick` を key で再生）
+ *   2. カウントダウンの行が消えた（`.mo-out` を見せてから state を落とす）
+ *   3. 追加を受け付けなかった（欠けている欄が首を振る）
  */
 
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { daysUntil, fmtMD, type DateContext } from '../../lib/logic/dates';
 import type { AppState, Countdown, ViewId } from '../../lib/model/types';
@@ -33,6 +41,21 @@ export const TOAST_COUNTDOWN_INVALID = '名前と日付を入力してくださ�
 export const TOAST_COUNTDOWN_ADDED = 'カウントダウンを追加しました';
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
+
+/**
+ * 行が消えていくのを見せる時間（ms）。`motion.css` の `--mo-fast`(.16s) と同じ長さ。
+ * これを過ぎてから state を落とす ―― 先に落とすと DOM ごと消えて 1 フレームも見えない。
+ */
+const ROW_OUT_MS = 160;
+
+/**
+ * 動きを止めている人か。止めている人に「消えるのを見せるための待ち時間」だけ課すと、
+ * 何も起きないまま操作が 0.16 秒遅れるだけになるので、待たずに落とす。
+ */
+const reduceMotion = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export interface ShellNavProps {
   state: AppState;
@@ -81,10 +104,48 @@ export function ShellNav({
     })
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 
+  /**
+   * 消えていく途中の行（`.mo-out` を当てているあいだだけ id が入る）。
+   * トーストと違って行は自分の場所を持っているので、黙って抜けると
+   * 「何が消えたのか」も「そもそも消えたのか」も分からない。
+   */
+  const [dying, setDying] = useState<string | null>(null);
+  const dieTimer = useRef<number | null>(null);
+  /** 消し終える前に画面を離れることがある（ナビは常駐だが、モバイル↔デスクトップの切替や HMR で外れる） */
+  useEffect(
+    () => () => {
+      if (dieTimer.current !== null) clearTimeout(dieTimer.current);
+    },
+    []
+  );
+
+  const removeCountdown = (id: string) => {
+    const drop = () =>
+      store.setState((s) => ({ countdowns: (s.countdowns || []).filter((x) => x.id !== id) }));
+    if (reduceMotion()) {
+      drop();
+      return;
+    }
+    setDying(id);
+    dieTimer.current = window.setTimeout(() => {
+      dieTimer.current = null;
+      setDying(null);
+      drop();
+    }, ROW_OUT_MS);
+  };
+
+  /** 追加を受け付けなかったとき、欠けている欄そのものが首を振る（`.mo-nudge`） */
+  const [nudge, setNudge] = useState<'title' | 'date' | null>(null);
+
   const addCountdown = () => {
     const title = (store.getState().countdownTitle || '').trim();
     const date = store.getState().countdownDate || T;
     if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // 文言（トースト）は「名前と日付」としか言えないので、どちらが欠けているかは
+      // 欄の動きで指す。class を外してから足し直さないと animation は二度と鳴らないので、
+      // 鳴り終わりに null へ戻す（下の onAnimationEnd）。
+      // 動きを止めている人には鳴り終わりが来ない ―― class を付けっぱなしにしないため触らない
+      if (!reduceMotion()) setNudge(!title ? 'title' : 'date');
       store.showToast(TOAST_COUNTDOWN_INVALID);
       return;
     }
@@ -132,7 +193,7 @@ export function ShellNav({
       ></div>
       <button
         type="button"
-        className="compass-brand"
+        className="compass-brand mo-press"
         onClick={onOpenAppSwitcher}
         aria-label="Compassアプリ一覧を開く"
         aria-haspopup="dialog"
@@ -221,7 +282,13 @@ export function ShellNav({
             >
               {v.label}
             </span>
-            {badge ? <span className="app-nav-item__badge">{badge}</span> : null}
+            {/* 遅れの数は放っておくと増える。増えた回だけ短く弾ませて気づかせる
+                （key を数の入った文字列そのものにして再生させる） */}
+            {badge ? (
+              <span key={badge} className="app-nav-item__badge mo-tick">
+                {badge}
+              </span>
+            ) : null}
             <span className="app-nav-item__key" aria-hidden="true">
               {String(vi + 1)}
             </span>
@@ -263,10 +330,14 @@ export function ShellNav({
               overflow: 'auto',
             }}
           >
-            {countdownRows.map((c) => (
+            {countdownRows.map((c, i) => (
               <div
                 key={c.id}
-                style={{
+                // 足したときは下から起き上がり（新しい行だけが鳴る）、消すときは縮んで薄くなる。
+                // 頭の 8 行までしかずらさない（motion.css の決まり 2）
+                className={'mo-in mo-lift' + (dying === c.id ? ' mo-out' : '')}
+                style={cssVars({
+                  '--i': Math.min(i, 7),
                   display: 'grid',
                   gridTemplateColumns: 'minmax(0,1fr) auto 20px',
                   gap: '6px',
@@ -275,7 +346,7 @@ export function ShellNav({
                   background: 'var(--bg2)',
                   border: '1px solid var(--line)',
                   borderRadius: 'var(--rad-s)',
-                }}
+                })}
               >
                 <div style={{ minWidth: 0 }}>
                   <div
@@ -297,12 +368,9 @@ export function ShellNav({
                   {c.days}
                 </div>
                 <button
-                  className="hv-pink-text"
-                  onClick={() =>
-                    store.setState((s) => ({
-                      countdowns: (s.countdowns || []).filter((x) => x.id !== c.id),
-                    }))
-                  }
+                  className="hv-pink-text mo-tap"
+                  aria-label={c.title + ' を消す'}
+                  onClick={() => removeCountdown(c.id)}
                   style={{
                     width: '20px',
                     height: '20px',
@@ -320,7 +388,8 @@ export function ShellNav({
             ))}
           </div>
           <input
-            className="fc-acc"
+            className={'fc-acc' + (nudge === 'title' ? ' mo-nudge' : '')}
+            onAnimationEnd={() => setNudge(null)}
             value={S.countdownTitle}
             onChange={(e) => store.setState({ countdownTitle: e.target.value })}
             onKeyDown={(e) => {
@@ -340,7 +409,8 @@ export function ShellNav({
           />
           <div style={{ display: 'flex', gap: '6px' }}>
             <input
-              className="fc-acc"
+              className={'fc-acc' + (nudge === 'date' ? ' mo-nudge' : '')}
+              onAnimationEnd={() => setNudge(null)}
               type="date"
               value={S.countdownDate}
               onChange={(e) => store.setState({ countdownDate: e.target.value })}
@@ -362,6 +432,7 @@ export function ShellNav({
               }}
             />
             <button
+              className="mo-tap"
               onClick={addCountdown}
               style={{
                 width: '34px',
@@ -383,7 +454,7 @@ export function ShellNav({
         <div className="theme-switch" role="group" aria-label="テーマ">
           <button
             type="button"
-            className={note ? 'is-on' : ''}
+            className={'mo-press ' + (note ? 'is-on' : '')}
             aria-pressed={note}
             onClick={() => setTheme('note')}
           >
@@ -391,7 +462,7 @@ export function ShellNav({
           </button>
           <button
             type="button"
-            className={!light && !note ? 'is-on' : ''}
+            className={'mo-press ' + (!light && !note ? 'is-on' : '')}
             aria-pressed={!light && !note}
             onClick={() => setTheme('dark')}
           >
@@ -399,7 +470,7 @@ export function ShellNav({
           </button>
           <button
             type="button"
-            className={light ? 'is-on' : ''}
+            className={'mo-press ' + (light ? 'is-on' : '')}
             aria-pressed={light}
             onClick={() => setTheme('light')}
           >
@@ -420,7 +491,10 @@ export function ShellNav({
             <kbd>F</kbd> 集中
           </span>
         </div>
-        <div className="nav-cloud">
+        {/* 「保存中 → 保存済み」は、書いたものが無事だったかを言う唯一の場所。
+            key で書き直させて、変わったことに気づけるようにする（数秒に 1 度の変化なので
+            ちらつきにはならない。1 秒に何度も変わるようになったら外すこと） */}
+        <div className="nav-cloud mo-swap" key={S.cloudStatus}>
           {(CLOUD_STATUS_MAP[S.cloudStatus] || '保存待ち') + ' · ' + (S.cloudUser || 'gmail.com')}
         </div>
         <div className="nav-version">Compass v0.8</div>

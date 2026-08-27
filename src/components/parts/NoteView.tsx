@@ -37,6 +37,7 @@ import { fmtD, fmtMD, longDayLabel } from '../../lib/logic/dates';
 import { parseNoteBody } from '../../lib/logic/noteBody';
 import { noteSeriesId } from '../../lib/logic/noteCards';
 import { assignCues, sectionSearchText } from '../../lib/logic/noteKeywords';
+import { noteCascadeCounts } from '../../lib/logic/noteTrash';
 import { timetableSubjects } from '../../lib/logic/timetable';
 import { canAddToToday, isAddedToToday, sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
@@ -57,8 +58,10 @@ import {
   lastAttemptOf,
 } from '../../lib/model/notes';
 import type { Review, ReviewGrade } from '../../lib/model/types';
+import { NoteAiComment } from './NoteAiComment';
 import { NoteMath, NoteMathInline, type NoteMarkOptions } from './NoteMath';
 import { NoteScanStrip } from './NoteScanStrip';
+import { NoteSummaryEditor } from './NoteSummaryEditor';
 import { deleteNoteScans } from './NoteScanStore';
 import { commitNote, recordNoteAttempt, removeNote } from './NotebookPersistence';
 import { completeReview } from './ReviewShared';
@@ -268,14 +271,26 @@ export function NoteView({ note }: NoteViewProps) {
     });
   };
 
+  /**
+   * 削除。**その場では消さない**（docs/notebook/ux-refresh.md §6）。
+   *
+   * `window.confirm` をやめたのは紙面から浮くからだけではない。あれは
+   * 「はい / いいえ」しか置けないので、**復習をどうするか**を聞けなかった。
+   * ここでは問いを `nbAsk` に立て、実際の破壊は確認ダイアログに任せる
+   * ―― 写真（IndexedDB）を落とすのも 30 日後の完全削除のときで、
+   * ゴミ箱にいるあいだは戻せる状態を保つ。
+   */
   const del = () => {
-    if (!window.confirm('このノートと、未完了の復習カードを削除しますか？')) return;
-    // 写真の実体（IndexedDB）も落とす。メタデータだけ消しても容量が返らない
-    void deleteNoteScans(note.id, note.scans);
-    const removed = removeNote(store, note.id);
-    store.showToast(
-      '「' + note.unit + '」を削除しました' + (removed ? '(復習カード' + removed + '件も削除)' : ''),
-    );
+    const counts = noteCascadeCounts(S, note.id);
+    store.setState({
+      nbAsk: {
+        kind: 'trash',
+        noteId: note.id,
+        unit: note.unit,
+        reviewCount: counts.reviews,
+        summaryCount: counts.summaries,
+      },
+    });
   };
 
   const overwrite = () =>
@@ -1047,26 +1062,10 @@ export function NoteView({ note }: NoteViewProps) {
         {/* ── まとめ。**自分が書く欄**なので紙面のいちばん下に置き、手書き書体で組む。
                AI 由来ではないので「自分のノートだけ」レンズでも畳まない。
                「想起問題だけ」では畳む ―― まとめを読めば答えが割れてしまうため */}
-        {paper ? (
-          <section className="nb-summary">
-            <SectionHead badge="まとめ" hint="この授業 1 回を、自分の言葉で数行に" />
-            {edit ? (
-              <textarea
-                className="fc-acc"
-                value={note.summary}
-                onChange={(e) => patch((d) => void (d.summary = e.target.value))}
-                placeholder="この授業でいちばん大事だったことを 3 行以内で"
-                style={{ ...INPUT, minHeight: '92px', font: '400 15.5px var(--f-hand)' }}
-              />
-            ) : note.summary ? (
-              <NoteMath className="nb-mine nb-summary__body" src={note.summary} mark={markPlain} />
-            ) : (
-              <p className="nb-summary__empty">
-                自分の言葉で、3 行以内のまとめを書く場所です（「編集」から書けます）
-              </p>
-            )}
-          </section>
-        ) : null}
+        {/* 編集モードに入らなくても、その場をクリックすれば書ける
+            （docs/notebook/ux-refresh.md §9）。まとめタスクの完了は
+            `commitNote` の中の `syncNoteSummaryTask` がこれまでどおり面倒を見る */}
+        <NoteSummaryEditor note={note} today={T} mark={markPlain} edit={edit} show={paper} />
       </div>
     </article>
   );
@@ -1428,7 +1427,12 @@ function NoteSectionRow({
           <NoteBody text={section.text} mark={mark} />
         )}
 
-        {/* AI の添削。赤ペンで挟まれた別人の筆 ―― 書体（活字）と色（紫）で切る */}
+        {/* AI の添削。赤ペンで挟まれた別人の筆 ―― JavaScript の行コメント
+            （`// …`・等幅・地は灰）として重ねる（docs/notebook/ux-refresh.md §8）。
+            旧版は淡い紫の面を敷いていたが、面を持つぶん本文より紙面で強く、
+            主役（自分の手書き）と順位が逆さまだった。灰へ沈めて、色は
+            重要な行と語にだけ乗せる。編集モードは生のテキストのまま
+            ―― コメントの姿は**読む側にだけ**要る。 */}
         {edit ? (
           <div className="nb-aiedit">
             <span className="nb-aiedit__chip">AI</span>
@@ -1440,14 +1444,9 @@ function NoteSectionRow({
               style={{ ...INPUT, minHeight: '56px', flex: 1 }}
             />
           </div>
-        ) : section.ai ? (
-          <aside className="nb-aiedit">
-            <span className="nb-aiedit__chip" title="AI が足した添削・補足">
-              AI
-            </span>
-            <NoteMath className="nb-aiedit__body" src={section.ai} mark={mark} />
-          </aside>
-        ) : null}
+        ) : (
+          <NoteAiComment src={section.ai} mark={mark} />
+        )}
       </div>
     </>
   );

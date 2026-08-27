@@ -6,3 +6,71 @@
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
    ============================================================================ */
+
+/* ── 面。位置（left/top/transform-origin）は NoteContextMenu.tsx が実寸を測って入れる。
+
+   校内プリントの紙面は影を使わないが、ここは一覧の**上に浮いている**面なので、
+   ごく弱い影だけ認める ―― 罫だけだと、下の行の罫と混ざって「別の紙が乗っている」
+   ことが読み取れない。濃さはモーダル（.app-switcher-panel: 0 30px 90px rgba(0,0,0,.5)）
+   の 1/3 以下に抑え、あくまで 1〜2mm 浮いた紙片に見せる。
+
+   z-index はモーダル（110）より上。確認ダイアログを開くときは同時に nbMenu を畳むので
+   重なることは無く、逆に「一覧のどんな要素よりも必ず前に出る」ことを優先する。 */
+.nb-menu{
+  position:fixed;z-index:120;
+  width:168px;padding:3px;
+  display:flex;flex-direction:column;
+  background:var(--bg1);
+  border:1px solid var(--line2);
+  border-radius:var(--rad-s);
+  box-shadow:0 4px 12px rgba(0,0,0,.16);
+  animation:nbMenuIn .12s cubic-bezier(.22,1,.36,1);
+}
+/* 原点はカーソルの座標（tsx が transform-origin に入れる）。
+   拡大は .96 → 1 のごく浅い一手で、「カーソルから紙片が出た」だけを伝える */
+@keyframes nbMenuIn{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+
+/* ── 見出し。何を右クリックしたのかを 1 行で示す（行が密なので狙い外しに気づける） */
+.nb-menu__head{
+  padding:5px 8px 6px;margin-bottom:3px;
+  border-bottom:1px solid var(--line);
+  font:600 10px var(--f-ui);color:var(--tx3);letter-spacing:.04em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ── 項目 */
+.nb-menu__item{
+  display:flex;align-items:center;gap:8px;width:100%;
+  padding:6px 8px;
+  border:0;border-radius:var(--rad-s);
+  background:none;color:var(--tx1);
+  font:600 11.5px var(--f-ui);text-align:left;cursor:pointer;
+  transition:background .12s ease,color .12s ease;
+}
+/* ↑↓ で送るときはフォーカスが唯一の目印なので、hover と同じ強さで示す。
+   マウスの hover とキーボードのフォーカスを同じ見た目にして、
+   「いまどれが選ばれているか」が 1 種類の合図で読めるようにする */
+.nb-menu__item:hover,
+.nb-menu__item:focus{outline:none;background:var(--bg3);color:var(--tx0)}
+/* キーボードで来たときだけ、差し色の細い枠を足す */
+.nb-menu__item:focus-visible{box-shadow:inset 0 0 0 1px var(--view)}
+
+/* 印は幅を固定して、字の頭をそろえる（項目が増えても左端が動かない） */
+.nb-menu__mark{
+  flex:none;width:13px;text-align:center;
+  font:400 11px var(--f-num);color:var(--tx3);
+}
+.nb-menu__item:hover .nb-menu__mark,
+.nb-menu__item:focus .nb-menu__mark{color:inherit}
+
+/* ── 削除だけは危険色。§1-3 の「--pink は『いま』専用」の唯一の例外で、
+      取り消しの効く操作（ゴミ箱行き）とはいえ、押す前に色で一拍置かせたい */
+.nb-menu__item--danger{color:var(--pink)}
+.nb-menu__item--danger:hover,
+.nb-menu__item--danger:focus{background:var(--pinkBg);color:var(--pink)}
+.nb-menu__item--danger .nb-menu__mark{color:inherit}
+
+@media(prefers-reduced-motion:reduce){
+  .nb-menu{animation:none}
+  .nb-menu__item{transition:none}
+}

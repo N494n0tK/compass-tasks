@@ -28,6 +28,7 @@ import { fmtMD, isoShift } from '../../lib/logic/dates';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import { timetableSubjects } from '../../lib/logic/timetable';
 import type { Note } from '../../lib/model/notes';
+import { NoteContextMenu } from './NoteContextMenu';
 import { NotebookCalendar } from './NotebookCalendar';
 import { NotebookTree } from './NotebookTree';
 import { SECTION_LABEL, chipStyle } from './NotebookShared';
@@ -62,6 +63,17 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
   const select = (note: Note) =>
     store.setState({ view: 'notebook', nbSelNoteId: note.id, nbMode: 'note', nbEdit: false });
 
+  /**
+   * 行を右クリック → カーソルの脇にメニュー（`NoteContextMenu`）。
+   * 座標は**ビューポート基準**（`clientX/Y`）で渡す ―― サイドバーはスクロールするので、
+   * `pageX/Y` だと巻き上げたぶんだけメニューが下にずれる。
+   */
+  const openMenu = (e: React.MouseEvent, n: Note) => {
+    e.preventDefault(); // ブラウザ標準のメニューを止める
+    e.stopPropagation();
+    store.setState({ nbMenu: { noteId: n.id, x: e.clientX, y: e.clientY } });
+  };
+
   const prepSubjects = useMemo(() => timetableSubjects(), []);
   const prep = S.prepAutoGen;
 
@@ -88,7 +100,9 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
         ).map((m) => (
           <button
             key={m.id}
-            onClick={() => store.setState({ nbSide: m.id })}
+            // カレンダーから離れるときは日の絞り込みを畳む。フォルダ側にはそれを
+            // 外す手立てが無いので、残したままだと「見えない絞り込み」になる
+            onClick={() => store.setState({ nbSide: m.id, nbDay: m.id === 'cal' ? S.nbDay : null })}
             aria-pressed={side === m.id}
             style={{
               ...chipStyle(false, undefined, undefined, side === m.id),
@@ -101,9 +115,16 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
         ))}
       </div>
 
-      {side === 'tree' ? <NotebookTree notes={notes} onSelect={select} /> : null}
+      {side === 'tree' ? (
+        <NotebookTree notes={notes} onSelect={select} onContextMenu={openMenu} />
+      ) : null}
       {side === 'cal' ? (
-        <NotebookCalendar notes={notes} today={today} onSelect={select} />
+        <NotebookCalendar
+          notes={notes}
+          today={today}
+          onSelect={select}
+          onContextMenu={openMenu}
+        />
       ) : null}
 
       <div style={{ flex: 1, minHeight: '10px' }} />
@@ -231,6 +252,10 @@ export function NotebookSidebar({ notes, today }: NotebookSidebarProps) {
       >
         ＋ JSONを手で貼って取り込む
       </button>
+
+      {/* 右クリックのメニュー。自分で `ShellOverlay` に包んでシェルの外へ出るので、
+          `overflow:auto` のこの `<aside>` の中に置いても切られない */}
+      <NoteContextMenu />
     </aside>
   );
 }

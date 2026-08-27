@@ -6,3 +6,106 @@
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
    ============================================================================ */
+
+/* ── 添削のかたまり（`.nb-aic`）──────────────────────────────────────────
+   旧 `.nb-aiedit` の**面をやめた**。淡い紫地 + 左罫は、それだけで本文（地の墨・
+   面なし）より強い。主役は自分の手書きの再現（spec §3.8）なのに、紙面では
+   添削のほうが先に目に入っていた。面を落として一段弱い灰に沈めると順位が直り、
+   代わりに**色を乗せた行・語だけ**が重要点として立つ（本人の要望はここ）。
+
+   面が消えたぶん「誰が書いたか」は書体と `//` が持つ。globals.css の `.nb-aiedit`
+   は編集モードの textarea がまだ使っているので、こちらは別の名前で建てる。 */
+.nb-aic{
+  /* 等幅の書式。コードのコメントに見えるかどうかは書体の効きがいちばん大きい。
+     日本語には等幅の候補が実質無いので、前半で欧文の等幅を取り、
+     和文は本文と同じ BIZ UDPGothic に落とす（混植でも字面の高さが揃う）。
+     ここだけのトークンにして :root へ出さない ―― 「等幅 = AI のコメント」を
+     この画面の中だけの合図として保つため（--f-hand を外で使わないのと同じ理由）。 */
+  --f-code:ui-monospace,SFMono-Regular,Menlo,Consolas,"BIZ UDPGothic",monospace;
+  display:block;
+  /* 本文（`.nb-cornell__text`）の直後。左の字下げは付けない ―― コメントは
+     本文の続きとして同じ左端から始まるほうが、コードの見え方に近い */
+  margin:8px 0 2px;
+}
+
+/* 表札。書体そのものが「地の文ではない」と言っているので、旧版より小さくてよい。
+   ただし消しはしない ―― 読む前に著者が分かる、は紙面の約束（NoteView 冒頭）。
+   輪郭の小札という形は他の表札（`.nb-aiedit__chip` 等）と揃える */
+.nb-aic__chip{
+  display:inline-block;margin:0 0 2px;
+  font:700 9px var(--f-num);letter-spacing:.16em;text-indent:.16em;
+  color:var(--nb-ai-ink);
+  border:1px solid color-mix(in srgb,var(--nb-ai-ink) 42%,transparent);
+  border-radius:var(--rad-s);padding:0 5px;
+}
+
+/* ── コメント 1 行 ────────────────────────────────────────────────────
+   `//` と中身は flex で 2 段に分ける。折り返した続きが `//` の下に潜らず、
+   本文の左端に揃って畳まれる（コードの折り返しと同じ見え方）。
+   align-items は baseline ではなく flex-start ―― 中に $$…$$（.katex-display は
+   ブロック）が来ると baseline の基準が消えて `//` が行の底へ落ちる。
+   級数は本文より 2.5px 小さい。等幅の欧文は同じ級数だと和文より大きく見えるし、
+   添削は本文に**添えるもの**なので、一段小さいほうが順位が伝わる。 */
+.nb-aic__line{
+  display:flex;align-items:flex-start;gap:.5em;
+  margin:0;
+  font:400 calc(var(--nb-size) - 2.5px)/1.8 var(--f-code);
+  color:var(--tx2);
+  overflow-wrap:break-word;
+}
+/* `//` は本物の文字（TSX 側）。選べばコピーにも付いてくる。
+   地の字よりさらに一段弱くして、記号が中身を食わないようにする */
+.nb-aic__slash{flex:none;color:var(--tx3);user-select:text}
+.nb-aic__body{flex:1;min-width:0}
+/* 空行の `//`。中身が無いぶん高さが潰れないよう、行の高さだけ確保する */
+.nb-aic__line--gap{min-height:calc((var(--nb-size) - 2.5px) * 1.8)}
+
+/* ── 3 段の調子（`lib/logic/noteAiComment.ts` の tone）────────────────────
+   色は 1 つだけ。本文にはすでに重要語の 3 色（red/blue/green）が乗っているので、
+   AI の色を 2 つ足すと 1 画面 5 色になり、色が意味を運ばなくなる（`NOTE_KEY_COLORS`
+   を 5 色から 3 色へ減らしたときと同じ話）。段は**色相ではなく明るさ**で作る:
+
+     note … --tx2  地。ふつうの補足。--tx3 まで落とすと、2〜3 行を通して読むには薄すぎた
+     term … --tx1  用語・言い換え。灰のまま一段明るくするだけ
+     warn … --nb-ai-ink  誤りの訂正・注意・重要。**ここだけ色が乗る**
+
+   `--nb-ai-ink` は淡い紫地の上で 4.5:1 を保つよう選ばれた値（globals.css [E-3]）。
+   その地をやめて素の紙の上に置いたので、コントラストは測定値より良くなる側にしか動かない。 */
+.nb-aic__t--note{color:var(--tx2)}
+.nb-aic__t--term{color:var(--tx1);font-weight:600}
+.nb-aic__t--warn{color:var(--nb-ai-ink);font-weight:600}
+/* 訂正の行は `//` にも色を移す。左端の 2 文字だけで「この行は赤入れ」と分かると、
+   3 行の添削を上から拾い読みするときに目が止まる */
+.nb-aic__line--warn .nb-aic__slash{color:color-mix(in srgb,var(--nb-ai-ink) 62%,transparent)}
+
+/* 重要語（`.nb-key`）はコメントの中でも globals.css の 3 色で塗られる。
+   等幅にすると重要語だけ字面が変わって浮くので、太さだけ本文と揃え直す */
+.nb-aic .nb-key{font-weight:700}
+
+/* ── 数式。等幅を**中に効かせない** ─────────────────────────────────────
+   KaTeX は自前の書体を当てるが、`.katex` の外側の箱や `\text{}` の中は
+   継承した書体を拾う。等幅が混ざると数式だけ字面が崩れるので、明示的に戻す。
+   級数も 1em に締める（既定の 1.21em は行送りを押し広げて、コメントの詰まった
+   見え方を壊す）。別行立ては本文と同じく左揃え（旧 `.nb-aiedit__body` と同じ扱い）。 */
+.nb-aic .katex{font-family:KaTeX_Main,"Times New Roman",serif;font-size:1em}
+.nb-aic .katex-display,.nb-aic .katex-display>.katex{text-align:left}
+.nb-aic .katex-display{margin:.35em 0}
+
+/* ── 出るときだけ動かす ────────────────────────────────────────────────
+   上から順に 1 行ずつ。「これは本文の後から重なった別人の筆」という順序を、
+   一度だけ動きで言う。transition ではなく animation なのは、初回の描画で
+   1 回流したいだけで、行き来する状態が無いから（`both` で流れ終わりの姿に留める）。
+   .18s / 30ms は約束（§1 の出現 .16–.22s）の内側。 */
+@keyframes nb-aic-in{
+  from{opacity:0;transform:translateY(-3px)}
+  to{opacity:1;transform:none}
+}
+.nb-aic__chip,.nb-aic__line{
+  animation:nb-aic-in .18s cubic-bezier(.22,1,.36,1) both;
+}
+.nb-aic__line{animation-delay:calc(var(--i,0) * 30ms)}
+
+@media(prefers-reduced-motion:reduce){
+  /* 遅延だけ残ると「何も動かないのに出るのが遅い」になるので、そこも潰す */
+  .nb-aic__chip,.nb-aic__line{animation:none;animation-delay:0s}
+}

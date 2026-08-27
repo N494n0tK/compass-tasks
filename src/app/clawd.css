@@ -2,7 +2,66 @@
    Compass — Clawd くん（マスコット）
    docs/notebook/ux-refresh.md §11
 
-   globals.css を分割せずに増やし続けると 2000 行を超えて誰も読めなくなるので、
-   2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
-   トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
+   絵は本人が持ってきた GIF そのもの（`public/clawd/`）。読み込みと
+   「いつ動かすか」は `src/components/parts/Clawd.tsx`。ここは置かれ方だけを持つ。
+
+   名前は全部 `clawd` 始まり。globals.css（slideIn / popIn / sp* / mk*）や
+   motion.css と衝突させない。
    ============================================================================ */
+
+.clawd {
+  display: inline-block;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  /* 触られるまで静止画なので、GIF に差し替わっても寸法が動かないよう
+     箱の側で大きさを決め切る（Clawd.tsx が width/height を直に書く） */
+  overflow: hidden;
+}
+
+.clawd__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* ドット絵。にじませると網目が消えて別の絵になる */
+  image-rendering: pixelated;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 押せる Clawd。触れることが分かる程度に留める ―― 枠や地を足すと
+   「校内プリント」の面が 1 つ増えてしまうので、動きだけで示す */
+.clawd--tap {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.clawd--tap:hover {
+  transform: translateY(-2px);
+}
+
+/* 押した瞬間に沈む。GIF が動き出すまでの一瞬を埋める手応え */
+.clawd--tap:active {
+  transform: translateY(1px) scale(0.96);
+  transition-duration: 0.09s;
+}
+
+.clawd--tap:focus-visible {
+  outline: 2px solid var(--view);
+  outline-offset: 2px;
+}
+
+/* 動きを止めている人には静止画のまま出す（Clawd.tsx が GIF へ差し替えない）。
+   絵は消さない ―― 居るけれど動かない、が正しい */
+@media (prefers-reduced-motion: reduce) {
+  .clawd--tap,
+  .clawd--tap:hover,
+  .clawd--tap:active {
+    transform: none;
+    transition: none;
+  }
+}

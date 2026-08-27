@@ -32,6 +32,15 @@ import {
   type SplashGate,
 } from '../lib/persistence';
 import type { CompassStore } from '../lib/store';
+import {
+  applyNoteUndo,
+  noteLabel,
+  purgeTrash,
+  restoreNote,
+  undoMessage,
+} from '../lib/logic/noteTrash';
+import { NoteDangerDialog } from './parts/NoteDangerDialog';
+import { NoteTrashPanel } from './parts/NoteTrashPanel';
 import { ReviewAskModal } from './parts/ReviewAskModal';
 import { addToOrder } from './parts/ShellActions';
 import { ShellAppSwitcher } from './parts/ShellAppSwitcher';
@@ -48,7 +57,11 @@ import { ShellTopbar } from './parts/ShellTopbar';
 import { buildTodayItems } from './parts/ShellTodayItems';
 import { TestsEditorDrawer } from './parts/TestsEditorDrawer';
 import { TodoFocusOverlay } from './parts/TodoFocusOverlay';
-import { NotebookController, setNotebookController } from './parts/NotebookPersistence';
+import {
+  NotebookController,
+  notebookController,
+  setNotebookController,
+} from './parts/NotebookPersistence';
 import { pullNotionNotes } from './parts/NotionPull';
 import { AddTask } from './screens/AddTask';
 import { Cockpit } from './screens/Cockpit';
@@ -209,7 +222,15 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
       saver.markReady();
       store.resetUndoBaseline();
       void saver.loadCloudState();
-      void notebook.boot();
+      // ゴミ箱の掃除は**読み込みが終わってから**（docs/notebook/ux-refresh.md §7）。
+      // 先に走らせると `notesTrash` がまだ空で、30 日を過ぎたノートが
+      // いつまでも残る。ここが Firestore から本当に消す唯一の場所。
+      void notebook.boot().then(() => {
+        const p = purgeTrash(store.getState(), dateCtx.today);
+        if (!p.removedIds.length) return;
+        store.setState({ notesTrash: p.notesTrash, nbUndo: p.nbUndo });
+        p.removedIds.forEach((id) => notebook.remove(id));
+      });
     };
     if (Object.keys(initial).length || localPatch.plans) {
       store.update({ plans: localPatch.plans, state: initial }, ready);
@@ -323,8 +344,34 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && key === 'z' && !editingText) {
         e.preventDefault();
+        /**
+         * ⌘Z は 2 系統ある（docs/notebook/ux-refresh.md §7）。
+         *
+         * ノート（`notes`）は一時 state なのでアプリ本体の 1 段 Undo（`UNDO_KEYS`）に
+         * 乗っておらず、捨てた・改名したノートはそちらでは戻らない。そこで
+         * **ノートの画面にいて、ノート操作の履歴があるときだけ**そちらを優先する。
+         * 履歴が尽きたら本体の Undo に落ちる ―― 「戻せる操作はありません」を
+         * ノート画面でだけ別の言葉で言い分ける必要はない。
+         */
+        const s = store.getState();
+        if ((s.view === 'notebook' || s.view === 'extract') && s.nbUndo.length) {
+          const out = applyNoteUndo(s);
+          store.setState(out.next);
+          if (out.note) notebookController()?.save(out.note);
+          store.showToast(undoMessage(out));
+          return;
+        }
         store.undoLastAction();
         return;
+      }
+      // ⌘↑ = 1 つ上のフォルダへ（Finder と同じ）。潜っているときだけ効く
+      if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp' && !editingText) {
+        const s = store.getState();
+        if (s.view === 'notebook' && s.nbFolder) {
+          e.preventDefault();
+          store.setState({ nbFolder: null });
+          return;
+        }
       }
       if ((e.metaKey || e.ctrlKey) && key === 's') {
         e.preventDefault();
@@ -480,6 +527,23 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
               />
             ) : null}
             <ReviewAskModal />
+            {/* ノートの削除・改名の確認と、ゴミ箱（docs/notebook/ux-refresh.md §6・§7）。
+                理解度モーダルと同じ扱いで**ここに 1 個だけ**置く ―― 開く側は
+                サイドバーの右クリックメニューにも紙面の削除ボタンにもあり、
+                画面ごとに置くと同じものが 2 つ生えるため。どちらも自分で
+                `nbAsk` / `nbTrashOpen` を見て、閉じているときは何も描かない */}
+            <NoteDangerDialog />
+            <NoteTrashPanel
+              today={dateCtx.today}
+              onRestore={(noteId) => {
+                const out = restoreNote(store.getState(), { noteId });
+                if (!out.changed || !out.note) return;
+                store.setState(out.next);
+                // `trashedAt` を空にしたノートを書き戻す（消さない）
+                notebookController()?.save(out.note);
+                store.showToast('「' + noteLabel(out.note) + '」を元に戻しました');
+              }}
+            />
             <TodoFocusOverlay state={state} store={store} todayItems={todayItems} />
             {state.appSwitcherOpen ? (
               <ShellAppSwitcher store={store} onClose={closeAppSwitcher} />

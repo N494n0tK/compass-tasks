@@ -6,3 +6,99 @@
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
    ============================================================================ */
+
+/* ── 日付のマス目 ─────────────────────────────────────────────────────────
+   もとは <div onClick> で、キーボードからも支援技術からも触れなかった。
+   <button> にして、見た目の 3 つの状態を class で重ねられるようにする。
+
+   同時に見分けられないといけない印は 3 つ:
+     .today  今日        → 枠（面は塗らない）
+     .has    ノートがある日 → 字が濃い + 下の点（冊数ぶん、3 つまで）
+     .pick   選んでいる日  → 面を差し色で塗る（いちばん強い印）
+   .open（開いているノートがある日）は 4 つ目の弱い印。地をうっすら染めるだけで、
+   面の塗りつぶしは「いま自分が指した日」ひとつのために取っておく。
+   ------------------------------------------------------------------------ */
+.nbcal-d{
+  position:relative;
+  -webkit-appearance:none;appearance:none;
+  width:100%;
+  padding:5px 0 9px;
+  border:none;
+  border-radius:var(--rad-s);
+  background:transparent;
+  color:var(--tx3);
+  font:500 11.5px var(--f-num);
+  cursor:pointer;
+  transition:background .16s cubic-bezier(.22,1,.36,1),
+             color .16s cubic-bezier(.22,1,.36,1),
+             box-shadow .16s cubic-bezier(.22,1,.36,1),
+             transform .09s cubic-bezier(.22,1,.36,1);
+}
+.nbcal-d.has{color:var(--tx0)}
+.nbcal-d.open{background:var(--viewBg)}
+.nbcal-d.today{box-shadow:inset 0 0 0 1px var(--view)}
+.nbcal-d.pick{background:var(--view);color:var(--onAcc)}
+/* 選んだ日が今日でもあるとき、内側の枠は塗りに沈むので反転字の色に替える */
+.nbcal-d.pick.today{box-shadow:inset 0 0 0 1.5px var(--onAcc)}
+
+.nbcal-d:not(.pick):hover{background:var(--bg3)}
+.nbcal-d:active{transform:scale(.93)}          /* 押した手応え */
+/* フォーカス枠はここで書かない。shell 共通（globals.css の
+   `.compass-shell button:focus-visible`）が !important 付きで全部のボタンに引くし、
+   差し色は画面ごとの --view と決まっている ―― ここで足しても効かず、規約からも外れる */
+
+/* ノートの冊数を示す点。反転しているマス目でも消えないよう色を替える */
+.nbcal-dots{
+  position:absolute;left:50%;bottom:3px;
+  transform:translateX(-50%);
+  display:flex;gap:2px;
+}
+.nbcal-dot{width:4px;height:4px;background:var(--view)}
+.nbcal-d.pick .nbcal-dot{background:var(--onAcc)}
+
+/* ── 一覧の見出しと、絞り込みの外し方 ─────────────────────────────── */
+.nbcal-head{display:flex;align-items:center;gap:8px;margin:15px 0 6px}
+.nbcal-clear{
+  flex:none;
+  padding:2px 7px;
+  border:1px solid var(--line2);
+  border-radius:var(--rad-s);
+  background:none;
+  color:var(--tx3);
+  font:600 9.5px var(--f-ui);
+  cursor:pointer;
+  transition:border-color .16s cubic-bezier(.22,1,.36,1),color .16s cubic-bezier(.22,1,.36,1);
+  animation:nbcal-clear-in .16s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes nbcal-clear-in{from{opacity:0;transform:translateX(-3px)}to{opacity:1;transform:none}}
+
+/* ── 一覧の入れ替わり ───────────────────────────────────────────────
+   絞ったのか戻したのかを、入ってくる向きで見せる（フォルダに潜る/戻るの向きに合わせ、
+   絞る = 右から、戻す = 左から）。動かすのは transform と opacity だけ。
+
+   向きに意味がある動きなので、**日の絞り込みが変わったときだけ**流す。
+   月送りでは .in / .back が付かず、動かない（月名が変わるので何が起きたかは見えている）。 */
+.nbcal-list{display:grid;gap:1px}
+.nbcal-list.in,.nbcal-list.back,.nbcal-empty.in,.nbcal-empty.back{
+  animation:nbcal-in .18s cubic-bezier(.22,1,.36,1) both;
+}
+.nbcal-list.back,.nbcal-empty.back{animation-name:nbcal-back}
+@keyframes nbcal-in{from{opacity:0;transform:translateX(7px)}to{opacity:1;transform:none}}
+@keyframes nbcal-back{from{opacity:0;transform:translateX(-7px)}to{opacity:1;transform:none}}
+
+/* 絞った先が空でも「消えた」と思わせない。破線の枠で、いま何も無いことを紙面で言う */
+.nbcal-empty{
+  padding:10px 9px;
+  border:1px dashed var(--line2);
+  border-radius:var(--rad-s);
+  font:400 11px var(--f-ui);
+  color:var(--tx3);
+  line-height:1.7;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .nbcal-d,.nbcal-clear{transition:none;animation:none}
+  .nbcal-d:active{transform:none}
+  .nbcal-list,.nbcal-list.in,.nbcal-list.back,
+  .nbcal-empty,.nbcal-empty.in,.nbcal-empty.back{animation:none}
+}

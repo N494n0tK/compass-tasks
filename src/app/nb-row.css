@@ -5,4 +5,133 @@
    globals.css を分割せずに増やし続けると 2000 行を超えて誰も読めなくなるので、
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
+
+   クラス名は `.nbr`。globals.css の `.nb-row` は**別物**（NoteView の中の
+   横並びレイアウト）なので、そちらを乗っ取らないよう頭を分けてある。
+
+   行が持つ CSS 変数（NoteRow.tsx が教科色を差す）:
+     --nbr-c  … 教科の字色  --nbr-bg … 教科の地色  --nbr-ring … 枠線の色
    ============================================================================ */
+
+/* ── 行の骨格 ────────────────────────────────────────────────────────
+   左の余白 27px は教科フォルダのキャレットぶんの字下げ（元の行から据え置き）。
+   その内側に「左端の線（::before）＝いま指しているもの」と
+   「教科色の帯（.nbr__spine）」を 18px 離して並べる ―― 同じ場所で重ねると、
+   選択したとたん教科の色が消えて、何の教科か分からなくなる。 */
+.nbr{
+  /* 行は grid の子として並ぶ（nb-tree.css の .nbt-list / カレンダーの一覧）。
+     grid の子は既定で「中身より小さくならない」ので、単元名が nowrap のままだと
+     一番長い行の幅まで列が広がり、サイドバーからはみ出して省略記号が出ない。
+     ここで最小幅を 0 に落として、列を親の幅で頭打ちにする。 */
+  min-width:0;
+  position:relative;
+  padding:6px 8px 6px 27px;
+  border-radius:var(--rad-s);
+  cursor:pointer;
+  background:transparent;
+  /* 右クリックの対象を囲う枠。既定は透明にしておき、色だけ変数で差し替える
+     （box-shadow は後のルールで足し算できないので、値ではなく色を変える） */
+  box-shadow:inset 0 0 0 1px var(--nbr-ring,transparent);
+  /* 右クリック・ダブルクリックで単元名が青く選択されると、紙面から浮く */
+  user-select:none;
+  transition:
+    background .12s cubic-bezier(.22,1,.36,1),
+    box-shadow .12s cubic-bezier(.22,1,.36,1),
+    opacity .12s ease,
+    transform .09s cubic-bezier(.22,1,.36,1);
+}
+.nbr:hover{background:var(--bg3)}
+/* 押した瞬間だけ紙を 1px 押し込む。行は細いので縮尺を変えると字が滲む */
+.nbr:active{transform:translateX(1px)}
+/* 教科フォルダの見出し（nb-tree.css）と同じ焦点の出し方に揃える */
+.nbr:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ── 左端の線 = いま指しているもの ────────────────────────────────────
+   幅 0 から伸ばす。透明→不透明ではなく幅で出すと、線が「引かれた」ように見える */
+.nbr::before{
+  content:'';
+  position:absolute;left:0;top:0;bottom:0;width:0;
+  background:var(--view);
+  transition:width .12s cubic-bezier(.22,1,.36,1),background .12s ease;
+}
+/* 触れている行は墨の線、開いている行は差し色の太い線。
+   選択は「地色・左線・単元名の濃さ」の 3 つで示す ―― 元の行は左線だけだったので、
+   教科の帯が入ると何が選ばれているのか読み取りにくくなる */
+.nbr:hover::before{width:2px;background:var(--line2)}
+.nbr.is-on{background:var(--viewBg)}
+.nbr.is-on::before{width:3px;background:var(--view)}
+.nbr.is-on .nbr__unit{color:var(--tx0)}
+/* 開いている行にも触った手応えは要る。--viewBg を直に混ぜると入れ子の
+   color-mix になるので、素の --view から作り直す */
+.nbr.is-on:hover{background:color-mix(in srgb,var(--view) 14%,var(--bg2))}
+
+/* ── 右クリックの対象 ────────────────────────────────────────────────
+   メニューはカーソルの脇に出る（#5）ので、どの行に対する操作なのかは
+   行の側にも印が要る。開いている行なら差し色、そうでなければ墨の枠。 */
+.nbr.is-menu{--nbr-ring:var(--line2);background:var(--bg3)}
+.nbr.is-on.is-menu{--nbr-ring:var(--view)}
+
+/* ── 教科色の帯 ──────────────────────────────────────────────────────
+   3px は「校内プリントの縦罫」でいられる太さの上限。これ以上太くすると
+   色の面になって、1 画面 1 差し色の約束（§1-2）から浮く。
+   ふだんは少し落として墨の字を主役に置き、触れている行・開いている行だけ
+   色を立てて縦にも伸ばす ―― 行そのものが「その教科のもの」だと念を押す。 */
+.nbr__spine{
+  position:absolute;left:18px;top:5px;bottom:5px;width:3px;
+  background:var(--nbr-c,var(--line2));
+  opacity:.72;
+  transition:
+    opacity .12s ease,
+    top .12s cubic-bezier(.22,1,.36,1),
+    bottom .12s cubic-bezier(.22,1,.36,1);
+}
+.nbr:hover .nbr__spine,
+.nbr.is-on .nbr__spine{opacity:1;top:3px;bottom:3px}
+
+/* ── 単元名。長いものは切る（切らないと日付とカード数が押し出される） */
+.nbr__unit{
+  font:600 12px var(--f-ui);
+  color:var(--tx1);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:color .12s ease;
+}
+
+/* ── 下の行: 教科の札 ＋ 日付・カード数 ───────────────────────────── */
+.nbr__meta{display:flex;align-items:center;gap:6px;min-width:0;margin-top:1px}
+
+/* 教科名の札。地は教科色の薄い面（NoteView の見出しに出る札と同じ作り）。
+   字間を空けるのは、9.5px まで落とした字を「見出し」として読ませるため。
+   縮まない（flex:none）代わりに max-width で頭打ちにして、長い教科名が
+   日付を画面外へ押し出さないようにする */
+.nbr__subj{
+  flex:none;max-width:8em;
+  padding:1px 5px;border-radius:var(--rad-s);
+  font:700 9.5px var(--f-ui);letter-spacing:.08em;
+  color:var(--nbr-c,var(--tx2));
+  background:var(--nbr-bg,transparent);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+.nbr__facts{
+  min-width:0;
+  font:400 10px var(--f-num);color:var(--tx3);letter-spacing:.04em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ── ゴミ箱の中の行（#7 の一覧から並べられたとき）────────────────────
+   捨てたノートは 30 日残るので、生きているノートと**同じ濃さで並べない**。
+   薄くしたうえで単元名に打ち消しを引く ―― 薄いだけだと「読みにくいだけの行」
+   に見えて、捨てたものだと分からない。触れたときだけ濃さを戻す（読めないと戻せない）。
+   教科の帯は薄いまま残す。ゴミ箱でも何の教科かは知りたい。 */
+.nbr.is-trashed{opacity:.55}
+.nbr.is-trashed:hover{opacity:.85}
+.nbr.is-trashed .nbr__unit{
+  text-decoration:line-through;
+  text-decoration-color:var(--tx3);
+  text-decoration-thickness:1px;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .nbr,.nbr::before,.nbr__spine,.nbr__unit{transition:none}
+  .nbr:active{transform:none}
+}

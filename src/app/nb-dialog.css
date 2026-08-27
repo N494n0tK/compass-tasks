@@ -6,3 +6,122 @@
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
    ============================================================================ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   なぜ専用のダイアログを作るのか
+
+   ノートと復習は**別の持ち物**なので、片方を捨てた／直したときにもう片方をどうするかは
+   本人にしか決められない。`window.confirm` は「はい / いいえ」しか置けないうえ、
+   OS のダイアログが方眼の紙面から完全に浮く。だから紙面と同じ罫・同じ書体で作り直す。
+
+   `ShellOverlay` 経由で `.compass-theme-mode` 直下に出る（`.compass-shell` は
+   overflow:hidden + isolation:isolate なので、中だと position:fixed が閉じ込められる）。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 暗幕。既存モーダル（ReviewAskModal / TestsRedistModal）と同じ濃さ・同じぼかしに
+   そろえる。z-index は右クリックメニュー(#5, 〜50)より上 ―― メニューから開くので重なる */
+.nbdlg-back{
+  position:fixed;inset:0;z-index:60;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(5,9,20,.66);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  animation:nbdlgBackIn .14s ease;
+}
+
+/* ── 紙。角丸は面の var(--rad)(3px) まで、影は「浮いている」ことを示す 1 枚だけ */
+.nbdlg-panel{
+  width:min(400px,100%);max-height:88vh;overflow:auto;
+  display:flex;flex-direction:column;gap:13px;
+  padding:20px;
+  background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad);
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+  animation:nbdlgIn .14s cubic-bezier(.22,1,.36,1);
+}
+
+/* 出入りは「そこに現れた」ぶんだけ。10px 未満の押し上げに留めて紙面を揺らさない */
+@keyframes nbdlgBackIn{from{opacity:0}to{opacity:1}}
+@keyframes nbdlgIn{from{transform:translateY(8px) scale(.985);opacity:0}to{transform:none;opacity:1}}
+
+.nbdlg-head{display:flex;flex-direction:column;gap:5px}
+/* 見出しは既存モーダルと同じ 700/15px の --f-ui。ここだけ --f-disp にすると
+   同じ暗幕の上に別の書体が並んで、モーダルどうしがちぐはぐに見える */
+.nbdlg-title{font:700 15px var(--f-ui);color:var(--tx0);line-height:1.45}
+/* 単元名は本人が書いた文字だが、--f-hand は「ノート画面の紙面の中」専用（§1.4）。
+   暗幕の上に出るこのダイアログでは使わず、色の強さだけで浮かせる */
+.nbdlg-unit{color:var(--tx0);font-weight:700}
+.nbdlg-sub{font-size:11.5px;color:var(--tx3);line-height:1.65}
+
+/* ── 改名の入力欄。紙（--bg0）に罫を引いた体裁で、下地より一段沈める */
+.nbdlg-input{
+  width:100%;padding:9px 11px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:var(--bg0);color:var(--tx0);
+  font:500 14px var(--f-ui);outline:none;
+  transition:border-color .13s ease,box-shadow .13s ease;
+}
+.nbdlg-input:focus{
+  border-color:var(--view);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--view) 15%,transparent);
+}
+
+/* ── 「復習の方もどうするか」の問い。行ごとクリックできるよう <label> で包む */
+.nbdlg-check{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 12px;
+  border:1px solid var(--line);border-radius:var(--rad-s);
+  background:var(--bg2);
+  cursor:pointer;
+  transition:border-color .13s ease,background .13s ease;
+}
+.nbdlg-check:hover{background:var(--bg3)}
+.nbdlg-check:focus-within{border-color:var(--view)}
+.nbdlg-check input{
+  flex:none;width:14px;height:14px;margin:1px 0 0;
+  accent-color:var(--pink);cursor:pointer;
+}
+.nbdlg-check__body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.nbdlg-check__label{font:500 12.5px var(--f-ui);color:var(--tx1);line-height:1.5}
+.nbdlg-check__why{font-size:10.5px;color:var(--tx3);line-height:1.55}
+/* ON のときだけ差し色が乗る。削除は --pink(いま/危険)、改名は画面の差し色 --view */
+.nbdlg-check.is-on{border-color:var(--pink);background:var(--pinkBg)}
+.nbdlg-check.is-on .nbdlg-check__label{color:var(--pink);font-weight:700}
+.nbdlg-check--calm input{accent-color:var(--view)}
+.nbdlg-check--calm.is-on{border-color:var(--view);background:var(--viewBg)}
+.nbdlg-check--calm.is-on .nbdlg-check__label{color:var(--view)}
+
+/* 選択の結果どうなるかを 1 行で見せる欄。字は弱く、罫も引かない */
+.nbdlg-note{font-size:11px;color:var(--tx3);line-height:1.6}
+.nbdlg-note code{
+  font:600 11px var(--f-num);color:var(--tx1);
+  background:var(--bg2);border-radius:var(--rad-s);padding:1px 5px;
+}
+
+/* ── 操作。既定のフォーカスは「キャンセル」側に置くので、並びも左＝キャンセル */
+.nbdlg-acts{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;margin-top:2px}
+.nbdlg-btn{
+  padding:9px 16px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:transparent;color:var(--tx2);
+  font:500 13px var(--f-ui);cursor:pointer;
+  transition:color .13s ease,border-color .13s ease,background .13s ease,transform .09s ease;
+}
+.nbdlg-btn:hover:not(:disabled){color:var(--tx0);border-color:var(--view)}
+.nbdlg-btn:active:not(:disabled){transform:translateY(1px)}
+.nbdlg-btn:disabled{opacity:.4;cursor:default}
+/* キーボードで回ってきたときだけ枠を出す（マウスの押下では出さない） */
+.nbdlg-btn:focus-visible{outline:2px solid var(--view);outline-offset:2px}
+/* 壊す方。押す前から --pink で「これは戻せない側」と分かるようにしておく */
+.nbdlg-btn--danger{
+  border-color:var(--pink);background:var(--pinkBg);color:var(--pink);font-weight:700;
+}
+.nbdlg-btn--danger:hover:not(:disabled){color:var(--onAcc);background:var(--pink);border-color:var(--pink)}
+.nbdlg-btn--danger:focus-visible{outline-color:var(--pink)}
+/* 壊さない決定（改名）。他のモーダルの主ボタンと同じ --grad */
+.nbdlg-btn--go{border-color:transparent;background:var(--grad);color:var(--onAcc);font-weight:700}
+.nbdlg-btn--go:hover:not(:disabled){color:var(--onAcc);filter:brightness(1.08)}
+
+@media(prefers-reduced-motion:reduce){
+  .nbdlg-back,.nbdlg-panel{animation:none}
+  .nbdlg-btn,.nbdlg-check,.nbdlg-input{transition:none}
+  .nbdlg-btn:active:not(:disabled){transform:none}
+}

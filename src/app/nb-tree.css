@@ -6,3 +6,184 @@
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
    ============================================================================ */
+
+/* ── 教科の見出し（開閉のつまみ）───────────────────────────────────────
+   ここは <button>。div + onClick では Tab で辿れず Enter でも開かないし、
+   「開いている / 閉じている」を支援技術に伝える aria-expanded は
+   ボタンのような操作可能な役割に載せてはじめて読み上げられる。
+   そのぶん、素の button が持つ枠・地・中央揃え・既定書体は全部剥がす。 */
+.nbt-head{
+  display:flex;align-items:center;gap:7px;
+  width:100%;padding:6px 8px;
+  border:0;background:none;border-radius:var(--rad-s);
+  color:inherit;font:inherit;text-align:left;
+  cursor:pointer;
+  /* 教科ダブルクリックで潜る操作（§2）のとき、字が選択されて青く光らないように */
+  user-select:none;
+  transition:
+    background .16s ease,
+    box-shadow .16s ease,
+    transform .09s cubic-bezier(.22,1,.36,1);
+}
+/* 触れている教科は、その教科の色の細い罫で示す。選択中のノート行が出す
+   `inset 2px 0 0 var(--view)` と同じ形にして、「左の縦線 = いま指しているもの」
+   という読み方をサイドバーの中で揃える */
+.nbt-head:hover{background:var(--bg3);box-shadow:inset 2px 0 0 var(--nbt-c,var(--line2))}
+/* 押した瞬間だけ紙が沈む（縮みはナビの「＋」と同じ手）。1% と .09s は
+   「押した」と分かる下限で、これ以上大きくすると見出しが教科の数だけ
+   縦に並ぶサイドバーでは、押すたびに一覧全体が跳ねて読みにくくなる */
+.nbt-head:active{transform:scale(.99)}
+.nbt-head:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* キャレットの回転は globals.css の `.nb-caret` を借りるが、既定の .3s だと
+   下の中身（.26s）より遅れて着地してちぐはぐなので、ここでだけ揃え直す。
+   色も、触れている間は教科の色に寄せて見出しと一体に見せる */
+.nbt-head .nb-caret{
+  color:var(--tx3);
+  transition:transform .26s cubic-bezier(.22,1,.36,1),color .16s ease;
+}
+.nbt-head:hover .nb-caret{color:var(--nbt-c,var(--tx3))}
+
+.nbt-head__name{font:700 13px var(--f-disp);color:var(--nbt-c,var(--tx0))}
+/* 件数は右端へ。空の span で押し出すより、余白の取り合いを CSS 側に置くほうが素直 */
+.nbt-head__count{margin-left:auto;font:500 10.5px var(--f-num);color:var(--tx3)}
+
+/* ── フォルダの中身 ────────────────────────────────────────────────────
+   閉じても DOM から外さない。外すと高さの補間相手が消えて一瞬で畳まれる。
+   高さは `grid-template-rows: 0fr → 1fr` で伸ばす（NoteView の `wrapStyle`
+   と同じ手）。height:auto は補間できないので使わない。
+   .26s は約束（§1 の開閉 .24–.32s）の真ん中。教科フォルダは一度の探し物で
+   何度も開け閉めするところなので、紙面の解答（.45s）より短く取る。 */
+.nbt-wrap{
+  display:grid;grid-template-rows:0fr;
+  /* 閉じる向きの曲線。既定の減速カーブ(.22,1,.36,1)は出足が速すぎて、
+     畳むのに使うと最初の 0.1 秒で中身が消え、残りは 1px の余韻を伸ばすだけになる
+     ―― 「畳まれた」ではなく「消えた」に見えるので、閉じるときだけ前後を均した曲線にする */
+  transition:grid-template-rows .26s cubic-bezier(.4,0,.2,1);
+}
+/* 開く向きは約束どおりの減速カーブ。遷移に使われるのは**行き先の状態**が持つ
+   timing-function なので、開く = .is-open 側、閉じる = 素の側、で書き分けられる */
+.nbt-wrap.is-open{grid-template-rows:1fr;transition-timing-function:cubic-bezier(.22,1,.36,1)}
+
+.nbt-wrap__inner{
+  /* min-height:0 が無いと grid の子が中身の高さで踏ん張って 0fr まで畳まれない */
+  overflow:hidden;min-height:0;
+  /* 閉じ「きって」から visibility を落とす（0s の切り替えを .26s 遅らせる）。
+     visibility:hidden なら中の行はタブ順からも外れるので、閉じたフォルダの
+     ノートを Tab で延々と通り抜ける事故が起きない。
+     pointer-events は遅延なしで切る ―― 畳まれている最中の行が押せると、
+     閉じたつもりが関係ないノートを開くことになる */
+  visibility:hidden;pointer-events:none;
+  transition:visibility 0s linear .26s;
+}
+.nbt-wrap.is-open .nbt-wrap__inner{visibility:visible;pointer-events:auto;transition-delay:0s}
+
+.nbt-list{display:grid;gap:1px}
+
+/* 行は上から順に降りてくる。1 行 14ms・頭 6 行まで（--i の頭打ちは TSX 側）。
+   全行に配ると 20 件ある教科で最後の行が 1 秒近く遅れて「開くのが重い」に化けるし、
+   人が順番として読めるのはせいぜい先頭の数行なので、そこだけ差をつければ足りる。
+   閉じるときは基準側に遅延を書いていないぶん一斉に消える ―― 逆順の stagger は
+   「閉じたのに残っている」ように見えるので入れない。 */
+.nbt-row{
+  opacity:0;transform:translateY(-4px);
+  transition:opacity .18s ease,transform .18s cubic-bezier(.22,1,.36,1);
+}
+.nbt-wrap.is-open .nbt-row{opacity:1;transform:none;transition-delay:calc(var(--i,0) * 14ms)}
+
+@media(prefers-reduced-motion:reduce){
+  .nbt-head,.nbt-head .nb-caret,.nbt-wrap,.nbt-wrap__inner,.nbt-row{transition:none}
+  /* 遅延だけ残ると「何も動かないのに出るのが遅い」になるので、ここで潰す */
+  .nbt-wrap.is-open .nbt-row{transition-delay:0s}
+  .nbt-head:active{transform:none}
+}
+
+/* ── 教科の中へ潜る（Finder 風。ux-refresh.md §2）──────────────────────
+   見出しをダブルクリックすると、その教科だけの一覧に入れ替わる（.nbf-*）。
+   上の .nbt-* は「1 つの教科を開く / 閉じる」、こちらは「階層を移動する」で
+   役割が違うので、接頭辞ごと分けてある。 */
+
+/* 面ごと横に入れ替わる。進む＝右から入る / 戻る＝左から入る。
+   Finder や iOS の階層移動と同じ向きにして、**向きだけで**奥へ入ったのか
+   手前へ戻ったのかが読めるようにする（字を読ませずに済ませる）。
+   幅は 10px 止まり。サイドバーは overflow:auto なので右へ動かしすぎると
+   横スクロールバーが顔を出すが、aside の padding-right が 18px あるため
+   その内側に収まる 10px なら出ない。
+   .2s は約束（§1 の出現 .16–.22s）の上端。中身が丸ごと入れ替わるぶん出現より
+   長く取るが、開閉（.26s）より短くして「軽く切り替わった」に留める。
+   フォルダの面へ入ってきたとき（潜っていない状態での初回）も is-out が 1 回流れるが、
+   画面全体の fadeUp と重なるだけなので、そのままにしてある。 */
+@keyframes nbf-in{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+@keyframes nbf-out{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.nbf-stage.is-in{animation:nbf-in .2s cubic-bezier(.22,1,.36,1)}
+.nbf-stage.is-out{animation:nbf-out .2s cubic-bezier(.22,1,.36,1)}
+
+/* ── パンくず（潜っているあいだだけ出る 1 行）──────────────────────────
+   「‹ ノート ＞ 数学 · 12件」。他の教科が画面から消えている以上、ここが唯一の
+   出口なので、一覧より上・罫の上に固定して必ず視界に入れる。 */
+.nbf-crumbs{
+  display:flex;align-items:center;gap:4px;
+  margin:0 0 7px;padding:0 0 7px;
+  border-bottom:1px solid var(--line);
+}
+.nbf-crumbs__list{
+  display:flex;align-items:center;gap:4px;min-width:0;
+  margin:0;padding:0;list-style:none;
+}
+.nbf-crumbs__item{display:flex;align-items:center;gap:4px;min-width:0}
+
+/* 戻るボタン。押せる的として枠を持たせる（字の「‹」だけだと的が小さすぎる）。
+   触れているあいだ 1px だけ左へ寄るのは、行き先の向きをそのまま示すため */
+.nbf-crumbs__up{
+  flex:none;width:19px;height:19px;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:none;color:var(--tx2);
+  font:700 13px var(--f-ui);line-height:1;
+  cursor:pointer;
+  transition:
+    background .16s ease,
+    color .16s ease,
+    border-color .16s ease,
+    transform .16s cubic-bezier(.22,1,.36,1);
+}
+.nbf-crumbs__up:hover{
+  background:var(--bg3);color:var(--tx0);
+  border-color:var(--nbf-c,var(--line2));
+  transform:translateX(-1px);
+}
+.nbf-crumbs__up:active{transform:scale(.94)}
+.nbf-crumbs__up:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* 親の段（「ノート」）。いまいる段より弱く出す ―― 同じ強さで並べると、
+   どちらが現在地なのかがパンくずの形からは読めない */
+.nbf-crumbs__link{
+  padding:1px 3px;border:0;background:none;border-radius:var(--rad-s);
+  font:500 11px var(--f-ui);color:var(--tx3);
+  cursor:pointer;white-space:nowrap;
+  transition:color .16s ease,background .16s ease;
+}
+.nbf-crumbs__link:hover{color:var(--tx1);background:var(--bg3)}
+.nbf-crumbs__link:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.nbf-crumbs__sep{flex:none;font:400 11px var(--f-ui);color:var(--tx3)}
+
+/* いまいる段と件数は、潜る前の見出し（.nbt-head__name / __count）と同じ書体・
+   同じ色にしてある。同じものが位置だけ変わって見えるほうが、階層の移動として読める */
+.nbf-crumbs__here{
+  font:700 13px var(--f-disp);color:var(--nbf-c,var(--tx0));
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.nbf-crumbs__count{margin-left:auto;flex:none;font:500 10.5px var(--f-num);color:var(--tx3)}
+
+/* 潜っているときの一覧。行の間隔は教科フォルダの中（.nbt-list）と同じにして、
+   潜っても行の詰まり方が変わらないようにする */
+.nbf-list{display:grid;gap:1px}
+/* 検索語や絞り込みで中身が全部落ちたとき。段ごと消さずにここを出す
+   （消すとパンくずまで一緒に消えて、上へ戻る手立てが無くなる） */
+.nbf-empty{font:400 11.5px var(--f-ui);color:var(--tx3);padding:6px 2px}
+
+@media(prefers-reduced-motion:reduce){
+  .nbf-stage.is-in,.nbf-stage.is-out{animation:none}
+  .nbf-crumbs__up,.nbf-crumbs__link{transition:none}
+  .nbf-crumbs__up:hover,.nbf-crumbs__up:active{transform:none}
+}

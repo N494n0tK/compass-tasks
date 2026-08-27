@@ -64,12 +64,40 @@ export function readLocalNotes(): Note[] {
   }
 }
 
-export function writeLocalNotes(notes: readonly Note[]): void {
+/**
+ * ローカルミラーへ書く。**生きているノートと捨てたノートを 1 つのキーに畳む**。
+ *
+ * ゴミ箱を別のキーにしないのは、Firestore 側が `trashedAt` の印だけで
+ * 同じコレクションに置いているから ―― 保存先の形が 2 つあると、
+ * 「クラウドでは捨ててあるのに、この端末では生きている」が起きたときに
+ * どちらを正とするかの規則が 2 つ要る。
+ */
+export function writeLocalNotes(notes: readonly Note[], trash: readonly Note[] = []): void {
   try {
-    localStorage.setItem(LS_NOTES, JSON.stringify(notes));
+    localStorage.setItem(LS_NOTES, JSON.stringify(notes.concat(trash)));
   } catch {
     /* C-33 */
   }
+}
+
+/**
+ * 読み込んだノートを「生きている / ゴミ箱」に分ける。
+ *
+ * **`state.notes` にゴミ箱のノートを混ぜない**のがこの関数の存在理由。混ぜてしまうと、
+ * 一覧・検索・復習の生成・問題抽出・今日のToDo のすべてに「捨てたものを除く」条件を
+ * 書き足すことになり、必ずどこかで漏れる。入口で 1 回分けるほうが確実に安い。
+ */
+export function splitTrashed(notes: readonly Note[]): { live: Note[]; trash: Note[] } {
+  const live: Note[] = [];
+  const trash: Note[] = [];
+  notes.forEach((n) => (n.trashedAt ? trash : live).push(n));
+  return { live, trash };
+}
+
+/** `splitTrashed` を `store.setState` へそのまま渡せる形にしたもの */
+function splitAsPatch(notes: readonly Note[]): { notes: Note[]; notesTrash: Note[] } {
+  const { live, trash } = splitTrashed(notes);
+  return { notes: live, notesTrash: trash };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -99,11 +127,11 @@ export class NotebookController {
    */
   async boot(): Promise<void> {
     const local = readLocalNotes();
-    if (local.length) this.store.setState({ notes: local });
+    if (local.length) this.store.setState(splitAsPatch(local));
 
     // 保存無効の実装（preview / Firebase 未設定）ではローカルが唯一の正
     if (this.persistence.kind === 'local') {
-      this.store.setState({ notes: local, notesLoaded: true });
+      this.store.setState({ ...splitAsPatch(local), notesLoaded: true });
       return;
     }
 
@@ -113,12 +141,13 @@ export class NotebookController {
       const cloud = sanitizeNotes(rows);
       if (!cloud.length && local.length) {
         // クラウドが空 = 未同期。ローカルを残したうえで押し上げる
-        this.store.setState({ notes: local, notesLoaded: true });
+        this.store.setState({ ...splitAsPatch(local), notesLoaded: true });
         local.forEach((n) => void this.push(n));
         return;
       }
-      this.store.setState({ notes: cloud, notesLoaded: true });
-      writeLocalNotes(cloud);
+      this.store.setState({ ...splitAsPatch(cloud), notesLoaded: true });
+      const split = splitTrashed(cloud);
+      writeLocalNotes(split.live, split.trash);
     } catch (e) {
       if (this.disposed) return;
       console.warn('[notebook] ノートの読み込みに失敗', e);
@@ -147,13 +176,21 @@ export class NotebookController {
     }, NOTE_SAVE_DEBOUNCE_MS);
   }
 
-  /** ノートを消す。復習のカスケードは `removeNote()` 側で済ませてから呼ぶ */
+  /**
+   * ノートを**本当に**消す（ゴミ箱からの完全削除、または 30 日経過ぶんの掃除）。
+   * 復習のカスケードは `removeNote()` 側で済ませてから呼ぶ。
+   *
+   * 本人の操作としての「削除」はここではなく、`trashedAt` を立てて `save()` する道を通る
+   * （ゴミ箱に 30 日残す。docs/notebook/ux-refresh.md §7）。
+   */
   remove(noteId: string): void {
     this.store.setState((s) => {
       const notes = s.notes.filter((n) => n.id !== noteId);
-      writeLocalNotes(notes);
+      const notesTrash = s.notesTrash.filter((n) => n.id !== noteId);
+      writeLocalNotes(notes, notesTrash);
       return {
         notes,
+        notesTrash,
         nbSelNoteId: s.nbSelNoteId === noteId ? null : s.nbSelNoteId,
         nbEdit: false,
       };
@@ -175,11 +212,23 @@ export class NotebookController {
     this.disposed = true;
   }
 
+  /**
+   * 楽観更新。`trashedAt` の有無で**どちらの棚に置くかまで決める**。
+   *
+   * 捨てる・戻すも「ノートを 1 件保存する」で表せるようにしてある ―― 専用の経路を
+   * 増やすと、Firestore への書き込みが 2 系統になってどちらかが漏れる。
+   */
   private applyLocal(note: Note): void {
     this.store.setState((s) => {
-      const notes = upsertNote(s.notes, note);
-      writeLocalNotes(notes);
-      return { notes };
+      const trashed = !!note.trashedAt;
+      const notes = trashed
+        ? s.notes.filter((n) => n.id !== note.id)
+        : upsertNote(s.notes, note);
+      const notesTrash = trashed
+        ? upsertNote(s.notesTrash, note)
+        : s.notesTrash.filter((n) => n.id !== note.id);
+      writeLocalNotes(notes, notesTrash);
+      return { notes, notesTrash };
     });
   }
 

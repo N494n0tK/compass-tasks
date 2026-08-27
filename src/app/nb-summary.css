@@ -6,3 +6,163 @@
    2026-08 の UX 刷新ぶんは機能ごとのファイルに置く。読み込みは layout.tsx。
    トークン（--bg0 / --tx0 / --view / --line2 / --rad-s ...）は globals.css の定義を使う。
    ============================================================================ */
+
+/* ── 欄そのもの ────────────────────────────────────────────────────────
+   地・罫・余白は globals.css の `.nb-summary`（紙面いちばん下の 1 本罫）のまま。
+   ここが足すのは 2 つだけ:
+     - `position:relative` … 字数の行と左の罫を**紙面の高さを増やさずに**置くための基準
+     - 字の寸法を 1 か所に持つ … 読むときと書くときで字がずれたら、その場書きの意味がない */
+.nbsum{
+  position:relative;
+  /* `.nb-mine` の 15.5px/2.05（globals.css の `.nb-summary__body`）と同じ値。
+     読み札・入力欄・高さの影の 3 つがこれを共有する */
+  --nbsum-size:15.5px;
+  --nbsum-lead:2.05;
+}
+
+/* 見出しの行。NoteView の `SectionHead` と同じ形（間隔まで合わせる） */
+.nbsum__head{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+/* ── 読み札と入力欄で共有する枠 ────────────────────────────────────────
+   **クリックしても紙面が飛び跳ねない**ための要。読むときも書くときも同じ最低の高さ
+   （3 行ぶん）を持たせるので、1 行しか書いていないまとめをクリックしても、
+   空欄の案内をクリックしても、下の余白が伸び縮みしない。 */
+.nbsum__field{
+  position:relative;
+  min-height:calc(var(--nbsum-size) * var(--nbsum-lead) * 3);
+}
+
+/* 左の余白に立てる細い罫。**枠を生やす代わり**の合図で、
+   字の位置を 1px も動かさないよう紙の余白側（左外）へ出してある。
+   色は画面の差し色（--view）1 色 ―― ここで別の色を足すと紙面から浮く */
+.nbsum__field::before{
+  content:'';
+  position:absolute;left:-12px;top:3px;bottom:3px;width:2px;
+  background:var(--view);border-radius:1px;
+  transform-origin:top left;
+  opacity:0;transform:scaleY(.35);
+  transition:opacity .18s ease,transform .24s cubic-bezier(.22,1,.36,1);
+}
+.nbsum.is-live .nbsum__field::before{opacity:.9;transform:scaleY(1)}
+@media(max-width:900px){
+  /* 紙の左余白が 30px → 16px に詰まる（globals.css の `.nb-paper`）ので、罫も内側へ */
+  .nbsum__field::before{left:-9px}
+}
+
+/* ── 読み札（クリック / Enter で入力欄に変わる）─────────────────────── */
+.nbsum__read{cursor:text;border-radius:var(--rad-s)}
+/* 触れている間だけ、書くときと同じ罫を薄く先出しする。
+   「ここは書ける場所だ」を、押す前に地色を変えずに伝える手 */
+.nbsum__read:hover::before{opacity:.34;transform:scaleY(1)}
+.nbsum__read:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.nbsum__read:focus-visible::before{opacity:.34;transform:scaleY(1)}
+
+/* 小札。見出しの行の右端へ逃がしてあるので、出ても紙面の高さは変わらない */
+.nbsum__cue{
+  position:absolute;right:0;top:-27px;
+  font:400 10.5px var(--f-ui);color:var(--tx3);
+  pointer-events:none;
+  opacity:0;transform:translateY(2px);
+  transition:opacity .16s ease,transform .16s cubic-bezier(.22,1,.36,1);
+}
+.nbsum__read:hover .nbsum__cue,
+.nbsum__read:focus-visible .nbsum__cue{opacity:1;transform:none}
+
+/* まだ書いていないとき。`.nb-summary__empty`（globals.css）の字はそのまま使い、
+   「なぜ書くのか」の 1 行だけ足す */
+/* p の既定マージンは切る（2 行の間隔は gap で決める。ブラウザ任せだと 1em 空いて、
+   案内が「まとめ本文」と同じ重さの塊に見えてしまう） */
+.nbsum__empty{display:grid;gap:4px}
+.nbsum__empty>p{margin:0}
+.nbsum__why{font:400 11.5px/1.85 var(--f-ui);color:var(--tx3);opacity:.85}
+
+/* ── 入力欄 ────────────────────────────────────────────────────────────
+   高さは中身に合わせて伸ばす。textarea と、同じ字で組んだ**見えない影**を
+   同じマス目（grid-area:1/1）に重ね、影の高さでマスを決める。
+   JS で scrollHeight を測って高さを当てる手もあるが、1 打鍵ごとに強制レイアウトが
+   起きるうえ、書体が読み込まれた瞬間にずれる。CSS だけで閉じるほうが確実。 */
+.nbsum__grow{display:grid}
+.nbsum__grow::after{
+  content:attr(data-value) ' ';  /* 末尾の空白 … 改行で終わる下書きの最終行を潰さない */
+  visibility:hidden;
+  white-space:pre-wrap;
+}
+.nbsum__grow>.nbsum__input,
+.nbsum__grow::after{
+  grid-area:1 / 1;
+  min-width:0;                    /* grid の子が中身の幅で踏ん張って紙面をはみ出すのを止める */
+  margin:0;padding:0;border:0;
+  font:400 var(--nbsum-size)/var(--nbsum-lead) var(--f-hand);
+  letter-spacing:inherit;
+  overflow-wrap:break-word;
+}
+.nbsum__input{
+  width:100%;resize:none;overflow:hidden;
+  /* 枠も地色も持たない ―― 書き始めた瞬間に箱が生えると、紙面が別のものに見える */
+  background:transparent;color:var(--tx0);
+  outline:none;
+}
+.nbsum__input::placeholder{color:var(--tx3)}
+/* 読み札の字を globals.css の `.nb-mine` 任せにせず、入力欄と同じ 1 か所から与える
+   （どちらかだけ変わると、書き始めた瞬間に行が組み直されてしまう） */
+.nbsum__body{font:400 var(--nbsum-size)/var(--nbsum-lead) var(--f-hand);color:var(--tx0)}
+
+/* 編集モード（nbEdit）だけは箱を出す。紙面の他の欄が全部入力欄になっている面で、
+   ここだけ罫の無い素の字だと「直せる場所」に見えないため */
+.nbsum.is-form .nbsum__grow{
+  background:var(--bg2);
+  border:1px solid var(--line2);border-radius:var(--rad-s);
+  padding:8px 10px;
+  transition:border-color .16s ease;
+}
+.nbsum.is-form .nbsum__grow:focus-within{border-color:var(--acc)}
+.nbsum.is-form .nbsum__field::before{display:none}
+
+/* ── 足もと（字数・キー操作・保存の合図）───────────────────────────────
+   `.nb-summary` がもともと持っている下の余白（padding-bottom:40px）の中へ
+   絶対配置で置く。**入力欄を開いても紙面の高さが 1px も増えない**のが狙い */
+.nbsum__foot{
+  position:absolute;left:0;right:0;bottom:2px;
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  font:400 10.5px var(--f-ui);color:var(--tx3);
+  animation:nbsum-foot-in .18s cubic-bezier(.22,1,.36,1);
+}
+.nbsum__count{font-family:var(--f-num);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+/* 3 行を超えたときの色。**採点ではなく目安**なので、警告の赤にはしない */
+.nbsum__count.is-long{color:var(--tx2)}
+.nbsum__keys{opacity:.75}
+.nbsum__slot{margin-left:auto;min-height:1em}
+.nbsum__saved{color:var(--view);animation:nbsum-foot-in .18s ease}
+
+@keyframes nbsum-foot-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* 保存できた合図の本体は左の罫のごく短い変化。トーストを出さないのは、
+   打鍵の間合いごとに画面の下が光ると、書いている手が止まるから */
+.nbsum.is-saved .nbsum__field::before{animation:nbsum-tick .9s cubic-bezier(.22,1,.36,1)}
+@keyframes nbsum-tick{
+  0%{opacity:.9;transform:scaleY(1) scaleX(1)}
+  16%{opacity:1;transform:scaleY(1) scaleX(2.6)}
+  100%{opacity:.9;transform:scaleY(1) scaleX(1)}
+}
+/* 確定して閉じたあと。罫は消えるところなので、消えぎわに 1 度だけ濃くする */
+.nbsum.is-saved:not(.is-live) .nbsum__field::before{animation:nbsum-tick-out .9s ease}
+@keyframes nbsum-tick-out{
+  0%{opacity:.9;transform:scaleY(1) scaleX(2.2)}
+  70%{opacity:.5;transform:scaleY(1) scaleX(1)}
+  100%{opacity:0;transform:scaleY(1) scaleX(1)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .nbsum__field::before,
+  .nbsum__cue,
+  .nbsum.is-form .nbsum__grow{transition:none}
+  .nbsum__foot,
+  .nbsum__saved,
+  .nbsum.is-saved .nbsum__field::before,
+  .nbsum.is-saved:not(.is-live) .nbsum__field::before{animation:none}
+  /* 動きを止めるぶん、保存できたことは「出ている / 出ていない」で伝える */
+  .nbsum.is-saved:not(.is-live) .nbsum__field::before{opacity:.9;transform:scaleY(1)}
+}
