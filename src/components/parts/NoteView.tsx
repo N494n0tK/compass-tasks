@@ -62,7 +62,6 @@ import { NoteAiComment } from './NoteAiComment';
 import { NoteMath, NoteMathInline, type NoteMarkOptions } from './NoteMath';
 import { NoteScanStrip } from './NoteScanStrip';
 import { NoteSummaryEditor } from './NoteSummaryEditor';
-import { deleteNoteScans } from './NoteScanStore';
 import { commitNote, recordNoteAttempt, removeNote } from './NotebookPersistence';
 import { completeReview } from './ReviewShared';
 import { addToOrder, mutReview } from './ShellActions';

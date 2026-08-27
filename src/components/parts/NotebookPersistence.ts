@@ -26,10 +26,11 @@ import {
   completeNoteSummaryTasks,
   generateNoteSummaryTasks,
 } from '../../lib/logic/noteSummaryTasks';
-import { type Note } from '../../lib/model/notes';
-import type { ISODate, ReviewGrade } from '../../lib/model/types';
+import { type Note, type NoteScan } from '../../lib/model/notes';
+import type { AppState, ISODate, ReviewGrade } from '../../lib/model/types';
 import { cloudErrorMessage, type CompassPersistence, type NoteDoc } from '../../lib/persistence';
 import type { CompassStore } from '../../lib/store';
+import { deleteNoteScans } from './NoteScanStore';
 import { addToOrder } from './ShellActions';
 
 /** ノートのローカルミラー。`compass-ui` / `compass-ui-data` に続く 3 つめのキー */
@@ -159,6 +160,20 @@ export class NotebookController {
 
   /** 楽観更新 → localStorage → クラウド。編集中の連打は `debounced` で間引く */
   save(note: Note): void {
+    /**
+     * 同じノートの**遅れて出ていく控え**（`saveDebounced` の `pending`）を打ち消す。
+     *
+     * これが無いと、まとめを書いた 600ms 以内にそのノートをゴミ箱へ入れたとき、
+     * あとからタイマーが `trashedAt:''` の古い姿を Firestore へ送り、
+     * **次の起動でノートが生き返る**。いま渡された姿のほうが必ず新しい。
+     */
+    if (this.pending && this.pending.id === note.id) {
+      this.pending = null;
+      if (this.saveTimer !== null) {
+        clearTimeout(this.saveTimer);
+        this.saveTimer = null;
+      }
+    }
     this.applyLocal(note);
     void this.push(note);
   }
@@ -184,7 +199,19 @@ export class NotebookController {
    * （ゴミ箱に 30 日残す。docs/notebook/ux-refresh.md §7）。
    */
   remove(noteId: string): void {
+    /**
+     * 写真の実体（IndexedDB）も**ここで**落とす。
+     *
+     * メタデータだけ消しても端末の容量は返らないので、消し忘れると
+     * 「31 日前に捨てたノートの写真」が孤児として溜まり続ける。捨てた時点では
+     * 消さない ―― 30 日は戻せる約束で、写真の無いノートが戻っても意味がない。
+     * 本当に消えるのはこのメソッドだけなので、副作用もここに置く
+     * （呼び出し側に配るとどれか 1 つが必ず漏れる）。
+     */
+    let scans: readonly NoteScan[] = [];
     this.store.setState((s) => {
+      const gone = s.notes.find((n) => n.id === noteId) || s.notesTrash.find((n) => n.id === noteId);
+      if (gone) scans = gone.scans;
       const notes = s.notes.filter((n) => n.id !== noteId);
       const notesTrash = s.notesTrash.filter((n) => n.id !== noteId);
       writeLocalNotes(notes, notesTrash);
@@ -195,6 +222,7 @@ export class NotebookController {
         nbEdit: false,
       };
     });
+    if (scans.length) void deleteNoteScans(noteId, scans);
     void this.persistence.deleteNote(this.uid, noteId).catch((e) => {
       if (this.disposed) return;
       this.store.showToast(TOAST_NOTE_SAVE_FAIL_PREFIX + cloudErrorMessage(e));
@@ -366,6 +394,42 @@ function syncNoteSummaryTask(store: CompassStore, note: Note, today: ISODate): v
     };
   });
   gen.extras.forEach((e) => addToOrder(store, e.id));
+}
+
+/**
+ * ノート操作（捨てる / 戻す / 改名 / その取り消し）の結果を state とクラウドへ流す。
+ *
+ * **`store.resetUndoBaseline()` を挟むのがこの関数の存在理由。**
+ *
+ * ノート操作は `reviews` / `extras` / `order` を書き換えるが、この 3 つは `UNDO_KEYS` に
+ * 入っているので、放っておくと**アプリ本体の 1 段 Undo にも同じ操作が記録される**。
+ * ところが `notes` は一時 state で `UNDO_KEYS` に無い。その結果:
+ *
+ *   1. ノートを捨てる（復習も消す）
+ *   2. ⌘Z … ノート用の取り消しが効いて全部戻る（`nbUndo` は空になる）
+ *   3. もう一度 ⌘Z … ノート用の履歴が尽きたので本体の Undo へ落ち、
+ *      **`reviews` だけが「捨てた直後」へ巻き戻る**。ノートは生きたままなので、
+ *      生きているノートの復習だけが消え、もうどこからも戻せない
+ *
+ * という 3 手で間隔が永久に失われる。ベースラインを操作のたびに引き直せば、
+ * ノート操作は本体の Undo に二重帳簿されなくなる。
+ *
+ * 代償として、**ノートを触ると直前の（ノート以外の）操作の Undo が 1 段消える**。
+ * 上の消失と引き換えなら安い ―― あちらは戻す手立てが無く、こちらは戻せないだけ。
+ */
+export function applyNoteOutcome(
+  store: CompassStore,
+  out: { next: Partial<AppState>; note: Note | null; changed: boolean },
+  extra?: Partial<AppState>,
+): boolean {
+  if (!out.changed) {
+    if (extra) store.setState(extra);
+    return false;
+  }
+  store.setState({ ...out.next, ...extra });
+  store.resetUndoBaseline();
+  if (out.note) notebookController()?.save(out.note);
+  return true;
 }
 
 /**

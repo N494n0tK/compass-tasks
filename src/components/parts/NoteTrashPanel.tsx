@@ -136,7 +136,7 @@ export function NoteTrashPanel({ today, onRestore, onClose }: NoteTrashPanelProp
                 ゴミ箱
               </h2>
               <p className="nbtc-lede">
-                捨てたノートは{NOTE_TRASH_DAYS}日ここに残ります。戻せば復習も一緒に戻ります。
+                捨てたノートは{NOTE_TRASH_DAYS}日ここに残ります。復習の予定も一緒に戻るのは、アプリを閉じるまでのあいだです。
               </p>
             </div>
             <button type="button" className="nbtc-x" onClick={close} aria-label="ゴミ箱を閉じる">

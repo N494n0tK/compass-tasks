@@ -60,7 +60,7 @@ import { TestsEditorDrawer } from './parts/TestsEditorDrawer';
 import { TodoFocusOverlay } from './parts/TodoFocusOverlay';
 import {
   NotebookController,
-  notebookController,
+  applyNoteOutcome,
   setNotebookController,
 } from './parts/NotebookPersistence';
 import { pullNotionNotes } from './parts/NotionPull';
@@ -357,8 +357,7 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
         const s = store.getState();
         if ((s.view === 'notebook' || s.view === 'extract') && s.nbUndo.length) {
           const out = applyNoteUndo(s);
-          store.setState(out.next);
-          if (out.note) notebookController()?.save(out.note);
+          applyNoteOutcome(store, out);
           store.showToast(undoMessage(out));
           return;
         }
@@ -539,11 +538,14 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
               today={dateCtx.today}
               onRestore={(noteId) => {
                 const out = restoreNote(store.getState(), { noteId });
-                if (!out.changed || !out.note) return;
-                store.setState(out.next);
                 // `trashedAt` を空にしたノートを書き戻す（消さない）
-                notebookController()?.save(out.note);
-                store.showToast('「' + noteLabel(out.note) + '」を元に戻しました');
+                if (!applyNoteOutcome(store, out) || !out.note) return;
+                // 復習まで戻せたかは控えの有無で決まる（`nbUndo` は一時 state なので、
+                // リロードを挟むと控えが無く、ノートだけが戻る）。黙って違えないよう言い分ける
+                store.showToast(
+                  '「' + noteLabel(out.note) + '」を元に戻しました' +
+                    (out.restoredReviews ? '(復習' + out.restoredReviews + '件も復帰)' : ''),
+                );
               }}
             />
             <TodoFocusOverlay state={state} store={store} todayItems={todayItems} />

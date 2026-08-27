@@ -24,7 +24,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboard
 // ノートを壊す操作は全部ここ 1 本を通す（ux-refresh.md §4）
 import { renameNote, trashNote } from '../../lib/logic/noteTrash';
 import type { NoteAsk } from '../../lib/model/types';
-import { notebookController } from './NotebookPersistence';
+import { applyNoteOutcome } from './NotebookPersistence';
 import { ShellOverlay } from './ShellOverlay';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -82,7 +82,7 @@ function NoteDangerPanel({ ask }: { ask: NoteAsk }) {
   // 削除も改名も、復習とまとめの両方が巻き込まれる。まとめタスクの題名も
   // 単元名を埋め込んでいる（`noteSummaryTitle` の `「◯◯」のまとめを書く`）ので、
   // 名前を合わせるときは復習だけでなくそちらも直る
-  const hitCount = trash ? ask.reviewCount + ask.summaryCount : ask.reviewCount + ask.summaryCount;
+  const hitCount = ask.reviewCount + ask.summaryCount;
   const asks = hitCount > 0;
 
   const nextUnit = unit.trim();
@@ -325,8 +325,7 @@ function runTrash(ask: NoteAsk, dropReviews: boolean): void {
     store.setState({ nbAsk: null, nbMenu: null, nbRenameId: null });
     return;
   }
-  store.setState({ ...out.next, nbAsk: null, nbMenu: null, nbRenameId: null, nbEdit: false });
-  if (out.note) notebookController()?.save(out.note);
+  applyNoteOutcome(store, out, { nbAsk: null, nbMenu: null, nbRenameId: null, nbEdit: false });
 
   // 文言に使うのは**実際に消えた数**（`out`）。聞いたときの数（`ask`）は
   // メニューを開いた時点のもので、その間に復習を 1 枚終えていればもうずれている
@@ -364,8 +363,7 @@ function runRename(ask: NoteAsk, nextUnit: string, syncTitles: boolean): void {
     store.setState({ nbAsk: null, nbMenu: null, nbRenameId: null });
     return;
   }
-  store.setState({ ...out.next, nbAsk: null, nbMenu: null, nbRenameId: null });
-  notebookController()?.save(out.note);
+  applyNoteOutcome(store, out, { nbAsk: null, nbMenu: null, nbRenameId: null });
 
   const tail = ask.reviewCount
     ? syncTitles

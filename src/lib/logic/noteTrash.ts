@@ -102,6 +102,14 @@ export interface NoteTrashOutcome {
   removedReviews: number;
   /** 巻き込んだまとめタスクの件数 */
   removedSummaries: number;
+  /**
+   * ゴミ箱から戻したときに、**復習まで戻せた件数**（`restoreNote` だけが 0 以外を返す）。
+   *
+   * 復習の控えは `nbUndo`（一時 state）にしか無いので、リロードを挟んだ復元では
+   * ノートだけが戻る。UI が「戻せば復習も一緒に戻ります」と言い切ると嘘になる場面が
+   * あるため、実際に戻せた数を返して呼び出し側に言い分けさせる。
+   */
+  restoredReviews?: number;
   /** 何か変わったか。`false` のとき `next` は入力と同じ中身（流し込んでも無害） */
   changed: boolean;
 }
@@ -401,14 +409,22 @@ export function restoreNote(s: NoteTrashState, opts: RestoreNoteOptions): NoteTr
       order,
       selId: s.selId,
       nbSelNoteId: s.nbSelNoteId,
-      nbUndo: pushNoteUndo(
-        src ? s.nbUndo.filter((u) => u !== src) : s.nbUndo,
-        undo,
-      ),
+      /**
+       * **捨てた控え（`src`）は消さない。** 以前は「使ったから」と落としていたが、
+       * それだと `捨てる → 戻す → ⌘Z（また捨てる）→ 戻す` の 4 手で、
+       * 復習の控えがどこからも参照されなくなって間隔が永久に失われた。
+       * 消さずに下へ残せば履歴は `[捨てた, 戻した]` の素直な一本道になり、
+       * ⌘Z を続けて押すと「戻す前 → 捨てる前」と一貫して遡れる。
+       */
+      nbUndo: pushNoteUndo(s.nbUndo, undo),
     },
     note: alive,
     removedReviews: 0,
     removedSummaries: 0,
+    // 復習まで戻せたか（控えが無ければ 0 = ノートだけ戻った）。呼び出し側が
+    // トーストで言い分けるために要る ―― `nbUndo` は一時 state なので、
+    // リロードを挟んだ復元では控えが無く、ノートだけが戻るのがふつう
+    restoredReviews: backReviews.length,
     changed: true,
   };
 }
@@ -617,8 +633,37 @@ export function applyNoteUndo(s: NoteTrashState): NoteUndoOutcome {
 }
 
 /** `trash` / `rename` の取り消し ―― 控えたノートと行を書き戻す */
+/**
+ * 取り消しで書き戻すノートを作る。
+ *
+ * **控えたスナップショット（`entry.note`）を丸ごと書き戻さない。**
+ * あれは操作した瞬間のノート全体なので、素直に書き戻すと
+ * 「改名 → まとめを書く / 1 問解く → ⌘Z」で、名前だけでなく
+ * **そのあいだに書いたまとめや解いた記録まで巻き戻って保存される**。
+ * トーストは「名前を元に戻しました」としか言わないので、消えたことにも気付けない。
+ *
+ * そこで土台にするのは**いまのノート**で、控えからは「その操作が変えたところ」だけを
+ * 引き戻す:
+ *  - `rename`  … `unit` だけ（`updatedAt` は触った印なので今のまま）
+ *  - `trash`   … ゴミ箱から出す（`trashedAt` を空に）
+ *  - `restore` … ゴミ箱へ戻す（`trashedAt` を捨てた日に）
+ *
+ * ノートがもう居ないとき（完全削除のあとなど）だけ、控えへ落ちる。
+ */
+function restoredNote(s: NoteTrashState, entry: NoteUndo): Note {
+  const live =
+    s.notes.find((n) => n.id === entry.noteId) ||
+    s.notesTrash.find((n) => n.id === entry.noteId) ||
+    null;
+  if (!live) return entry.note;
+  if (entry.kind === 'rename') return { ...live, unit: entry.note.unit };
+  if (entry.kind === 'restore') return { ...live, trashedAt: entry.note.trashedAt };
+  // `trash` の取り消し = ゴミ箱から出す
+  return { ...live, trashedAt: '' };
+}
+
 function undoTrashOrRename(s: NoteTrashState, entry: NoteUndo): NoteUndoOutcome {
-  const back = entry.note;
+  const back = restoredNote(s, entry);
   const haveR = new Set(s.reviews.map((r) => r.id));
   const haveX = new Set(s.extras.map((x) => x.id));
   // まだ居ない行だけを「戻した行」と数える（二度踏んでも並びが増えない）
@@ -654,7 +699,7 @@ function undoTrashOrRename(s: NoteTrashState, entry: NoteUndo): NoteUndoOutcome 
 
 /** `restore` の取り消し ―― ゴミ箱へ入れ直し、戻した行を引き上げる */
 function undoRestore(s: NoteTrashState, entry: NoteUndo): NoteUndoOutcome {
-  const back = entry.note;
+  const back = restoredNote(s, entry);
   const goneR = new Set(entry.reviews.map((r) => r.id));
   const goneX = new Set(entry.extras.map((x) => x.id));
   const reviews = dropById(s.reviews, goneR);

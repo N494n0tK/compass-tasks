@@ -290,12 +290,33 @@ describe('restoreNote — ゴミ箱から戻す', () => {
     expect(back.next.reviews.map((r) => r.id)).toEqual(['umanual']);
   });
 
-  it('使った「捨てた」控えは履歴から落ち、代わりに restore が 1 段積まれる', () => {
+  it('「捨てた」控えは残したまま restore を積む（履歴は一本道）', () => {
     const s0 = fullState();
     const trashed = trashNote(s0, { noteId: 'nabc', alsoReviews: true, today: T, at: 1 });
     const back = restoreNote({ ...s0, ...trashed.next }, { noteId: 'nabc', at: 2 });
-    expect(back.next.nbUndo.map((u) => u.kind)).toEqual(['restore']);
-    expect(back.next.nbUndo[0].note.trashedAt).toBe(T);
+    // 捨てた控えを消してしまうと、下の「4 手」で復習の控えがどこからも辿れなくなる
+    expect(back.next.nbUndo.map((u) => u.kind)).toEqual(['trash', 'restore']);
+    expect(back.next.nbUndo[1].note.trashedAt).toBe(T);
+    expect(back.restoredReviews).toBe(2);
+  });
+
+  it('捨てる→戻す→⌘Z→戻す の 4 手でも復習の間隔が失われない', () => {
+    const s0 = fullState();
+    const kept = s0.reviews.filter((r) => !r.done).map((r) => r.id).sort();
+    // 1. 捨てる（復習も）
+    const t = trashNote(s0, { noteId: 'nabc', alsoReviews: true, today: T, at: 1 });
+    // 2. 戻す
+    const r1 = restoreNote({ ...s0, ...t.next }, { noteId: 'nabc', at: 2 });
+    expect(r1.restoredReviews).toBe(2);
+    // 3. ⌘Z（戻したのを取り消す = またゴミ箱へ）
+    const u = applyNoteUndo({ ...s0, ...r1.next });
+    expect(u.entry?.kind).toBe('restore');
+    expect(u.next.notesTrash.map((n) => n.id)).toContain('nabc');
+    // 4. もう一度戻す ―― ここで復習が戻らないのが以前の穴だった
+    const r2 = restoreNote({ ...s0, ...u.next }, { noteId: 'nabc', at: 4 });
+    expect(r2.restoredReviews).toBe(2);
+    expect(r2.next.reviews.filter((x) => !x.done).map((x) => x.id).sort()).toEqual(kept);
+    expect(r2.next.order).toEqual(s0.order);
   });
 
   it('戻したのを取り消すとゴミ箱へ帰り、戻した行も引き上げられる', () => {
@@ -357,6 +378,37 @@ describe('renameNote — 改名も同じ入口', () => {
   it('名前が変わらない / 空なら何もしない', () => {
     expect(renameNote(state(), { noteId: 'nabc', unit: '数列', syncTitles: true, today: T, at: 1 }).changed).toBe(false);
     expect(renameNote(state(), { noteId: 'nabc', unit: '  ', syncTitles: true, today: T, at: 1 }).changed).toBe(false);
+  });
+});
+
+describe('取り消しは「その操作が変えたところ」だけを戻す', () => {
+  it('改名 → まとめを書く → ⌘Z で、まとめが残る', () => {
+    const s0 = fullState();
+    const renamed = renameNote(s0, { noteId: 'nabc', unit: '数列と漸化式', syncTitles: true, today: TOMORROW, at: 1 });
+    // 名前を変えたあとに、紙面でまとめを書いた（`commitNote` が通る道）
+    const mid = {
+      ...s0,
+      ...renamed.next,
+      notes: renamed.next.notes.map((n) =>
+        n.id === 'nabc' ? { ...n, summary: 'あとから書いたまとめ' } : n,
+      ),
+    };
+    const back = applyNoteUndo(mid);
+    const note = back.next.notes.find((n) => n.id === 'nabc')!;
+    expect(note.unit).toBe('数列');                       // 名前は戻る
+    expect(note.summary).toBe('あとから書いたまとめ');      // 途中で書いたものは残る
+  });
+
+  it('捨てる → ⌘Z のあいだに別のノートを編集しても巻き込まない', () => {
+    const s0 = fullState();
+    const t = trashNote(s0, { noteId: 'nabc', alsoReviews: true, today: T, at: 1 });
+    const mid = {
+      ...s0,
+      ...t.next,
+      notes: t.next.notes.concat([note({ id: 'nzzz', unit: '別のノート' })]),
+    };
+    const back = applyNoteUndo(mid);
+    expect(back.next.notes.map((n) => n.id).sort()).toContain('nzzz');
   });
 });
 
