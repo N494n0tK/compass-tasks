@@ -434,6 +434,17 @@ export function ShellTopbar({
         {/* Clawd くん。**画面ごとに違う 1 匹**が居る（`clawdForView`）ので、
             タブを移ると住人が替わる ―― 字の見出しだけでなく、ここでも移ったことが分かる。
             触ると 1 周ぶん動く。常設なので、触られるまでは 1 コマ目で静止したまま */}
+        {/* Clawd の隠しタブへの入口（要望: 右上に、もっと大きく）。
+            押すとタブが増えてそこへ移る。見つける前だけ少し薄い ―― 常時光らせない */}
+        <button
+          type="button"
+          className={'cc-mark' + (S.clawdFound ? '' : ' is-new')}
+          onClick={() => store.setState({ clawdFound: true, view: 'clawd' })}
+          aria-label={S.clawdFound ? 'Clawdと話す' : 'Clawdのタブを開く'}
+          title={S.clawdFound ? 'Clawdと話す' : '？'}
+        >
+          <img src="/clawd/clawd-mark.png" alt="" width="34" height="34" />
+        </button>
         <Clawd
           key={S.view}
           kind={clawdForView(S.view)}

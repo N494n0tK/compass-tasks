@@ -40,6 +40,7 @@ import {
   restoreNote,
   undoMessage,
 } from '../lib/logic/noteTrash';
+import { ClawdCheer } from './parts/ClawdCheer';
 import { NoteDangerDialog } from './parts/NoteDangerDialog';
 import { NoteTrashPanel } from './parts/NoteTrashPanel';
 import { ReviewAskModal } from './parts/ReviewAskModal';
@@ -65,6 +66,7 @@ import {
 } from './parts/NotebookPersistence';
 import { pullNotionNotes } from './parts/NotionPull';
 import { AddTask } from './screens/AddTask';
+import { ClawdChat } from './screens/ClawdChat';
 import { Cockpit } from './screens/Cockpit';
 import { DataScreen } from './screens/DataScreen';
 import { Notebook } from './screens/Notebook';
@@ -102,6 +104,9 @@ function renderScreen(state: AppState) {
     case 'notebook':
     case 'extract':
       return <Notebook />;
+    // 隠しタブ（トップバーの ✳ で見つける）。ここだけ予定を扱わない
+    case 'clawd':
+      return <ClawdChat />;
   }
 }
 
@@ -391,8 +396,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
           focusSearch();
           return;
         }
-        // 1–8 で画面切替（ノート・問題抽出が増えて 8 つになった）
-        if (key >= '1' && key <= '8') {
+        // 1–9 で画面切替（ノート・問題抽出で 8 つ、Clawd を見つけると 9 つめ）
+        if (key >= '1' && key <= '9') {
           const order = normalizeNavOrder(store.getState().navOrder);
           const view = order[Number(key) - 1];
           if (view) {
@@ -533,6 +538,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
                 サイドバーの右クリックメニューにも紙面の削除ボタンにもあり、
                 画面ごとに置くと同じものが 2 つ生えるため。どちらも自分で
                 `nbAsk` / `nbTrashOpen` を見て、閉じているときは何も描かない */}
+            {/* 片づけたときの祝い（左下）。知らせのトーストとは席を分ける */}
+            <ClawdCheer />
             <NoteDangerDialog />
             <NoteTrashPanel
               today={dateCtx.today}

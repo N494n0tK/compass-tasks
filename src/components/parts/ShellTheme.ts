@@ -249,6 +249,8 @@ export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
   // ほかの 6 画面が 1 画面 1 色なのに対し、この 2 つだけは対で 1 色
   notebook: 'ink',
   extract: 'ink',
+  // Claude の色（`--org`）。この画面だけは Compass ではなく Clawd の版で刷る
+  clawd: 'org',
 };
 
 /**
@@ -292,6 +294,12 @@ export const VIEWS: readonly ViewDef[] = [
   // （`navOrder` はドラッグで変えられる）
   { id: 'notebook', label: 'ノート', dot: 'var(--ink)', g: 'none' },
   { id: 'extract', label: '問題抽出', dot: 'var(--ink)', g: 'none' },
+  /**
+   * Clawd。**隠しタブ**なので、`clawdFound` が立つまでナビに出ない（`ShellNav` が外す）。
+   * 見つけたあとは末尾に並ぶ ―― ここだけは予定を扱う道具ではなく相棒なので、
+   * 仕事の並びの外側に置く。
+   */
+  { id: 'clawd', label: 'Clawd', dot: 'var(--org)', g: 'none' },
 ];
 
 /** `views.map(v => v.id)`（HTML:2691）。`navViewOrder()` の `all` と同じ並び */
@@ -307,6 +315,7 @@ export const TITLES: Readonly<Record<ViewId, readonly [string, string]>> = {
   data: ['学習データ', '勉強時間とテスト結果をふり返る'],
   notebook: ['ノート', '授業ノートを読み、想起問題で引き出す'],
   extract: ['問題抽出', '全ノートの問題を、理解度の低い順に解き直す'],
+  clawd: ['Clawd', 'ひと息つく。励ましてもらう'],
 };
 
 /**

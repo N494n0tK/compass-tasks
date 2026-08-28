@@ -87,7 +87,10 @@ export function ShellNav({
 
   const orderedViews = normalizeNavOrder(S.navOrder)
     .map((id) => VIEWS.find((v) => v.id === id))
-    .filter((v): v is (typeof VIEWS)[number] => !!v);
+    .filter((v): v is (typeof VIEWS)[number] => !!v)
+    // Clawd は**隠しタブ**。トップバーの ✳ を押して見つけるまで並べない
+    // （`clawdFound` は保存するので、一度見つけたら以後ずっと出る）
+    .filter((v) => v.id !== 'clawd' || S.clawdFound);
 
   // ── カウントダウン（HTML:4078-4096）
   const countdownRows = (S.countdowns || [])

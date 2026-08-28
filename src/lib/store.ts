@@ -306,6 +306,9 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     nbTrashOpen: false,
     notesTrash: [],
     nbUndo: [],
+    // Clawd（隠しタブ）。会話は保存せず、見つけた印だけ残す
+    clawdLog: [],
+    clawdCheer: null,
     revAskReveal: false,
     // 復習の7日予報で選んだ日（plan.md §4.2）。導出値の絞り込みなので保存しない
     revDueFilter: null,
@@ -322,6 +325,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     focusLog: [],
     // Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id 単位
     notionPullLog: {},
+    clawdFound: false,
   };
 }
 

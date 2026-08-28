@@ -1,0 +1,339 @@
+/* ============================================================================
+   Compass — Clawd と話す面（隠しタブ）と、片づけたときの祝い
+   要望: 「そのタブ UI はめっちゃ Claude っぽくして！」
+
+   ここだけ「校内プリント」を離れて **Claude の版**で刷る（理由は
+   `src/components/screens/ClawdChat.tsx` の冒頭）。違いは 4 つ:
+     - 紙が温かい（オレンジを混ぜた地）
+     - 角丸が大きい（12–20px。他の画面は 2–3px）
+     - 行間が広く、字が少し大きい
+     - 差し色はオレンジ 1 色（`--org`）だけ
+
+   接頭辞は `.cc-`（Clawd Chat）と `.ccheer-`。他所の名前は名乗らない
+   （docs/notebook/ux-refresh.md §3 の予約表と同じ約束）。
+   色はすべてトークン経由 ―― 生の #rrggbb を書かない（3 テーマで破綻する）。
+   ============================================================================ */
+
+.cc {
+  --cc-ink: var(--org);
+  /* 温かい地。方眼は下に透けたまま残す（Compass の中の一室であることは消さない） */
+  --cc-paper: color-mix(in srgb, var(--org) 5%, var(--bg1));
+  --cc-paper2: color-mix(in srgb, var(--org) 9%, var(--bg2));
+  --cc-line: color-mix(in srgb, var(--org) 22%, transparent);
+  --cc-rad: 18px;
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px 18px;
+  overflow: hidden;
+  animation: cc-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* 紙 1 枚。ここだけ丸くて、うっすら影を落とす（他の画面は影を使わない） */
+.cc__sheet {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 26px 18px;
+  border: 1px solid var(--cc-line);
+  border-radius: var(--cc-rad);
+  background: var(--cc-paper);
+  overflow: hidden;
+}
+
+/* ── 真ん中の Clawd ─────────────────────────────────────────────── */
+
+.cc__stage {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--cc-line);
+}
+
+.cc__clawd {
+  animation: cc-rise 0.42s cubic-bezier(0.2, 0.9, 0.2, 1.08) backwards;
+}
+
+.cc__name {
+  font: 700 17px var(--f-disp);
+  letter-spacing: 0.06em;
+  color: var(--tx0);
+}
+
+.cc__sub {
+  font: 400 11.5px var(--f-ui);
+  color: var(--tx3);
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* ── 会話 ───────────────────────────────────────────────────────── */
+
+.cc__log {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.cc__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 80%;
+  animation: cc-say 0.24s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.cc__row--me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.cc__avatar {
+  margin-bottom: 2px;
+}
+
+/* Claude の吹き出し。角丸は大きく、根本の 1 つだけ小さくして向きを示す */
+.cc__bubble {
+  padding: 11px 15px 12px;
+  border-radius: 16px 16px 16px 5px;
+  background: var(--cc-paper2);
+  border: 1px solid var(--cc-line);
+  color: var(--tx1);
+  font: 400 13.5px/1.85 var(--f-ui);
+  overflow-wrap: break-word;
+}
+
+/* 自分の言葉はオレンジで塗る。「どっちが言ったか」を色で切る */
+.cc__row--me .cc__bubble {
+  border-radius: 16px 16px 5px 16px;
+  background: var(--cc-ink);
+  border-color: var(--cc-ink);
+  color: var(--onAcc);
+  font-weight: 500;
+}
+
+/* ── 話しかける ─────────────────────────────────────────────────── */
+
+.cc__asks {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cc__ask {
+  padding: 9px 16px;
+  border: 1px solid var(--cc-line);
+  border-radius: 999px; /* ここだけ丸い。Claude の返信候補の形 */
+  background: var(--cc-paper);
+  color: var(--tx1);
+  font: 500 12.5px var(--f-ui);
+  cursor: pointer;
+  transition:
+    background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.09s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cc__ask:hover {
+  background: var(--cc-paper2);
+  border-color: var(--cc-ink);
+  color: var(--tx0);
+}
+
+.cc__ask:active {
+  transform: scale(0.97);
+}
+
+/* ── トップバーの ✳（隠しタブの入口）───────────────────────────── */
+
+.cc-mark {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cc-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 見つける前は静かに待つ。押すと回って開く */
+.cc-mark:hover {
+  transform: rotate(45deg) scale(1.06);
+}
+
+.cc-mark:active {
+  transform: rotate(90deg) scale(0.94);
+  transition-duration: 0.12s;
+}
+
+.cc-mark:focus-visible {
+  outline: 2px solid var(--view);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* まだ見つけていないあいだだけ、ごく控えめに薄い。
+   常時光らせない ―― 視界の端で何かが動き続けると集中が削れる */
+.cc-mark.is-new img {
+  opacity: 0.62;
+}
+
+.cc-mark.is-new:hover img {
+  opacity: 1;
+}
+
+/* ── 片づけたときの祝い（画面の下）─────────────────────────────── */
+
+.ccheer {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 128; /* トースト(130)のすぐ下。両方出たら知らせのほうが上 */
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  max-width: min(360px, calc(100vw - 36px));
+  padding: 10px 16px 10px 11px;
+  border: 1px solid var(--cc-line, color-mix(in srgb, var(--org) 22%, transparent));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--org) 8%, var(--bg1));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  animation: ccheer-in 0.34s cubic-bezier(0.2, 0.9, 0.2, 1.06) backwards;
+}
+
+.ccheer.is-out {
+  animation: ccheer-out 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.ccheer__text {
+  font: 600 12.5px/1.6 var(--f-ui);
+  color: var(--tx0);
+}
+
+.ccheer__who {
+  display: block;
+  margin-bottom: 1px;
+  font: 700 9px var(--f-num);
+  letter-spacing: 0.18em;
+  color: var(--org);
+}
+
+@keyframes cc-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cc-say {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ccheer-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ccheer-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* 動きを止めている人には、出入りも回転も無し。**消しはしない**
+   ―― 祝いも Clawd も、動かないだけで意味は残る */
+@media (prefers-reduced-motion: reduce) {
+  .cc,
+  .cc__clawd,
+  .cc__row,
+  .ccheer {
+    animation: none;
+  }
+  .cc__ask,
+  .cc-mark {
+    transition: none;
+  }
+  .cc__ask:active,
+  .cc-mark:hover,
+  .cc-mark:active {
+    transform: none;
+  }
+  .ccheer.is-out {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* 狭い画面。紙の余白を詰めて、話しかけのボタンは横スクロールさせない */
+@media (max-width: 820px) {
+  .cc {
+    padding: 14px 14px 12px;
+  }
+  .cc__sheet {
+    padding: 18px 16px 14px;
+  }
+  .cc__row {
+    max-width: 92%;
+  }
+  .ccheer {
+    left: 12px;
+    right: 12px;
+    bottom: 78px; /* モバイルは下にナビが居る */
+    max-width: none;
+  }
+}

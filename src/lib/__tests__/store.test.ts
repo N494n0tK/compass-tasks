@@ -340,6 +340,7 @@ describe('exportData', () => {
       'noteSumLog',
       'focusLog',
       'notionPullLog',
+      'clawdFound',
     ]);
   });
 

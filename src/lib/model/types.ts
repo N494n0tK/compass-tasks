@@ -46,7 +46,30 @@ export type ViewId =
   | 'add'
   | 'data'
   | 'notebook'
-  | 'extract';
+  | 'extract'
+  /**
+   * Clawd くんと話す面。**隠しタブ**で、トップバーの ✳ を押して見つけるまでナビに出ない
+   * （`clawdFound`）。ほかの 8 画面が「予定を扱う道具」なのに対し、ここだけは
+   * 道具ではなく相棒なので、既定では表に出さず、見つけた人にだけ増える。
+   */
+  | 'clawd';
+
+/** Clawd との会話 1 通。`who` は書いた側 */
+export interface ClawdMsg {
+  who: 'clawd' | 'me';
+  text: string;
+  /** 並べ替えと `key` に使う通し番号（時刻ではない ―― 秒未満に連続で届くため） */
+  n: number;
+}
+
+/**
+ * タスクを 1 つ片づけたときに下から届く祝い（`ClawdCheer`）。
+ * 左に祝いの Clawd、右に一言。`n` が変わるたびに鳴らし直す。
+ */
+export interface ClawdCheerMsg {
+  text: string;
+  n: number;
+}
 
 /** タスクサイズ。`SIZE_MIN = { XS:5, S:10, M:20, L:30 }`（HTML:2037） */
 export type SizeKey = 'XS' | 'S' | 'M' | 'L';
@@ -401,6 +424,11 @@ export interface PersistentState {
   focusLog: FocusLogEntry[];
   /** Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id → 取り込み結果 */
   notionPullLog: NotionPullLog;
+  /**
+   * Clawd の隠しタブを見つけたか。トップバーの ✳ を 1 度押すと立ち、以後ナビに並ぶ。
+   * **保存する** ―― 見つけたものを起動のたびに探し直させるのは、隠し扉ではなく嫌がらせ。
+   */
+  clawdFound: boolean;
 }
 
 /**
@@ -441,6 +469,8 @@ export const PERSISTENT_KEYS = [
   'noteSumLog',
   'focusLog',
   'notionPullLog',
+  // 隠しタブを見つけたか。**一度見つけたら覚えておく**（毎回探させない）
+  'clawdFound',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -885,6 +915,13 @@ export interface EphemeralState {
    * 深追いしない（`NOTE_UNDO_MAX` 段）。取り消したいのはたいてい直前の 1 手だから。
    */
   nbUndo: NoteUndo[];
+  /**
+   * Clawd との会話。**保存しない** ―― 昨日の励ましを読み返す面ではないし、
+   * 保存すると `compass-ui-data` が会話ぶんだけ肥る。開くたび挨拶から始まる。
+   */
+  clawdLog: ClawdMsg[];
+  /** いま下に出ている祝い（`null` = 出ていない） */
+  clawdCheer: ClawdCheerMsg | null;
   /** 理解度モーダルでカードの解答を表示しているか */
   revAskReveal: boolean;
 }

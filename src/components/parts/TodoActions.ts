@@ -14,8 +14,10 @@
 
 import type { AppState, Plans, ISODate, SizeKey } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
+import { clawdCheerText } from '../../lib/logic/clawdTalk';
 import { mutExtra, mutReview, mutSeg, openNoteDrill } from './ShellActions';
-import type { TodayItem } from './ShellTodayItems';
+import { buildTodayItems, todayTotals, type TodayItem } from './ShellTodayItems';
+import { dateCtx } from '../useStore';
 
 /**
  * `this.SIZE_MIN`（HTML:2037）。
@@ -68,10 +70,31 @@ export function toggleItem(store: CompassStore, it: TodayItem): void {
     openNoteDrill(store, it.noteId);
     return;
   }
+  // 片づける向きか、戻す向きか。祝うのは**片づけたときだけ**
+  const clearing = !it.done;
   if (it.kind === 'seg') mutSeg(store, it.id, (x) => ((x.done = !x.done), x));
   else if (it.kind === 'extra') mutExtra(store, it.id, (x) => ((x.done = !x.done), x));
   else if (!it.done) openAsk(store, it.id);
   else mutReview(store, it.id, (x) => ((x.done = false), x));
+  if (clearing) cheerCleared(store);
+}
+
+/**
+ * 1 つ片づいたことを Clawd が下から知らせる（要望 2026-08-28）。
+ *
+ * 数えるのは**片づけたあとの state** なので、この関数は `mut*` のあとに呼ぶこと
+ * （`store.setState` は同期反映なので、直後に読めばもう新しい値。`store.ts` の注記 1）。
+ *
+ * 知らせのトースト（`ShellToast`）には混ぜない。あちらは 1 本しか出せず、
+ * 保存の失敗のような**読まないと困ること**の席なので、祝いで潰すわけにいかない。
+ */
+function cheerCleared(store: CompassStore): void {
+  const s = store.getState();
+  const totals = todayTotals(buildTodayItems(s, store.getPlans(), dateCtx.today));
+  const allDone = totals.totalCount > 0 && totals.doneCount === totals.totalCount;
+  // `n` は「今日いくつ片づけたか」。続けて片づけると言葉が回る（乱数を使わない）
+  const n = totals.doneCount;
+  store.setState({ clawdCheer: { text: clawdCheerText(n, allDone), n } });
 }
 
 /** `sizeChip(cur, onPick)(z)` の戻り（HTML:3636-3642） */
