@@ -50,7 +50,6 @@ export function openNoteDrill(store: CompassStore, noteId: string): void {
     nbEdit: false,
     nbFullNote: false,
     revSel: null,
-    focusOpen: false,
   });
 }
 
@@ -73,7 +72,6 @@ export function openNote(store: CompassStore, noteId: string): void {
     // まとめを書きに来たのに書けない、では開いた意味がないので自分のノートまで戻す
     nbLens: s.nbLens === 'recall' ? 'mine' : s.nbLens,
     revSel: null,
-    focusOpen: false,
   }));
 }
 
@@ -94,6 +92,5 @@ export function openWeakDrill(store: CompassStore, subj: string | null = null): 
     nbSubjFilter: subj,
     nbMode: 'note',
     nbEdit: false,
-    focusOpen: false,
   });
 }

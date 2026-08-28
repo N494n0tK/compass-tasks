@@ -85,8 +85,6 @@ export const UNDO_RESET_PATCH = {
   redistOpen: false,
   redistPlan: null,
   redistPickMode: false,
-  focusOpen: false,
-  focusRunning: false,
   dragId: null,
   dragMini: null,
   dragMiniOver: null,
@@ -259,10 +257,6 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     timetableFocusDate: today,
     planQuota: {},
     dragQuota: null,
-    focusOpen: false,
-    focusRunning: false,
-    focusRemaining: 1500,
-    focusPreset: 25,
     segs: [],
     extras: [],
     reviews: [],
@@ -552,8 +546,9 @@ export class CompassStore {
    * `PLANS` 全体 + `UNDO_KEYS` 14 キーを巻き戻し、選択・ドラッグ・モーダル 22 キーを
    * 強制リセット（`UNDO_RESET_PATCH`）してからトースト。
    *
-   * > レガシーはここで `clearInterval(this._focusTimer)` もするが、タイマーは React 側の
-   * > 責務なので移していない。`focusRunning:false` / `focusOpen:false` を必ず含むので、
+   * > レガシーはここで `clearInterval(this._focusTimer)` もするが、集中モードは
+   * > 2026-08 に畳んだ（Clawd と作業する浮き窓に置き換えた）。あの窓は Undo で
+   * > 止めない ―― 関係のない操作を取り消したら回っていたタイマーが消える、では困るので。
    * > 集中モードのタイマー effect はその変化で自然に止まる。
    */
   undoLastAction = (): UndoResult => {

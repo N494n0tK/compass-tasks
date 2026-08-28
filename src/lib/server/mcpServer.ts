@@ -21,10 +21,17 @@ export const PROTOCOL_VERSION = '2025-06-18';
 /** 合わせにいける版。これ以外を要求されたら {@link PROTOCOL_VERSION} で答える */
 const SUPPORTED_PROTOCOLS = new Set(['2025-06-18', '2025-03-26', '2024-11-05']);
 
+/**
+ * クライアントに名乗る実装の版。**ツールを足したら必ず上げる。**
+ *
+ * ChatGPT のカスタム MCP は、接続したときのツール一覧をプラグイン定義に焼き付ける
+ * （接続を解除して繋ぎ直しても再取得しない。2026-08-28 実測）。版が変わったことを
+ * 手がかりに読み直す可能性があるので、ここを据え置くと新しいツールが永遠に見えない。
+ */
 export const SERVER_INFO = {
   name: 'compass-study',
   title: 'Compass 授業ノート',
-  version: '1.0.0',
+  version: '1.1.0',
 } as const;
 
 export const JSONRPC_PARSE_ERROR = -32700;

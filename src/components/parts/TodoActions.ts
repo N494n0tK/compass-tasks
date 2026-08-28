@@ -7,7 +7,7 @@
  * 2916-2922（`openAsk` / `toggleItem`）、3636-3642（`sizeChip`）。
  * spec §5.7 / §7.4 / §4.17。
  *
- * `screens/Todo.tsx` と `parts/TodoFocusOverlay.tsx` の共有部分だけを置く。
+ * `screens/Todo.tsx` から使う共有部分だけを置く。
  * どれもレガシーでは `renderVals` の中に素で書かれていたヘルパで、`lib/logic`（＝レガシーの
  * クラス外関数だけを持つ層）には無い。
  */

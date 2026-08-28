@@ -832,11 +832,8 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 }
 .empty-note b{font:700 13px var(--f-disp);letter-spacing:.05em;color:var(--tx1)}
 .empty-note span{font:400 11px var(--f-ui);line-height:1.8;color:var(--tx3)}
-.focus-launch{
-  border:1px solid var(--view)!important;border-radius:var(--rad-s)!important;
-  background:transparent!important;color:var(--view)!important;transition:background .13s ease;
-}
-.focus-launch:hover{transform:none;filter:none;background:var(--viewBg)!important}
+/* `.focus-launch`（集中モードの入口）は 2026-08 に畳んだ。
+   置き換えは Clawd と作業する浮き窓（app/clawd-chat.css の `.cw`） */
 .todo-summary linearGradient stop:first-child{stop-color:var(--view)}
 .todo-summary linearGradient stop:last-child{stop-color:var(--view)}
 /* var(--grad) を敷いた主要ボタン。押せるものは常にベタ塗り + 直角 */
@@ -1055,7 +1052,7 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   [data-screen-label="ToDo"]>div,[data-screen-label="Data"]>div{width:100%;min-width:0}
   [data-screen-label="Add"]>div{width:100%!important;grid-template-columns:minmax(0,1fr)!important}
   [data-screen-label="Add"]>div>div{min-width:0}
-  .todo-summary{flex-wrap:wrap}.todo-summary .focus-launch{width:100%;min-height:44px}.todo-summary>div:nth-child(2){min-width:150px}
+  .todo-summary{flex-wrap:wrap}.todo-summary>div:nth-child(2){min-width:150px}
   .plan-controls{gap:8px!important}.plan-controls>div{min-height:54px}.plan-legend{flex-basis:100%!important;justify-content:flex-start!important;gap:8px 12px!important;flex-wrap:wrap}
   .plan-overdue{align-items:flex-start!important;flex-wrap:wrap}.plan-overdue>button{width:100%;margin-left:0!important;min-height:42px}
   .mobile-scroll-hint{display:block!important;margin:-2px 2px 8px;color:var(--tx3);font:400 10.5px var(--f-ui);text-align:right}

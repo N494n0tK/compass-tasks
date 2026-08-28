@@ -837,12 +837,6 @@ export interface EphemeralState {
   addSlotSel: number | null;
   addSlotDate: ISODate | null;
   dragQuota: string | null;
-  focusOpen: boolean;
-  focusRunning: boolean;
-  /** 秒。初期 1500（25分） */
-  focusRemaining: number;
-  /** 分 */
-  focusPreset: number;
   cloudStatus: CloudStatus;
   cloudUser: string;
   // ── ノート画面（docs/notebook/spec.md §8）。レガシーに無い追加。

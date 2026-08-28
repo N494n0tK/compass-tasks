@@ -644,12 +644,17 @@ export function DataScreen() {
           ) : null}
 
           {/* ── カード（追加）: 集中モードの実測（plan.md §4.3）。
-              見積り（学習時間）とは別の物差しなので、円グラフには混ぜず独立した枠に出す */}
+              見積り（学習時間）とは別の物差しなので、円グラフには混ぜず独立した枠に出す。
+
+              **集中モードそのものは 2026-08 に畳んだ**（Clawd と作業する浮き窓に置き換えた）。
+              新しく増えることはもう無いが、過去に測った時間は本人の学習の記録なので消さない。
+              記録が 1 件も無い人には枠ごと出さない ―― 空のまま置いておくと、
+              使える機能が無いのに入口だけあるように見える */}
+          {focus.count > 0 ? (
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* 集中モードのタイマー環と同じ差し色（`TodoFocusOverlay`）。glow は付けない */}
               <span style={dotStyle('var(--acc)', 'none')} />
-              <span style={headingTextStyle}>集中モード実測</span>
+              <span style={headingTextStyle}>集中の実測（過去の記録）</span>
               <span style={headingMetaStyle}>{focus.count + 'セッション'}</span>
             </div>
             <div style={{ display: 'flex', gap: '9px', flexWrap: 'wrap' }}>
@@ -669,9 +674,10 @@ export function DataScreen() {
               </div>
             </div>
             <div style={footnoteStyle}>
-              {'タイマーを回した時間そのものです · 上の学習時間（完了タスクの見積り）とは別に数えるので、二重には足されません'}
+              {'タイマーを回した時間そのものです · 集中モードは終了したので、この数字はもう増えません'}
             </div>
           </div>
+          ) : null}
         </div>
 
         {/* ── カード3: テスト結果（HTML:1294-1321 / C-425〜C-441） */}

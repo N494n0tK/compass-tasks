@@ -79,8 +79,6 @@ describe('createInitialState', () => {
     expect(s.addType).toBe('single');
     expect(s.addSize).toBe('M');
     expect(s.redistLateDays).toBe(7);
-    expect(s.focusRemaining).toBe(1500);
-    expect(s.focusPreset).toBe(25);
     expect(s.duoEnd).toBe('400');
     expect(s.chartEnd).toBe('4');
     expect(s.dataRange).toBe('all');
@@ -529,7 +527,6 @@ describe('undo', () => {
       editorPlan: 'p1',
       revSel: 'r1',
       redistOpen: true,
-      focusRunning: true,
       dragId: 's1',
       tooltip: { x: 1, y: 2, title: 't', sub: 's' },
     });
@@ -540,7 +537,8 @@ describe('undo', () => {
     for (const [key, value] of Object.entries(UNDO_RESET_PATCH)) {
       expect(after[key]).toBe(value);
     }
-    expect(Object.keys(UNDO_RESET_PATCH)).toHaveLength(22);
+    // 集中モードを畳んだぶん 2 つ減った（focusOpen / focusRunning）
+    expect(Object.keys(UNDO_RESET_PATCH)).toHaveLength(20);
   });
 
   it('does not restore persistent keys outside UNDO_KEYS', () => {

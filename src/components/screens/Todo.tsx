@@ -10,7 +10,6 @@
  *                3037-3069（`todoPlanIds` / `selectedPid` / `todoPlanCards`）、
  *                3070-3115（`todoOtherItems` / ノルマ線 / `todoPlanRows`）、
  *                4231-4278（`donutPct` ほか ToDo の値）
- *  - 集中モードは `parts/TodoFocusOverlay`（HTML:1854-1866 / 4048-4076）
  *
  * spec §5.5 / §5.6 / §7.7、パリティ C-236〜C-287。
  *
@@ -637,24 +636,6 @@ export function Todo() {
               </div>
             ) : null}
           </div>
-          <button
-            className="focus-launch"
-            onClick={() => store.setState({ focusOpen: true })}
-            style={{
-              alignSelf: 'stretch',
-              minWidth: '128px',
-              padding: '11px 14px',
-              border: '1px solid var(--acc)',
-              borderRadius: 'var(--rad-s)',
-              background: 'var(--accBg)',
-              color: 'var(--acc)',
-              font: "700 12.5px var(--f-ui)",
-              cursor: 'pointer',
-              boxShadow: 'var(--gAcc)',
-            }}
-          >
-            ▶ 集中モード
-          </button>
         </div>
 
         {/* ── (A) 計画詳細（HTML:1162-1185 / spec §7.7） */}
@@ -1248,8 +1229,6 @@ export function Todo() {
         ) : null}
       </div>
 
-      {/* 集中モード（`TodoFocusOverlay`）は画面切替でも消えない必要があるので
-          `CompassApp` に 1 個だけ置いてある（ここでは描かない。タイマーが 2 本になる） */}
     </div>
   );
 }

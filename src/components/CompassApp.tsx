@@ -60,7 +60,6 @@ import { ShellToast, ShellTooltip } from './parts/ShellToast';
 import { ShellTopbar } from './parts/ShellTopbar';
 import { buildTodayItems } from './parts/ShellTodayItems';
 import { TestsEditorDrawer } from './parts/TestsEditorDrawer';
-import { TodoFocusOverlay } from './parts/TodoFocusOverlay';
 import {
   NotebookController,
   applyNoteOutcome,
@@ -321,10 +320,9 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
       // 起動時の自動生成がまだなら見送る。クラウド読込前に生成すると保存済みのログを
       // 知らないまま積むことになり、同じ日のタスクが二重になる（上の effect と同じ理由）。
       if (!autoGenRanRef.current) return;
-      // 集中モードのタイマーが動いている間は進めない。進めると (1) 計測中のセッションが
-      // 日付をまたいで壊れ、(2) 目の前の「今日のリスト」が予告なく差し替わる。
-      // 止めた／閉じたあとの次のチェック（60 秒以内）で進むので取りこぼさない。
-      if (store.getState().focusRunning) return;
+      // Clawd と作業中は進めない。進めると目の前の「今日のリスト」が予告なく差し替わる。
+      // 閉じたあとの次のチェック（60 秒以内）で進むので取りこぼさない。
+      if (store.getState().clawdWork) return;
 
       dateCtx.rollover();
       const message = runAutoGen(store, dateCtx.today);
@@ -425,15 +423,8 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
           store.setState({ view: 'add' }, () => savePrefs());
           return;
         }
-        if (key === 'f') {
-          e.preventDefault();
-          store.setState({ view: 'todo', focusOpen: true });
-          return;
-        }
       }
       if (e.key === 'Escape') {
-        // レガシーはここで `clearInterval(this._focusTimer)` もするが、タイマーは
-        // `focusRunning:false` を見る React 側の effect が止める（store.ts の注記）
         store.setState({
           searchOpen: false,
           redistOpen: false,
@@ -445,8 +436,6 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
           revAsk: null,
           revAskReveal: false,
           scoreSel: null,
-          focusOpen: false,
-          focusRunning: false,
         });
       }
     };
@@ -572,7 +561,6 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
                 );
               }}
             />
-            <TodoFocusOverlay state={state} store={store} todayItems={todayItems} />
             {state.appSwitcherOpen ? (
               <ShellAppSwitcher store={store} onClose={closeAppSwitcher} />
             ) : null}
