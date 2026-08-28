@@ -69,13 +69,28 @@ const POKE: readonly string[] = [
   '水飲んだ？',
 ];
 
-/** ボタンで選べる話しかけ。**入力欄は置かない**（下の `CLAWD_REPLY` を見よ） */
+/** ボタンで選べる話しかけ。**入力欄は置かない**（下の `CLAWD_PROMPTS` を見よ） */
 export interface ClawdPrompt {
   /** ボタンの字 = 自分が言うこと */
   say: string;
   /** Clawd の返し。複数あるときは `n` で回す */
   reply: readonly string[];
+  /**
+   * 押したあと会話の続きに**操作**が出るもの。
+   * `'work'` … 長さを選ぶ札が出て、選ぶと一緒に作業する浮き窓が開く。
+   * 言葉を返して終わりではない選択肢はこれで区別する。
+   */
+  kind?: 'work';
 }
+
+/**
+ * 一緒に作業する長さの候補（分）。
+ *
+ * 25 を真ん中に置いたのはポモドーロの慣習に合わせたから。15 は「とりあえず机に向かう」、
+ * 60 は「腰を据える」。**それ以上は出さない** ―― 1 時間を超えて座り続ける約束をさせるのは、
+ * 守れなかったときに「できなかった」を増やすだけになる。
+ */
+export const CLAWD_WORK_MINUTES: readonly number[] = [15, 25, 45, 60];
 
 /**
  * 話しかけの候補。
@@ -86,6 +101,15 @@ export interface ClawdPrompt {
  * 疲れているときに文章を考えなくて済むぶん、実際に押せる。
  */
 export const CLAWD_PROMPTS: readonly ClawdPrompt[] = [
+  {
+    say: '一緒に作業して',
+    kind: 'work',
+    reply: [
+      'いいよ。どれくらいやる？',
+      'やろう。何分にする？',
+      'つきあうよ。長さだけ決めて',
+    ],
+  },
   {
     say: '疲れた',
     reply: [
@@ -168,4 +192,26 @@ export function clawdPoke(n: number): string {
 /** 話しかけへの返し。同じボタンを続けて押しても言葉が回る */
 export function clawdReply(prompt: ClawdPrompt, n: number): string {
   return prompt.reply[idx(n, prompt.reply.length)];
+}
+
+/** 長さを決めて始めるときの一言 */
+export function clawdWorkGo(min: number): string {
+  return min + '分ね。じゃあ始めよう。となりで打ってるから';
+}
+
+/** 終わったときの一言。`n` で回す */
+const WORK_DONE: readonly string[] = [
+  '終わり！ よくやった',
+  'おつかれさま。ちゃんと座りきったね',
+  '時間ぶん、やりきった',
+  'おわり。少し立って歩こう',
+];
+
+export function clawdWorkDone(min: number, n: number): string {
+  return WORK_DONE[idx(n, WORK_DONE.length)] + '（' + min + '分）';
+}
+
+/** 途中でやめたときの一言。**責めない**（やめられるのも力のうち） */
+export function clawdWorkStop(): string {
+  return 'ここまでにしよう。座った時間は消えないよ';
 }

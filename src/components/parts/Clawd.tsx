@@ -118,6 +118,15 @@ export interface ClawdProps {
    * 常設の Clawd には付けない ―― 画面を開くたびに動くと、ただの飾りになる。
    */
   autoPlay?: boolean;
+  /**
+   * 止まらずに動かし続ける。**その場かぎりの「いま祝っている」ためだけ**に使う
+   * （作業タイマーが鳴ったあとの窓など）。
+   *
+   * 常設のものには絶対に付けない ―― 視界の端で何かが回り続けると集中が削れる、
+   * というのがこのファイルの既定を静止画にしている理由そのものなので。
+   * 付ける側は「本人が閉じるまでの短い時間だけ」であることを確かめること。
+   */
+  loop?: boolean;
   className?: string;
   style?: CSSProperties;
 }
@@ -128,12 +137,13 @@ export function Clawd({
   interactive = true,
   onTap,
   autoPlay = false,
+  loop = false,
   className,
   style,
 }: ClawdProps) {
   const art = ART[kind];
   /** 0 = 静止。1 以上 = その回のアニメーション（`key` に使うので押すたびに増やす） */
-  const [run, setRun] = useState(autoPlay ? 1 : 0);
+  const [run, setRun] = useState(autoPlay || loop ? 1 : 0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** 動きを止める設定の人には、そもそも差し替えない（静止画のまま） */
@@ -144,14 +154,17 @@ export function Clawd({
 
   const play = useCallback(() => {
     if (reduced) return;
+    // 既に流しっぱなしなら、押しても何も変えない（作り直すと頭に飛んで不自然）
+    if (loop) return;
     // 連打されたら数を進めるだけ。`key` が変わって `<img>` が作り直され、
     // 必ず 1 コマ目から流れ直す
     setRun((n) => n + 1);
-  }, [reduced]);
+  }, [reduced, loop]);
 
-  // 1 周ぶん経ったら静止画へ戻す。`run` が変わるたびに掛け直す（連打で伸びる）
+  // 1 周ぶん経ったら静止画へ戻す。`run` が変わるたびに掛け直す（連打で伸びる）。
+  // 動かし続ける指定のときは戻さない（GIF は元から無限ループなので放っておけばよい）
   useEffect(() => {
-    if (!run) return;
+    if (!run || loop) return;
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       timer.current = null;
@@ -161,7 +174,7 @@ export function Clawd({
       if (timer.current !== null) clearTimeout(timer.current);
       timer.current = null;
     };
-  }, [run, art.loopMs]);
+  }, [run, loop, art.loopMs]);
 
   const img = (
     <img
@@ -169,7 +182,7 @@ export function Clawd({
       // 画面が再描画されるたびに読み直しにはならない
       key={run}
       className="clawd__img"
-      src={run ? art.motion : art.still}
+      src={run || (loop && !reduced) ? art.motion : art.still}
       alt=""
       width={Math.round(size)}
       height={Math.round(size * art.ratio)}

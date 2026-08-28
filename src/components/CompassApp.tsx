@@ -41,6 +41,7 @@ import {
   undoMessage,
 } from '../lib/logic/noteTrash';
 import { ClawdCheer } from './parts/ClawdCheer';
+import { ClawdWorkWindow } from './parts/ClawdWorkWindow';
 import { NoteDangerDialog } from './parts/NoteDangerDialog';
 import { NoteTrashPanel } from './parts/NoteTrashPanel';
 import { ReviewAskModal } from './parts/ReviewAskModal';
@@ -540,6 +541,9 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
                 `nbAsk` / `nbTrashOpen` を見て、閉じているときは何も描かない */}
             {/* 片づけたときの祝い（左下）。知らせのトーストとは席を分ける */}
             <ClawdCheer />
+            {/* 一緒に作業する浮き窓。**画面を移っても回り続ける**ので、
+                画面側ではなくここに 1 個だけ置く */}
+            <ClawdWorkWindow />
             <NoteDangerDialog />
             <NoteTrashPanel
               today={dateCtx.today}

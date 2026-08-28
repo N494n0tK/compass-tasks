@@ -38,19 +38,9 @@ import {
   searchAddReviewToast,
   searchAddSegToast,
 } from './ShellSearch';
-import { Clawd, clawdForView, type ClawdKind } from './Clawd';
 import { TITLES } from './ShellTheme';
 import { todayTotals, type TodayItem } from './ShellTodayItems';
 
-/**
- * Clawd を触ったときの一言。画面ごとに住人が違うので、返す言葉も住人ぶん用意する。
- * 中身に意味は無い ―― 押したら何か返ってくる、という手応えだけが要る。
- */
-const CLAWD_HELLO: Record<ClawdKind, string> = {
-  type: 'Clawdも打ちはじめました',
-  play: 'Clawdは玉で遊んでいる',
-  cheer: 'Clawdが祝ってくれた',
-};
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
 
@@ -431,9 +421,6 @@ export function ShellTopbar({
         className="app-top-actions"
         style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}
       >
-        {/* Clawd くん。**画面ごとに違う 1 匹**が居る（`clawdForView`）ので、
-            タブを移ると住人が替わる ―― 字の見出しだけでなく、ここでも移ったことが分かる。
-            触ると 1 周ぶん動く。常設なので、触られるまでは 1 コマ目で静止したまま */}
         {/* Clawd の隠しタブへの入口（要望: 右上に、もっと大きく）。
             押すとタブが増えてそこへ移る。見つける前だけ少し薄い ―― 常時光らせない */}
         <button
@@ -445,12 +432,6 @@ export function ShellTopbar({
         >
           <img src="/clawd/clawd-mark.png" alt="" width="34" height="34" />
         </button>
-        <Clawd
-          key={S.view}
-          kind={clawdForView(S.view)}
-          size={26}
-          onTap={() => store.showToast(CLAWD_HELLO[clawdForView(S.view)])}
-        />
         {overdueCount > 0 ? (
           // 遅れが出た / 片づいた は、出たり消えたりすること自体が知らせ。
           // 何も無いところに黙って現れないよう、出るときだけ下から起こす

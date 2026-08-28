@@ -31,16 +31,19 @@
  * 文章を考えなくて済むぶん、実際に押せる。
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CLAWD_PROMPTS,
+  CLAWD_WORK_MINUTES,
   clawdHello,
   clawdPoke,
   clawdReply,
+  clawdWorkGo,
   type ClawdPrompt,
 } from '../../lib/logic/clawdTalk';
 import type { ClawdMsg } from '../../lib/model/types';
 import { Clawd } from '../parts/Clawd';
+import { startClawdWork } from '../parts/ClawdWorkWindow';
 import { buildTodayItems, todayTotals } from '../parts/ShellTodayItems';
 import { dateCtx, store, useAppStore } from '../useStore';
 
@@ -61,6 +64,8 @@ export function ClawdChat() {
 
   /** 会話の末尾。1 通増えるたびにそこへ寄せる */
   const tailRef = useRef<HTMLDivElement | null>(null);
+  /** 長さを決める札を出しているか。会話の末尾に置く一時的な操作なので state に持たない */
+  const [askMin, setAskMin] = useState(false);
 
   // 開いたら挨拶から始める。**保存していない**ので、開くたびに 1 通目が置かれる
   useEffect(() => {
@@ -72,7 +77,7 @@ export function ClawdChat() {
   // そのときは一瞬で飛ぶ（見えないより飛ぶほうがよい）
   useEffect(() => {
     tailRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }, [log.length]);
+  }, [log.length, askMin]);
 
   /** Clawd を触る。押すたびに違う言葉が返る */
   const poke = () => push('clawd', clawdPoke(store.getState().clawdLog.length));
@@ -83,6 +88,19 @@ export function ClawdChat() {
     const n = store.getState().clawdLog.length;
     // 即答すると「用意された文」に見える。ひと呼吸だけ置く
     setTimeout(() => push('clawd', clawdReply(p, n)), 420);
+    // 「一緒に作業して」は言葉で終わらない。返しのすぐ下に長さの札を出す
+    if (p.kind === 'work') setTimeout(() => setAskMin(true), 460);
+  };
+
+  /**
+   * 長さを決めて始める。窓は `CompassApp` に置いてあるので、
+   * ここを離れて別の画面へ移っても回り続ける（それがこの窓の存在理由）。
+   */
+  const startWork = (min: number) => {
+    setAskMin(false);
+    push('me', min + '分');
+    startClawdWork(min);
+    setTimeout(() => push('clawd', clawdWorkGo(min)), 380);
   };
 
   return (
@@ -114,6 +132,16 @@ export function ClawdChat() {
               <div className="cc__bubble">{m.text}</div>
             </div>
           ))}
+          {/* 長さの札。返しの続きに見えるよう、Clawd のアイコンぶん字下げして置く */}
+          {askMin ? (
+            <div className="cc__mins" role="group" aria-label="作業する長さ">
+              {CLAWD_WORK_MINUTES.map((m) => (
+                <button key={m} type="button" className="cc__min" onClick={() => startWork(m)}>
+                  {m}分
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div ref={tailRef} />
         </div>
       </div>

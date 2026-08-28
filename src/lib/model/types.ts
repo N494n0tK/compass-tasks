@@ -63,6 +63,26 @@ export interface ClawdMsg {
 }
 
 /**
+ * Clawd と一緒に作業する 1 回ぶん（`ClawdWorkWindow`）。
+ *
+ * 既存の集中モード（`focus*`）とは別物。あちらは**今日のタスク 1 件に張り付く**全画面の面で、
+ * 教科ごとの実測（`focusLog`）を残すためのもの。こちらは対象を決めずに
+ * 「とりあえず一緒に机に向かう」ための小さな浮き窓なので、記録は残さない。
+ */
+export interface ClawdWork {
+  /** 決めた長さ（分） */
+  min: number;
+  /** 残り秒 */
+  leftSec: number;
+  running: boolean;
+  /** 0 まで来た（Clawd がお祝いに変わっている） */
+  done: boolean;
+  /** 窓の位置（ビューポート左上からの px）。掴んで動かせる */
+  x: number;
+  y: number;
+}
+
+/**
  * タスクを 1 つ片づけたときに下から届く祝い（`ClawdCheer`）。
  * 左に祝いの Clawd、右に一言。`n` が変わるたびに鳴らし直す。
  */
@@ -922,6 +942,8 @@ export interface EphemeralState {
   clawdLog: ClawdMsg[];
   /** いま下に出ている祝い（`null` = 出ていない） */
   clawdCheer: ClawdCheerMsg | null;
+  /** Clawd と一緒に作業中（`null` = 浮き窓を出していない） */
+  clawdWork: ClawdWork | null;
   /** 理解度モーダルでカードの解答を表示しているか */
   revAskReveal: boolean;
 }

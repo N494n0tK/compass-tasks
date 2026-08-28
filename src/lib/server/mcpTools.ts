@@ -19,7 +19,9 @@
  * テストは偽の store を渡すだけで書ける（`__tests__/mcpTools.test.ts`）。
  */
 
-import { todayISO } from '../logic/dates';
+import { isoShift, todayISO } from '../logic/dates';
+import { buildMorningBrief } from '../logic/morningBrief';
+import { auditNotes } from '../logic/noteAudit';
 import { parseNoteJson } from '../logic/noteImport';
 import { searchNotes } from '../logic/noteSearch';
 import {
@@ -270,6 +272,37 @@ export const TOOLS: readonly ToolDef[] = [
       'Compass が持っている週の基本時間割（曜日 × 7 コマ）と、そこに出てくる教科コードを返す。',
     readOnly: true,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'check_notes',
+    title: 'ノートの形を点検',
+    description:
+      '取り込んだノートが約束どおりの形か（想起問題の数・重要語が本文に出てくるか・self の並び順など）を'
+      + '機械的に見て、指摘を返す。**内容が授業と合っているかは見ない** ―― それは一次資料が要る。'
+      + '判定はここで決定的に行うので、呼び出す側は結果をそのまま伝えるだけでよい。',
+    readOnly: true,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { ...ISO_DATE, description: '見る範囲の上限。既定は今日' },
+        days: { type: 'integer', minimum: 1, maximum: 31, description: 'date から遡る日数。既定 1' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'morning_brief',
+    title: '朝のメモ',
+    description:
+      '今日の時間割・持ち物/提出・思い出せるか 3 問を組み立てて返す。`body` はそのまま貼れる Markdown。'
+      + '土日は `skipped: true` を返す（何も書かないでよい）。**中身を足したり書き換えたりしない**こと ――'
+      + 'ここが返した時間割と問題文がそのまま今日の 1 枚になる。',
+    readOnly: true,
+    inputSchema: {
+      type: 'object',
+      properties: { date: { ...ISO_DATE, description: '既定は今日' } },
+      additionalProperties: false,
+    },
   },
 ];
 
@@ -605,6 +638,27 @@ export async function callTool(
         subjects: timetableSubjects(),
         notice: '週の基本形。休講・差し替えはアプリ側の「夜の確認」で 1 日ぶんだけ上書きされる。',
       });
+    }
+
+    case 'check_notes': {
+      const store = ctx.store();
+      const notes = await store.loadNotes();
+      const to = argStr(args, 'date') || today;
+      const days = Math.min(argInt(args, 'days', 1), 31);
+      const from = isoShift(to, -(days - 1));
+      // 「その他」は変換表の逃げ道として正規（教科一覧には出てこない）
+      const known = new Set([...timetableSubjects(), 'その他']);
+      const target = notes.filter((n) => n.date >= from && n.date <= to);
+      return ok({ ok: true, from, to, ...auditNotes(target, known) });
+    }
+
+    case 'morning_brief': {
+      const store = ctx.store();
+      const notes = await store.loadNotes();
+      const date = argStr(args, 'date') || today;
+      const brief = buildMorningBrief({ date, notes });
+      if (!brief) return ok({ ok: true, date, skipped: true, reason: '土日なので朝のメモは作らない' });
+      return ok({ ok: true, skipped: false, ...brief });
     }
 
     default:
