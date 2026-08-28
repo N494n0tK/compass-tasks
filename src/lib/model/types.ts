@@ -194,7 +194,14 @@ export type ReviewStage = '当日' | '翌日' | '3日後' | '1週間後' | '2週
 export type ReviewStageValue = ReviewStage | (string & {});
 
 /** 復習（`state.reviews`）。spec §6.1 */
-export interface Review {
+/**
+ * 復習 1 行。
+ *
+ * `SubTaskFields` を継ぐのは 2026-08 から。ノートの復習を**ノート 1 冊で 1 行**に畳んだとき、
+ * 問（問1…問N）の行き先が要るようになったため（`lib/logic/noteCards.ts`）。
+ * 手動追加の復習にミニタスクを足す UI は無いので、実際に入るのはノート由来の行だけ。
+ */
+export interface Review extends SubTaskFields {
   /** **Firestore の doc id になる**（spec §4.5） */
   id: string;
   /** 系列ルート ID。手動追加時は自分の `id`、次回生成時は `askR.seriesId || askR.id` */

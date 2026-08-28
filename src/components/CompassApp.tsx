@@ -21,6 +21,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { todayISO } from '../lib/logic/dates';
 import { generateMissionTasks } from '../lib/logic/missionAutogen';
+import { collapseNoteReviews } from '../lib/logic/noteCards';
 import { generateNoteSummaryTasks } from '../lib/logic/noteSummaryTasks';
 import { generatePrepTasks } from '../lib/logic/prepAutogen';
 import { overdueSegs } from '../lib/logic/schedule';
@@ -233,6 +234,18 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
       // 先に走らせると `notesTrash` がまだ空で、30 日を過ぎたノートが
       // いつまでも残る。ここが Firestore から本当に消す唯一の場所。
       void notebook.boot().then(() => {
+        /**
+         * 2026-08 より前に作られた「問ごと」の復習を、ノート 1 冊 1 行へ畳む。
+         * **ノートが読み込めたあとで 1 回だけ**（畳んだ行の単元名と問数はノートから引く）。
+         * 冪等なので、既に畳んであるデータで走らせても何も起きない。
+         */
+        const col = collapseNoteReviews(
+          store.getState().reviews,
+          store.getState().notes,
+          dateCtx.today,
+        );
+        if (col.changed) store.setState({ reviews: col.reviews });
+
         const p = purgeTrash(store.getState(), dateCtx.today);
         if (!p.removedIds.length) return;
         store.setState({ notesTrash: p.notesTrash, nbUndo: p.nbUndo });

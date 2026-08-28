@@ -103,13 +103,13 @@ describe('buildTodayItems — ノート復習の束ね', () => {
     expect(todayTotals([it]).totalMin).toBe(15);
   });
 
-  it('N-073 全問終わって初めて完了になる', () => {
-    const half = [{ ...reviews[0], done: true }, reviews[1], reviews[2]];
+  it('N-073 残りの問数が説明文に出る（全問終わって初めて完了）', () => {
+    const half = [{ ...reviews[0], subsDone: [true, false, false] }];
     const [partial] = buildTodayItems(input({ reviews: half, notes: [note()] }), PLANS, T);
     expect(partial.done).toBe(false);
     expect(partial.src).toBe('ノートの復習 · 2/3問');
 
-    const all = half.map((r) => ({ ...r, done: true }));
+    const all = [{ ...reviews[0], done: true, subsDone: [true, true, true] }];
     const [full] = buildTodayItems(input({ reviews: all, notes: [note()] }), PLANS, T);
     expect(full.done).toBe(true);
     expect(full.src).toBe('ノートの復習 · 3問 完了');
@@ -141,16 +141,16 @@ describe('buildTodayItems — ノート復習の束ね', () => {
     expect(items[2].noteId).toBeUndefined();
   });
 
-  it('N-076 ノートが読み込めていないときは束ねない（1問1枚のまま）', () => {
+  it('N-076 ノートが読み込めていないときは印を付けない（ドリルへ飛ばない）', () => {
     const items = buildTodayItems(input({ reviews }), PLANS, T);
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(1);
     expect(items[0].noteId).toBeUndefined();
-    expect(items[0].title).toBe('数列 ─ 漸化式と一般項 問1');
+    expect(items[0].title).toBe('数列 ─ 漸化式と一般項');
   });
 
   it('N-076 ノートが削除済みでも落ちない', () => {
     const items = buildTodayItems(input({ reviews, notes: [note({ id: 'nother' })] }), PLANS, T);
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(1);
   });
 
   it('order に入っている並び順を尊重する', () => {

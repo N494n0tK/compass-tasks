@@ -330,13 +330,10 @@ export function commitNote(
     let order = s.order;
     let selId = s.selId;
 
-    if (removedCardIds && removedCardIds.length) {
-      const cascade = cascadeNoteRemoval(reviews, order, selId, note.id, removedCardIds);
-      reviews = cascade.reviews;
-      order = cascade.order;
-      selId = cascade.selId;
-      removed = cascade.removedIds.length;
-    }
+    // 問だけ消えたときに復習を落とすのはやめた。復習はノート 1 冊で 1 行になったので、
+    // 問の増減は下の `syncNoteReviews` がミニタスクを付け替えるだけで足りる
+    // （`removedCardIds` は取り込み側の差分表示にはまだ使われている）
+    void removedCardIds;
 
     reviews = syncNoteReviews(note, reviews);
     const gen = generateNoteReviews(note, reviews, today);

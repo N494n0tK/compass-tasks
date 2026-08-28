@@ -19,14 +19,16 @@
  */
 
 import { fmtD, fmtMD } from '../../lib/logic/dates';
-import { dueCardsOfNote, type DueCard } from '../../lib/logic/noteCards';
+import { dueCardsOfNote, worstGradeToday, type DueCard } from '../../lib/logic/noteCards';
 import { sizeOfMin } from '../../lib/logic/reviews';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import { NOTE_GRADES, NOTE_GRADE_META, type Note } from '../../lib/model/notes';
 import type { ReviewGrade } from '../../lib/model/types';
 import { NoteMath } from './NoteMath';
 import { NoteView, RevealButton } from './NoteView';
+import { recordNoteAttempt } from './NotebookPersistence';
 import { completeReview } from './ReviewShared';
+import { mutReview } from './ShellActions';
 import { closeNoteDrill } from './ShellActions';
 import { useSubjColors } from './ShellSubjects';
 import { dateCtx, store, useAppStore } from '../useStore';
@@ -58,13 +60,38 @@ export function NoteDrill({ note }: NoteDrillProps) {
   const ctx = dateCtx;
   const T = ctx.today;
 
-  const cards = dueCardsOfNote(S.reviews, note, T);
-  const remaining = cards.filter((c) => !c.review.done);
+  const due = dueCardsOfNote(S.reviews, note, T);
+  const cards = due ? due.cards : [];
+  const remaining = due ? due.remaining : 0;
   const color = subjectColorFor(subjColors, note.subject);
 
+  /**
+   * 1 問に丸を付ける。
+   *
+   * 復習は**ノート 1 冊で 1 行**になったので、1 問ごとに間隔を進めるわけにはいかない。
+   * ここでやるのは 2 つ:
+   *  1. 問そのものの履歴（`NoteCard.attempts`）に「いつ・どう感じたか」を残す
+   *  2. その問のミニタスク（`subs` の「問N」）を済みにする
+   *
+   * **最後の 1 問が済んだところで**、行そのものを完了させて次の間隔へ送る。
+   * そのときの理解度は**今日つけた中でいちばん低いもの**にする ―― 5 問中 4 問できても
+   * 1 問がまるで駄目なら、その単元はまだ「ばっちり」ではないので。
+   */
   const grade = (dc: DueCard, g: ReviewGrade) => {
-    const message = completeReview(store, dc.review, g, sizeOfMin(dc.review.min), ctx);
-    store.showToast(message);
+    if (!due) return;
+    recordNoteAttempt(store, note.id, dc.cardId, T, g);
+    const flags = (due.review.subsDone || []).slice();
+    while (flags.length < cards.length) flags.push(false);
+    flags[dc.cardNo - 1] = true;
+    mutReview(store, due.review.id, (r) => ((r.subsDone = flags), r));
+
+    if (flags.slice(0, cards.length).some((d) => !d)) return; // まだ残っている
+
+    // 全部済んだ。今日つけた丸の中でいちばん低いものでこの行を送る
+    const worst = worstGradeToday(store.getState().notes, note.id, T) || g;
+    const row = store.getState().reviews.find((r) => r.id === due.review.id);
+    if (!row) return;
+    store.showToast(completeReview(store, row, worst, sizeOfMin(row.min), ctx));
   };
 
   const backToTodo = () => closeNoteDrill(store);
@@ -90,7 +117,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
           </span>
           <span style={{ flex: 1 }} />
           <span style={{ font: '700 15px var(--f-num)', color: 'var(--view)' }}>
-            {cards.length - remaining.length + ' / ' + cards.length + ' 問'}
+            {cards.length - remaining + ' / ' + cards.length + ' 問'}
           </span>
           <button
             className="hv-acc-outline"
@@ -120,10 +147,10 @@ export function NoteDrill({ note }: NoteDrillProps) {
           const card = note.cards.find((c) => c.cardId === dc.cardId) || null;
           const key = 'd:' + note.id + ':' + dc.cardId;
           const open = !!S.nbRevealed[key];
-          const done = dc.review.done;
+          const done = dc.done;
           return (
             <div
-              key={dc.reviewId}
+              key={dc.cardId}
               style={{
                 padding: '20px 0',
                 borderBottom: '1px solid var(--line)',
@@ -134,10 +161,10 @@ export function NoteDrill({ note }: NoteDrillProps) {
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}
               >
                 <span className="nb-no" style={{ marginTop: 0 }} aria-hidden="true">
-                  {dc.cardNo || i + 1}
+                  {dc.cardNo}
                 </span>
                 <span style={{ font: '400 11.5px var(--f-ui)', color: 'var(--tx3)' }}>
-                  {dc.review.stage + 'の復習 · 第' + dc.review.reviewNo + '回'}
+                  {due ? due.review.stage + 'の復習 · 第' + due.review.reviewNo + '回' : ''}
                 </span>
                 {/* これまでの実績。◎○△ を付けるとここに積まれる */}
                 {card && card.attempts.length ? (
@@ -170,7 +197,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
                 {done ? (
                   <>
                     <span style={{ font: '400 11.5px var(--f-ui)', color: 'var(--tx3)' }}>
-                      {'次回 ' + nextDueLabel(S.reviews, dc)}
+                      {'次回 ' + nextDueLabel(S.reviews, due)}
                     </span>
                     <span
                       className="nb-maru__mark"
@@ -187,7 +214,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
                 <NoteMath className="nb-body" src={card.q} />
               ) : (
                 <div style={{ font: '400 14px var(--f-ui)', color: 'var(--tx3)' }}>
-                  {dc.review.title + '（この問題はノートから削除されています）'}
+                  {'（この問題はノートから削除されています）'}
                 </div>
               )}
 
@@ -269,7 +296,7 @@ export function NoteDrill({ note }: NoteDrillProps) {
         })}
       </div>
 
-      {cards.length && !remaining.length ? (
+      {cards.length && !remaining ? (
         <div style={{ marginTop: '30px', textAlign: 'center' }}>
           <div style={{ font: '700 15px var(--f-disp)', color: 'var(--grn)' }}>
             今日ぶんの復習は完了です 🎉
@@ -314,9 +341,10 @@ export function NoteDrill({ note }: NoteDrillProps) {
 /** 完了した問の「次回」ラベル。同じ系列で新しく作られた未完了行を探す */
 function nextDueLabel(
   reviews: readonly { seriesId: string; id: string; done: boolean; due: string }[],
-  dc: DueCard,
+  due: { review: { seriesId: string; id: string } } | null,
 ): string {
-  const sid = dc.review.seriesId || dc.review.id;
+  if (!due) return '定着 🎉';
+  const sid = due.review.seriesId || due.review.id;
   const next = reviews.find((r) => (r.seriesId || r.id) === sid && !r.done);
   return next ? fmtD(dateCtx, next.due) : '定着 🎉';
 }

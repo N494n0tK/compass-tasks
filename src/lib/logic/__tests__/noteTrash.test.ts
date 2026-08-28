@@ -72,10 +72,15 @@ function review(over: Partial<Review> = {}): Review {
   };
 }
 
-/** ノート由来の復習（`seriesId` の命名規約だけがリンク） */
-function noteReview(noteId: string, cardId: string, over: Partial<Review> = {}): Review {
-  const sid = noteSeriesId(noteId, cardId);
-  return review({ id: sid, seriesId: sid, title: '数列 問1', subj: '数学', ...over });
+/**
+ * ノート由来の復習（`seriesId` の命名規約だけがリンク）。
+ *
+ * いまはノート 1 冊で 1 行なので、同じノートの 2 行目以降は
+ * **完了して次の世代になった行**という位置づけになる（id だけ別で `seriesId` は同じ）。
+ */
+function noteReview(noteId: string, over: Partial<Review> = {}): Review {
+  const sid = noteSeriesId(noteId);
+  return review({ id: sid, seriesId: sid, title: '数列', subj: '数学', ...over });
 }
 
 function summaryExtra(noteId: string, over: Partial<Extra> = {}): Extra {
@@ -113,13 +118,13 @@ function state(over: Partial<NoteTrashState> = {}): NoteTrashState {
 function fullState(): NoteTrashState {
   return state({
     reviews: [
-      noteReview('nabc', 'c0', { id: 'nb-nabc-c0' }),
-      noteReview('nabc', 'c1', { id: 'nb-nabc-c1' }),
-      noteReview('nabc', 'c2', { id: 'nb-nabc-c2', done: true }),
+      noteReview('nabc', { id: 'nb-nabc' }),
+      noteReview('nabc', { id: 'nb-nabc-g1' }),
+      noteReview('nabc', { id: 'nb-nabc-done', done: true }),
       review({ id: 'umanual' }),
     ],
     extras: [summaryExtra('nabc')],
-    order: ['umanual', 'nb-nabc-c0', 'nbsum-nabc', 'nb-nabc-c1'],
+    order: ['umanual', 'nb-nabc', 'nbsum-nabc', 'nb-nabc-g1'],
     nbSelNoteId: 'nabc',
   });
 }
@@ -152,7 +157,7 @@ describe('trashNote — ゴミ箱へ入れる', () => {
 
   it('alsoReviews:true で未完了の復習とまとめタスクが消える。完了済みは残る', () => {
     const out = trashNote(fullState(), { noteId: 'nabc', alsoReviews: true, today: T, at: 1 });
-    expect(out.next.reviews.map((r) => r.id)).toEqual(['nb-nabc-c2', 'umanual']);
+    expect(out.next.reviews.map((r) => r.id)).toEqual(['nb-nabc-done', 'umanual']);
     expect(out.next.extras).toEqual([]);
     expect(out.next.order).toEqual(['umanual']);
     expect(out.removedReviews).toBe(2);
@@ -169,7 +174,7 @@ describe('trashNote — ゴミ箱へ入れる', () => {
   });
 
   it('完了済みの復習は alsoReviews:true でも消えない', () => {
-    const s = state({ reviews: [noteReview('nabc', 'c0', { done: true })] });
+    const s = state({ reviews: [noteReview('nabc', { done: true })] });
     const out = trashNote(s, { noteId: 'nabc', alsoReviews: true, today: T, at: 1 });
     expect(out.next.reviews).toHaveLength(1);
   });
@@ -191,9 +196,9 @@ describe('trashNote — ゴミ箱へ入れる', () => {
     const u = out.next.nbUndo[0];
     expect(u.kind).toBe('trash');
     expect(u.note.trashedAt).toBe('');
-    expect(u.reviews.map((r) => r.id)).toEqual(['nb-nabc-c0', 'nb-nabc-c1']);
+    expect(u.reviews.map((r) => r.id)).toEqual(['nb-nabc', 'nb-nabc-g1']);
     expect(u.extras.map((x) => x.id)).toEqual(['nbsum-nabc']);
-    expect(u.order).toEqual(['umanual', 'nb-nabc-c0', 'nbsum-nabc', 'nb-nabc-c1']);
+    expect(u.order).toEqual(['umanual', 'nb-nabc', 'nbsum-nabc', 'nb-nabc-g1']);
     expect(u.at).toBe(7);
   });
 });
@@ -229,7 +234,7 @@ describe('applyNoteUndo — ⌘Z', () => {
     const back = applyNoteUndo(mid);
     expect(back.next.order).toContain('unew');
     // 消えた行は元の位置（umanual の直後 / nbsum の直後）へ戻る
-    expect(back.next.order).toEqual(['umanual', 'nb-nabc-c0', 'nbsum-nabc', 'nb-nabc-c1', 'unew']);
+    expect(back.next.order).toEqual(['umanual', 'nb-nabc', 'nbsum-nabc', 'nb-nabc-g1', 'unew']);
   });
 
   it('履歴が空なら何もしない', () => {
@@ -330,7 +335,7 @@ describe('restoreNote — ゴミ箱から戻す', () => {
     expect(undone.next.notesTrash.map((n) => n.id)).toEqual(['nabc']);
     expect(undone.next.notesTrash[0].trashedAt).toBe(T);
     // 捨てた直後と同じ状態（完了済みと手動の行だけ）
-    expect(undone.next.reviews.map((r) => r.id)).toEqual(['nb-nabc-c2', 'umanual']);
+    expect(undone.next.reviews.map((r) => r.id)).toEqual(['nb-nabc-done', 'umanual']);
     expect(undone.next.extras).toEqual([]);
     expect(undone.next.order).toEqual(['umanual']);
     expect(undoMessage(undone)).toBe('「数列」をゴミ箱へ戻しました');
@@ -347,9 +352,9 @@ describe('renameNote — 改名も同じ入口', () => {
     const out = renameNote(s, { noteId: 'nabc', unit: '数列と漸化式', syncTitles: true, today: TOMORROW, at: 1 });
     expect(out.next.notes[0].unit).toBe('数列と漸化式');
     expect(out.next.notes[0].updatedAt).toBe(TOMORROW);
-    expect(out.next.reviews.find((r) => r.id === 'nb-nabc-c0')?.title).toBe('数列と漸化式 問1');
+    expect(out.next.reviews.find((r) => r.id === 'nb-nabc')?.title).toBe('数列と漸化式');
     // 完了済みは学習履歴なので触らない
-    expect(out.next.reviews.find((r) => r.id === 'nb-nabc-c2')?.title).toBe('数列 問1');
+    expect(out.next.reviews.find((r) => r.id === 'nb-nabc-done')?.title).toBe('数列');
     // **改名では何も消さない** ―― 間隔を壊さないのがこの操作の約束
     expect(out.removedReviews).toBe(0);
     expect(out.removedSummaries).toBe(0);
@@ -360,7 +365,7 @@ describe('renameNote — 改名も同じ入口', () => {
     const s = fullState();
     const out = renameNote(s, { noteId: 'nabc', unit: '確率', syncTitles: false, today: TOMORROW, at: 1 });
     expect(out.next.notes[0].unit).toBe('確率');
-    expect(out.next.reviews.find((r) => r.id === 'nb-nabc-c0')?.title).toBe('数列 問1');
+    expect(out.next.reviews.find((r) => r.id === 'nb-nabc')?.title).toBe('数列');
     expect(out.next.reviews.map((r) => r.id).sort()).toEqual(s.reviews.map((r) => r.id).sort());
   });
 
@@ -370,7 +375,7 @@ describe('renameNote — 改名も同じ入口', () => {
     const back = applyNoteUndo({ ...s0, ...renamed.next });
     expect(back.entry?.kind).toBe('rename');
     expect(back.next.notes[0].unit).toBe('数列');
-    expect(back.next.reviews.find((r) => r.id === 'nb-nabc-c0')?.title).toBe('数列 問1');
+    expect(back.next.reviews.find((r) => r.id === 'nb-nabc')?.title).toBe('数列');
     expect(back.next.order).toEqual(s0.order);
     expect(undoMessage(back)).toBe('「数列」の名前を元に戻しました');
   });

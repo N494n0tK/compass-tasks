@@ -352,3 +352,58 @@ describe('import_note', () => {
     expect((data.imports as Record<string, unknown>[])[0].source).toBe('notion-mcp');
   });
 });
+
+describe('check_notes / morning_brief', () => {
+  it('check_notes は期間を絞って点検し、指摘の種類を数える', async () => {
+    const good = note({ id: 'g', date: '2026-08-25' });
+    // 重要語が本文に無いノート（紙面で色が塗れない）
+    const bad = note({
+      id: 'b',
+      date: '2026-08-25',
+      keywords: [{ term: '本文に無い語', color: 'red', note: '' }],
+    });
+    // 期間の外。点検されないことを確かめるために古い日付にする
+    const old = note({ id: 'o', date: '2026-08-01', sections: [] });
+    const { store } = fakeStore([good, bad, old]);
+
+    const { data } = await call(store, 'check_notes', { date: '2026-08-25', days: 1 });
+    expect(data.from).toBe('2026-08-25');
+    expect(data.checked).toBe(2);
+    expect(data.flagged).toBe(2); // どちらも重要語が 1 語しかない
+    expect((data.by_code as Record<string, number>).keyword_missing).toBe(1);
+  });
+
+  it('check_notes は days で遡る', async () => {
+    const { store } = fakeStore([note({ id: 'a', date: '2026-08-25' }), note({ id: 'b', date: '2026-08-23' })]);
+    expect((await call(store, 'check_notes', { date: '2026-08-25', days: 1 })).data.checked).toBe(1);
+    expect((await call(store, 'check_notes', { date: '2026-08-25', days: 3 })).data.checked).toBe(2);
+  });
+
+  it('check_notes は date を省くと今日を見る', async () => {
+    const { store } = fakeStore([note({ id: 'a', date: TODAY })]);
+    const { data } = await call(store, 'check_notes', {});
+    expect(data.to).toBe(TODAY);
+    expect(data.checked).toBe(1);
+  });
+
+  it('morning_brief は土日を作らない', async () => {
+    const { store } = fakeStore([]);
+    const { data } = await call(store, 'morning_brief', { date: '2026-08-29' });
+    expect(data.skipped).toBe(true);
+  });
+
+  it('morning_brief は貼れる本文と素材を両方返す', async () => {
+    const { store } = fakeStore([note({ id: 'a', date: '2026-08-27', notice: 'プリント提出' })]);
+    const { data } = await call(store, 'morning_brief', { date: '2026-08-28' });
+    expect(data.skipped).toBe(false);
+    expect(data.slots).toEqual(['現国', '体育', '地総', '英コ', '数学', 'LHR']);
+    expect(String(data.body)).toContain('- 数学：プリント提出');
+    expect(String(data.body)).toContain('### 思い出せるか');
+  });
+
+  it('新しい 2 つは読むだけのツールとして出ている', () => {
+    ['check_notes', 'morning_brief'].forEach((name) => {
+      expect(TOOLS.find((t) => t.name === name)?.readOnly).toBe(true);
+    });
+  });
+});

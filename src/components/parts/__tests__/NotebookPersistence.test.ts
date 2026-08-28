@@ -186,12 +186,14 @@ describe('sortNoteList / upsertNote', () => {
 });
 
 describe('commitNote', () => {
-  it('カードぶんの復習を作る（N-021）', () => {
+  it('ノート 1 冊につき復習 1 件を作る', () => {
     const store = newStore();
     const res = commitNote(store, note(), T);
-    expect(res.created).toBe(2);
+    expect(res.created).toBe(1);
     const reviews = store.getState().reviews;
-    expect(reviews.map((r) => r.seriesId)).toEqual(['nb-nabc-c0', 'nb-nabc-c1']);
+    expect(reviews.map((r) => r.seriesId)).toEqual(['nb-nabc']);
+    // 問はミニタスクとして 1 件の中に入る
+    expect(reviews[0].subs).toEqual(['問1', '問2']);
     // 授業当日に消化できるよう、期限は今日でそのまま今日の ToDo に積まれる
     expect(reviews[0].due).toBe(T);
     expect(reviews[0].stage).toBe('当日');
@@ -203,28 +205,32 @@ describe('commitNote', () => {
     commitNote(store, note(), T);
     const again = commitNote(store, note(), T);
     expect(again.created).toBe(0);
-    expect(store.getState().reviews).toHaveLength(2);
+    expect(store.getState().reviews).toHaveLength(1);
   });
 
-  it('消えたカードの未完了復習を掃除する（N-033）', () => {
+  it('問が減っても復習は消えず、ミニタスクだけ減る', () => {
     const store = newStore();
     commitNote(store, note(), T);
-    store.setState((s) => ({ order: s.reviews.map((r) => r.id), selId: s.reviews[1].id }));
     const shrunk = note({ cards: [note().cards[0]] });
     const res = commitNote(store, shrunk, T, { removedCardIds: ['c1'] });
-    expect(res.removed).toBe(1);
-    expect(store.getState().reviews.map((r) => r.seriesId)).toEqual(['nb-nabc-c0']);
-    expect(store.getState().order).toEqual(['nb-nabc-c0']);
-    expect(store.getState().selId).toBeNull();
+    expect(res.removed).toBe(0);
+    expect(store.getState().reviews.map((r) => r.seriesId)).toEqual(['nb-nabc']);
+    expect(store.getState().reviews[0].subs).toEqual(['問1']);
   });
 
   it('単元名を変えると未完了行のタイトルが追従する（N-034）', () => {
     const store = newStore();
     commitNote(store, note(), T);
-    store.setState((s) => ({ reviews: s.reviews.map((r, i) => (i ? r : { ...r, done: true })) }));
     commitNote(store, note({ unit: '数列と漸化式' }), T);
-    const titles = store.getState().reviews.map((r) => r.title);
-    expect(titles).toEqual(['数列 問1', '数列と漸化式 問2']);
+    expect(store.getState().reviews.map((r) => r.title)).toEqual(['数列と漸化式']);
+  });
+
+  it('完了済みの行は単元名を変えても触らない', () => {
+    const store = newStore();
+    commitNote(store, note(), T);
+    store.setState((s) => ({ reviews: s.reviews.map((r) => ({ ...r, done: true })) }));
+    commitNote(store, note({ unit: '数列と漸化式' }), T);
+    expect(store.getState().reviews.map((r) => r.title)).toEqual(['数列']);
   });
 });
 
@@ -302,14 +308,15 @@ describe('removeNote', () => {
   it('未完了だけ消し、完了は残す（N-030）', () => {
     const store = newStore();
     commitNote(store, note(), T);
+    // 前の世代（完了済み）を 1 件足しておく。`seriesId` は同じで id だけ別
     store.setState((s) => ({
-      reviews: s.reviews.map((r, i) => (i ? r : { ...r, done: true })),
-      order: s.reviews.map((r) => r.id),
+      reviews: [{ ...s.reviews[0], id: 'nb-nabc-g0', done: true }].concat(s.reviews),
+      order: ['nb-nabc-g0', 'nb-nabc'],
     }));
     const removed = removeNote(store, 'nabc');
     expect(removed).toBe(1);
-    expect(store.getState().reviews.map((r) => r.seriesId)).toEqual(['nb-nabc-c0']);
-    expect(store.getState().order).toEqual(['nb-nabc-c0']);
+    expect(store.getState().reviews.map((r) => r.id)).toEqual(['nb-nabc-g0']);
+    expect(store.getState().order).toEqual(['nb-nabc-g0']);
   });
 
   it('対象が無ければ 0', () => {
@@ -380,11 +387,8 @@ describe('NotebookController.save / remove', () => {
 });
 
 describe('生成される復習の形（画面から見た不変条件）', () => {
-  it('seriesId はノート ID とカード ID から一意に決まる', () => {
+  it('seriesId はノート ID から一意に決まる（問は指さない）', () => {
     const gen = generateNoteReviews(note(), [], T);
-    expect(gen.created.map((r) => r.id)).toEqual([
-      noteSeriesId('nabc', 'c0'),
-      noteSeriesId('nabc', 'c1'),
-    ]);
+    expect(gen.created.map((r) => r.id)).toEqual([noteSeriesId('nabc')]);
   });
 });

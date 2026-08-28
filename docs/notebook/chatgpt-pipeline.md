@@ -1,65 +1,96 @@
-# Study OS を ChatGPT に移した（Notion AI を使わない）
+# Study OS を ChatGPT に移した（Notion AI も Claude も要らない形へ）
 
-2026-08-27〜28。**Notion のカスタムエージェント 4 体はすべて無効化した。**
-文字起こしを読んでノートと想起問題を作る仕事は Notion AI のクレジットを
-一気に食い潰す（2026-08-26 に上限到達し、全カスタムエージェントが一時停止した）。
+2026-08-27〜28。**本人がやることは「授業を録る」だけ。**
+残りは ChatGPT のスケジュール 3 本と、Compass の MCP ツールで完結する。
 
-いまの分担は「**考えるのは ChatGPT、運ぶのはスクリプト、置き場は Notion**」。
-Notion はデータの置き場としては残る ―― AI ミーティングノート（授業の録音→文字起こし）は
-Notion の機能なので、ここだけは代わりが無い。使わなくなったのは **Notion AI** のほう。
+移した理由は 2 つある。
+
+1. **Notion AI のクレジット**。文字起こしを読んでノートを作る仕事は一気に食い潰す
+   （2026-08-26 に上限到達し、全カスタムエージェントが一時停止した）。
+2. **Claude のスケジュールタスクは、このアプリが開いている間しか走らない**。
+   朝 7:30 に Mac の前にいるとは限らないので、毎日の仕事を置く場所として弱い。
+
+ChatGPT のスケジュールは OpenAI 側で走るので、こちらの開閉に関係がない。
 
 ```
 授業を録る（本人がやるのはここだけ）
   → Notion が AI ミーティングノートを作る（トップレベルの非公開ページ）
-  → 16:30 @今日 自動回収（Claude のスケジュールタスク）
-       …「🎙️ AIミーティングノート保存」へ移す
-  → 16:45 ChatGPT のスケジュール
-       … 指示書を読み、その日の授業ぶんの compass-note@2 を作って
-         「🧭 Compass取り込みJSON / M月D日」にコードブロックで置く
-  → 17:10 Claude のスケジュールタスク
-       … scripts/import-notion-json.mjs が JSON を読んで MCP の import_note へ
-  → Compass（Firestore）
+
+  → 7:30  ChatGPT「Compass朝のメモ」
+       … morning_brief を呼び、返った body を「☀️ 朝のメモ」へ貼る
+
+  → 16:45 ChatGPT「Compass授業ノート生成」
+       … 授業ページを読んで compass-note@2 を作り
+         ├ Notion「🧭 Compass取り込みJSON / M月D日」へコードブロックで置く（人が見る用）
+         ├ import_note で Compass へ取り込む
+         └ check_notes で形を点検して報告する
+
+  → 20:00 ChatGPT「Compass復習コーチ」
+       … 5 問出して答え合わせ、record_understanding で理解度を積む
 ```
 
-## なぜこの形か
+## 判定はサーバー、報告は ChatGPT
 
-| 分担 | 理由 |
-|---|---|
-| **ChatGPT** が生成 | Notion AI のクレジットを使わない。Notion コネクタで授業ページも写真も読める |
-| **Notion** が置き場 | 生成物が人の目に見える場所に残る。失敗しても JSON を手で直せる |
-| **スクリプト**が取り込み | ここにモデルを挟まない。冪等性（`duplicate` / `conflict`）はサーバー側の判断に任せる |
+これがこの設計の芯。**規則で決まることは MCP のツールに持たせ、ChatGPT には呼ばせるだけ**にする。
 
-Compass 側の受け取り（`/api/notion/pull`、[notion-pull.md](notion-pull.md)）は**そのまま残る**。
-同じページを読むので、スクリプトが動かなかった日もアプリを開けば入る。
-どちらの経路でも授業日＋教科＋単元の 3 つ組で同じノートに重なる。
+| やること | どこ | なぜ |
+|---|---|---|
+| 授業を読む・ノートを書く・問題を作る | ChatGPT | 意味の判断が要る。ここは LLM にしかできない |
+| ノートの形が約束どおりか見る | `check_notes`（サーバー） | 一番効く検査が「重要語が本文に 1 文字も違わず出るか」＝ `String.includes` |
+| 朝の 1 枚を組み立てる | `morning_brief`（サーバー） | 時間割・弱点・連絡を決まった形に並べるだけ。毎朝ぶれてはいけない |
+| 取り込みの可否・冪等性 | `import_note`（サーバー） | 重複と内容違いの区別は、ハッシュと台帳で決める話 |
+
+`check_notes` を LLM にやらせると「だいたい合っている」を通してしまい、紙面で色が塗られない語が
+黙って積もる。実際、旧 Notion エージェントのノートは 8 冊がここで引っかかった
+（`重要語「加法定理」が本文に無い` など）。同じ日に ChatGPT が指示書どおり作った 3 冊は全部 OK だった。
 
 ## 部品
 
 | 置き場所 | 役割 |
 |---|---|
-| Notion「🤖 ChatGPT用｜授業ノート生成 指示書」 | ChatGPT が毎回読む正本。ルールを直すのはここ |
-| ChatGPT のスケジュール「Compass授業ノート生成」 | 平日 16:45。指示書を読んで実行する |
-| `scripts/import-notion-json.mjs` | Notion の JSON → MCP `import_note`（dry_run → commit） |
-| Claude のタスク `compass-import-chatgpt-json` | 平日 17:10 に上のスクリプトを走らせる |
-| Claude のタスク `notion-collect-class-notes` | 平日 16:30。その日の授業ページを保存フォルダへ移す |
-| `scripts/morning-brief.mjs` ＋ タスク `compass-morning-brief` | 平日 7:30。時間割・提出物・弱点3問を「☀️ 朝のメモ」へ |
-| `scripts/check-notes.mjs` ＋ タスク `compass-check-notes` | 平日 17:30。取り込んだノートの形を機械的に点検 |
-| Notion「🧠 ChatGPT用｜復習コーチ 指示書」 | 20:00 の出題・理解度記録を ChatGPT でやるための指示書 |
+| Notion「🤖 ChatGPT用｜授業ノート生成 指示書」 | 16:45 の正本。生成 → 取り込み → 点検まで 1 本で書いてある |
+| Notion「☀️ ChatGPT用｜朝のメモ 指示書」 | 7:30 の正本 |
+| Notion「🧠 ChatGPT用｜復習コーチ 指示書」 | 20:00 の正本。MCP 接続の手順も末尾にある |
+| `src/lib/logic/noteAudit.ts` ＋ MCP `check_notes` | ノートの形の検査（純ロジック） |
+| `src/lib/logic/morningBrief.ts` ＋ MCP `morning_brief` | 朝の 1 枚の組み立て（純ロジック） |
+| `scripts/check-notes.mjs` / `scripts/morning-brief.mjs` | 上の 2 つを手で呼ぶための薄い口 |
+| `scripts/import-notion-json.mjs` | Notion の JSON → `import_note`。取りこぼしの手動回収用 |
+| `scripts/lib/mcp.mjs` | 3 本のスクリプトが共有する MCP クライアント |
 
-## スクリプト
+スクリプトは**判定を持たない**。同じ判断を 2 か所に置くと、片方だけ直したときに
+朝の 1 枚が静かにずれる。持っているのはサーバーだけ。
 
 ```bash
-node scripts/import-notion-json.mjs --catchup          # 今日・昨日・一昨日（定期実行はこれ）
-node scripts/import-notion-json.mjs                    # 今日（JST）の「M月D日」だけ
-node scripts/import-notion-json.mjs --date 2026-08-24
-node scripts/import-notion-json.mjs --title "テスト 8月26日"
-node scripts/import-notion-json.mjs --dry             # dry_run だけ
+node scripts/morning-brief.mjs --date 2026-08-31   # 朝のメモの本文を見る
+node scripts/check-notes.mjs --days 3              # 直近 3 日の形を点検
+node scripts/import-notion-json.mjs --catchup      # 取り込みの手動やり直し
 ```
 
-env は `.env.local` から読む（`NOTION_TOKEN` / `NOTION_NOTES_PAGE_ID` / `COMPASS_MCP_TOKEN`）。
-`source` は `chatgpt-daily` で台帳に残るので、`list_imports` でどの経路から来たか分かる。
+## Claude のスケジュールタスクは全部やめた
 
-## 実測（2026-08-26〜27）
+2026-08-28 に 4 本とも削除した（`compass-morning-brief` / `compass-check-notes` /
+`compass-import-chatgpt-json` / `notion-collect-class-notes`）。
+
+回収タスク（16:30、その日の授業ページを保存フォルダへ移す）だけは、単に消すと
+生成が対象を見つけられなくなる。そこで**生成の指示書の手順 2 に逃げ道を足した**:
+保存フォルダ配下が 0 件なら、トップレベル（非公開ページの直下）も探す。
+ChatGPT の Notion コネクタは**本人として動く**のでそこが読める ―― Notion の
+カスタムエージェントには 1 件も見えなかった場所で、この分担が成り立つ理由そのもの。
+
+副作用として、授業ページはトップレベルに溜まったままになる。**中身には影響しない**が、
+Notion のサイドバーは散らかる。気になったら手で保存フォルダへ移せばよい。
+
+## 取りこぼしの拾い直し
+
+| 落ちた段 | どう取り戻すか |
+|---|---|
+| ChatGPT の生成が 1 日飛んだ | 翌日の実行が昨日・一昨日のページを確かめ、無ければ作る（指示書 手順 7） |
+| 取り込みが失敗した | 同じ JSON が Notion に残っている。`--catchup` で 3 日ぶん流し直せる |
+| どちらも駄目だった | Compass アプリを開けば `/api/notion/pull` が同じページを読む（[notion-pull.md](notion-pull.md)） |
+
+3 経路とも授業日＋教科＋単元の 3 つ組で同じノートに重なる。二重には入らない。
+
+## 実測（2026-08-26〜28）
 
 - ChatGPT は「🎙️ AIミーティングノート保存」配下の当日ページを**全部**見つけられる。
   Notion のカスタムエージェントからは 1 件も見えなかったので、ここが決定的な違い。
@@ -69,9 +100,8 @@ env は `.env.local` から読む（`NOTION_TOKEN` / `NOTION_NOTES_PAGE_ID` / `C
 - 8/27（3 コマ）: 回収 → 生成 → 取り込みまで通しで実行し `created` ×3。
   ページ名が「数学Ⅱ」「保険」（本人の手打ち）でも、中身を見て `数学` / `保健` に寄せられた
   ―― 教科の変換表に「数学はすべて→数学」「ページ名よりも中身を優先」を足したあと。
-
-**取りこぼしの拾い直しは 2 段構え**: ChatGPT 側は今日ぶんを書いたあと昨日・一昨日のページが
-無ければ作る。取り込み側は `--catchup` で 3 日ぶんを見る。どちらも既にあるものには触らない。
+- 8/28: `check_notes` を過去 4 日（12 冊）に当てて、旧エージェント製 8 冊だけが引っかかった。
+  ChatGPT 製の 3 冊は指摘ゼロ。指示書の重要語ルールが効いている。
 
 ## 写真（黒板・ノート）について ―― まだ効いていない
 
@@ -81,57 +111,8 @@ env は `.env.local` から読む（`NOTION_TOKEN` / `NOTION_NOTES_PAGE_ID` / `C
 > Notion から写真ブロック自体は検出できたが、**署名付き HEIC 画像のバイナリを開く処理が拒否された**。
 > そのため写真を本人の手書きだと推測して転記することはせず、`text:""` のままにした。
 
-つまりプロンプトの問題ではなく**画像形式（HEIC）の問題**。直し方は 2 つ:
-
-1. iPhone の 設定 → カメラ → フォーマット を「互換性優先」（JPEG）にする。撮る側で 1 回変えるだけ
-2. 取り込み前に HEIC → JPEG へ変換して貼り直す（自動化するなら `sips` などで）
-
-1 が圧倒的に安い。写真が JPEG になれば、指示書の写真ルールがそのまま効くはず（未検証）。
-
-## 4 層をどこへ移したか
-
-| 旧（Notion AI） | 新 | 何で動くか |
-|---|---|---|
-| Note Builder 17:00 | ChatGPT 16:45 ＋ スクリプト 17:10 | ChatGPT のスケジュール ＋ `import-notion-json.mjs` |
-| Verifier 17:30 | `check-notes.mjs` 17:30 | **AI なし**。規則で決まる部分だけを機械的に見る |
-| Recall Coach 20:00 | ChatGPT 20:00 | 「🧠 ChatGPT用｜復習コーチ 指示書」＋ ChatGPT の MCP 接続（下記） |
-| Morning Brief 07:30 | `morning-brief.mjs` 7:30 | **AI なし**。時間割・提出物・弱点3問を組み立てるだけ |
-
-Notion のカスタムエージェント 4 体は **すべて「エージェントを無効化」済み**。
-クレジットが戻っても勝手に走らない。指示文のページは記録として残してある。
-
-Verifier と Morning Brief から AI を外したのは節約のためだけではない。
-どちらも「決まった形に並べる」「規則に合っているか見る」仕事で、
-LLM にやらせると毎回ぶれるうえ、`check-notes.mjs` のほうが見落とさない。
-
-## どこで動くか ―― 止まったときに何が起きるか
-
-自動で動くのは 6 つ。**ChatGPT のスケジュールは 2 本だけ**で、残り 4 つは AI を使わないので
-Claude のスケジュールタスクに置いてある。この 2 種類は止まり方が違う。
-
-| | 動く場所 | 開いていなくても動くか |
-|---|---|---|
-| ChatGPT のスケジュール（16:45 生成 / 20:00 コーチ） | OpenAI 側 | **動く** |
-| Claude のタスク（7:30 / 16:30 / 17:10 / 17:30） | この Mac | **動かない**（アプリが開いている間だけ） |
-
-つまり「Claude を開いていない日」に何が起きるかを、段ごとに見ておく必要がある。
-
-| 落ちた段 | その日どうなるか | 拾い直し |
-|---|---|---|
-| 16:30 回収 | 授業ページがトップレベルに残る | **ChatGPT が自分でトップレベルも探す**（下記） |
-| 17:10 取り込み | JSON は Notion にあるが Compass に入らない | 翌日の `--catchup` が 3 日ぶん見る。加えて Compass アプリを開けば `/api/notion/pull` が同じページを読む |
-| 7:30 朝のメモ | その日のメモが無い | 無し（読み物なので落ちても壊れない） |
-| 17:30 点検 | 形の指摘が出ない | 無し（診断なので落ちても壊れない） |
-
-**16:30 の回収だけは、落ちるとその日のノートが丸ごと出来なかった。** 指示書が
-「🎙️ AIミーティングノート保存」の配下しか見ておらず、0 件なら「対象日のミーティングノートが
-ありません」で終了していたため。回収（16:30）と生成（16:45）の間は 15 分しかなく、
-しかも回収側にはジッタが乗る。Claude を閉じていれば当然間に合わない。
-
-2026-08-28 に指示書の手順 2 を直した: **フォルダ配下が 0 件なら、トップレベル（非公開ページ直下）も
-探す。両方見て 0 件のときだけ終了する。** ChatGPT の Notion コネクタは本人として動くので
-トップレベルの非公開ページが読める ―― Notion カスタムエージェントには見えなかった場所で、
-この分担が成り立つ理由そのもの。これで生成は回収の成否に依存しなくなった。
+つまりプロンプトの問題ではなく**画像形式（HEIC）の問題**。本人が iPhone の
+設定 → カメラ → フォーマット を「互換性優先」（JPEG）に変更ずみ。次の授業で確かめる。
 
 ## Recall Coach の MCP 接続（2026-08-28 接続ずみ）
 
@@ -149,13 +130,12 @@ ChatGPT が「does not implement OAuth」と言う ―― トークンの無い 
 
 トークンが接続設定に残るのと引き換え。漏れたと思ったら `COMPASS_MCP_TOKEN` を作り直して
 再デプロイすれば、その瞬間に古い URL は死ぬ（[mcp.md](mcp.md) §6）。
-手順は Notion の「🧠 ChatGPT用｜復習コーチ 指示書」の一番下にある。
 
 接続後の `whoami`: ノート 19 件 / 最新 2026-08-27 / 書き込み可は `sections`・`cards`・
 `cards[].attempts` のみ。`summary` と `doubt` は読むだけ ―― 本人の欄を AI が埋めない、
 という設計がコネクタ越しでもそのまま効いている。
 
-## 出題側で 1 つ落とし穴があった ―― 解答は `list_weak_cards` に入っていない
+## 出題側の落とし穴 ―― 解答は `list_weak_cards` に入っていない
 
 接続後に、コーチが 20:00 に通る順番をそのまま叩いて確かめた。`list_weak_cards` の
 返りは `card_id, no, q, origin, tries, last_grade, last_day, weakness, note_id, date,
@@ -174,3 +154,11 @@ subject, unit` で、**`a`（解答）と `guide`（方針）が無い**。`get_
 
 `record_understanding` に空の `results` を渡すと `ok:false`「記録できる結果がありません」で
 返る。答えなかった問題を黙って記録してしまう事故は、サーバー側でも止まる。
+
+## 本番デプロイについて
+
+このリポジトリの本番（compass-tasks.vercel.app）は **git 連携ではなく、ローカルの
+作業ツリーから `npx vercel --prod` で直接出ている**。だから「main にあるもの＝本番」ではない。
+実際 2026-08-28 時点で、MCP サーバー一式はどのリモートブランチにも存在しないのに本番では動いていた。
+
+デプロイするときは、いま何が作業ツリーに入っているかを確かめてから出すこと。

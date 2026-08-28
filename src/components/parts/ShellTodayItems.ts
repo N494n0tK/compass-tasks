@@ -134,6 +134,10 @@ export function itemOf(
       size: 'S',
       done: rv.done,
       src: rv.stage + 'の復習',
+      // ノート由来の行はミニタスクに「問1」…を持つ（`noteCards.noteReviewSubs`）
+      subs: rv.subs,
+      subsDone: rv.subsDone,
+      subSizes: rv.subSizes,
       timetablePeriod: rv.timetablePeriod,
       timetableDate: rv.timetableDate,
     };
@@ -177,68 +181,46 @@ export function buildTodayItems(
 /**
  * ノート由来の復習を**1 冊 1 枚**に束ねる（docs/notebook/spec.md §4.2）。
  *
- * 想起問題ごとに独立した系列を持つ設計（＝苦手な問だけ早く戻ってくる）は変えないまま、
- * 今日の ToDo の見た目だけを 1 枚にする。最初に現れた行の位置を保ち、そこへ後続を畳む。
+ * 2026-08 に**復習そのものがノート 1 冊で 1 行**になった（`lib/logic/noteCards.ts`）ので、
+ * ここで複数行を畳む仕事は無くなった。いま残っているのは 2 つだけ:
  *
- * - タイトル … ノートの単元名（`state.notes` が無いときは先頭行のタイトルのまま）
- * - 分数     … 束ねた行の合計
- * - 完了     … **全問終わって初めて完了**（1 問終わるごとには消えない）
- * - `noteId` … 入っている項目は「ノートで復習」ドリルへ飛ぶ（`toggleItem` の分岐）
+ * - `noteId` を付ける … 入っている項目は「ノートで復習」ドリルへ飛ぶ（`toggleItem` の分岐）
+ * - `noteGroup` を作る … 問（`subs` の「問1」…）を ToDo の見た目へ渡す
  *
- * ノートが `state.notes` に無い（未読込・削除済み）行は束ねない = 従来どおり 1 問 1 枚。
+ * ノートが `state.notes` に無い（未読込・削除済み）行はそのまま通す。
  */
 function collapseNoteReviews(items: TodayItem[], state: TodayItemsInput): TodayItem[] {
   const notes = state.notes;
   if (!notes || !notes.length) return items;
   const byId = new Map(notes.map((n) => [n.id, n]));
 
-  /** noteId → 束ねた結果の項目（`items` に 1 つだけ残る） */
-  const groups = new Map<string, TodayItem>();
-  const out: TodayItem[] = [];
-
-  items.forEach((it) => {
-    if (it.kind !== 'rev') {
-      out.push(it);
-      return;
-    }
+  return items.map((it) => {
+    if (it.kind !== 'rev') return it;
     const review = state.reviews.find((r) => r.id === it.id);
     const ref = review ? noteRefOf(review.seriesId) : null;
     const note = ref ? byId.get(ref.noteId) : undefined;
-    if (!ref || !note) {
-      out.push(it);
-      return;
-    }
-    const cardNo = note.cards.findIndex((c) => c.cardId === ref.cardId) + 1;
-    const member: NoteGroupMember = {
+    if (!ref || !note) return it;
+
+    // 問はもう `subs`（「問1」…）に入っている。ここでは「どのノートか」を付けて
+    // ドリルへ飛べるようにし、残り問数を説明文に出すだけ
+    const labels = it.subs || [];
+    const flags = it.subsDone || [];
+    const members: NoteGroupMember[] = labels.map((label, i) => ({
       reviewId: it.id,
-      label: cardNo > 0 ? '問' + cardNo : it.title,
-      done: it.done,
-    };
-    const head = groups.get(note.id);
-    if (head) {
-      head.noteGroup = (head.noteGroup || []).concat([member]);
-      head.min += it.min;
-      head.done = head.done && it.done;
-      return;
-    }
-    const grouped: TodayItem = {
+      label,
+      done: it.done || !!flags[i],
+    }));
+    const rest = members.filter((m) => !m.done).length;
+    return {
       ...it,
       title: note.unit || it.title,
       noteId: note.id,
-      noteGroup: [member],
+      noteGroup: members,
+      src: members.length
+        ? 'ノートの復習 · ' + (rest ? rest + '/' + members.length + '問' : members.length + '問 完了')
+        : 'ノートの復習',
     };
-    groups.set(note.id, grouped);
-    out.push(grouped);
   });
-
-  // 束ね終わってから、問番号順に並べ直して件数入りの説明文を作る
-  groups.forEach((it) => {
-    const members = (it.noteGroup || []).slice().sort((a, b) => a.label.localeCompare(b.label));
-    it.noteGroup = members;
-    const rest = members.filter((m) => !m.done).length;
-    it.src = 'ノートの復習 · ' + (rest ? rest + '/' + members.length + '問' : members.length + '問 完了');
-  });
-  return out;
 }
 
 /**

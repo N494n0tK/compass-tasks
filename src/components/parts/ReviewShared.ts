@@ -66,8 +66,10 @@ export function completeReview(
   // ノート由来の復習なら、問題そのものにも「いつ・どう感じたか」を残す。
   // 復習行は完了すると次の行に置き換わるので、ここで書いておかないと
   // 「この問題を何回やったか」が辿れなくなる（docs/notebook/spec.md §9）。
+  // 古い「問ごと」の行だけここで記録できる。いまの行はノート 1 冊ぶんなので
+  // どの問かを指しておらず、記録はドリル面が 1 問ずつ丸を付けるときに済ませている
   const ref = noteRefOf(review.seriesId);
-  if (ref) recordNoteAttempt(store, ref.noteId, ref.cardId, ctx.today, grade);
+  if (ref && ref.cardId) recordNoteAttempt(store, ref.noteId, ref.cardId, ctx.today, grade);
 
   return transition.message;
 }

@@ -299,7 +299,7 @@ export function NoteView({ note }: NoteViewProps) {
 
   // ── 各カードの復習状態
   const reviewOf = (cardId: string): { pending: Review | null; done: boolean } => {
-    const sid = noteSeriesId(note.id, cardId);
+    const sid = noteSeriesId(note.id);
     let pending: Review | null = null;
     let done = false;
     S.reviews.forEach((r) => {
