@@ -28,10 +28,10 @@ export type Dow = '日' | '月' | '火' | '水' | '木' | '金' | '土';
  * `state.theme` の**保存値**。既存 Firestore データ互換のため 'dark' を残す
  * （architecture §4: `data-theme` 属性の値だけ note|neon|light に正規化する）。
  */
-export type Theme = 'light' | 'dark' | 'note';
+export type Theme = 'light' | 'dark' | 'note' | 'glass';
 
 /** `data-theme` 属性に流し込む正規化済みスキン名（architecture §4 / spec §3.2 Q19） */
-export type ThemeSkin = 'note' | 'neon' | 'light';
+export type ThemeSkin = 'note' | 'neon' | 'light' | 'glass';
 
 /**
  * 画面 ID（spec §2.6, HTML:2624-2631 相当）。

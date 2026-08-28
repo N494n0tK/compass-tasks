@@ -125,6 +125,7 @@ export const THEME_ATTR: Readonly<Record<Theme, ThemeSkin>> = {
   note: 'note',
   light: 'light',
   dark: 'neon',
+  glass: 'glass',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -207,6 +208,63 @@ const LIGHT_TOKENS: Record<string, string> = {
 };
 
 /** `note`（既定）— 夜の藍刷り。紙も墨も藍、蛍光オレンジだけが浮く */
+/**
+ * `glass` — Liquid Glass。`data-theme="glass"`。
+ *
+ * ほかの 3 テーマが「同じ版を違う紙に刷ったもの」なのに対し、**これだけ紙が無い**。
+ * 面は色を持たず、後ろの景色を透かして曇らせたガラス板として置かれる
+ * （実際の透け方は `app/glass.css`。ここが決めるのは字と差し色だけ）。
+ *
+ * ## 地の色をほぼ透明にしてある理由
+ *
+ * `--bg1` / `--bg2` / `--bg3` を薄い白に寄せ、`glass.css` 側で
+ * `background: color-mix(...)` + `backdrop-filter` に読み替える。
+ * トークンを不透明のままにすると、ガラスにしたい面と、そうでない小さなチップまで
+ * 全部が曇りガラスになって、画面が白い霧で埋まる。
+ *
+ * ## 字は白のまま強くする
+ *
+ * ぼかした背景の上では、暗い字はどうしても沈む。`--tx0`〜`--tx3` はダークテーマより
+ * 1 段明るくして、ガラス越しでも読める側に倒してある。
+ */
+const GLASS_TOKENS: Record<string, string> = {
+  // 地。ここは「ガラスそのものの色」で、後ろは `glass.css` の backdrop-filter が透かす
+  '--bg0': '#0b1020',
+  '--bg1': 'rgba(255,255,255,.10)',
+  '--bg2': 'rgba(255,255,255,.06)',
+  '--bg3': 'rgba(255,255,255,.16)',
+  // 縁。ガラスの角に乗るハイライトなので、線というより光
+  '--line': 'rgba(255,255,255,.14)',
+  '--line2': 'rgba(255,255,255,.26)',
+  '--tx0': '#ffffff',
+  '--tx1': '#e8edf7',
+  '--tx2': '#b8c2d4',
+  '--tx3': '#8e99ad',
+  '--acc': '#ffffff',
+  '--accBg': 'rgba(255,255,255,.18)',
+  '--vio': '#c0a8ff',
+  '--vioBg': 'rgba(160,130,255,.22)',
+  '--grn': '#5fe6a8',
+  '--grnBg': 'rgba(60,220,150,.20)',
+  '--pink': '#ff8f66',
+  '--pinkBg': 'rgba(255,110,60,.24)',
+  '--blue': '#7cc4ff',
+  '--blueBg': 'rgba(90,170,255,.22)',
+  '--org': '#ffd98a',
+  '--orgBg': 'rgba(255,190,90,.22)',
+  '--ink': '#6ee7dc',
+  '--inkBg': 'rgba(70,220,205,.20)',
+  '--onAcc': '#10162a',
+  // 方眼は敷かない。ガラスの後ろに罫が見えると「紙の上のガラス」になってしまい、
+  // 透かしているのが景色ではなく紙だとばれる
+  '--grid': 'transparent',
+  '--grid2': 'transparent',
+  // ガラスは角を丸く取る。ここだけ「校内プリント」の 2–3px を離れる
+  '--rad': '16px',
+  '--rad-s': '10px',
+  ...SUBJECTS_DARK,
+};
+
 const NOTE_TOKENS: Record<string, string> = {
   '--bg0': '#0c1520',
   '--bg1': '#111e2e',
@@ -260,9 +318,10 @@ export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
 export function buildThemeStyle(theme: Theme, view: ViewId): Record<string, string> {
   const light = theme === 'light';
   const note = theme === 'note';
+  const glass = theme === 'glass';
   const style: Record<string, string> = {
     ...NEON_TOKENS,
-    ...(light ? LIGHT_TOKENS : note ? NOTE_TOKENS : {}),
+    ...(light ? LIGHT_TOKENS : note ? NOTE_TOKENS : glass ? GLASS_TOKENS : {}),
   };
   const viewToken = VIEW_TOKEN[view] || 'acc';
   style['--view'] = 'var(--' + viewToken + ')';

@@ -569,15 +569,18 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   background:transparent!important;border:0!important;border-top:1px solid var(--line2)!important;
   border-radius:0!important;
 }
+/* 4 つになったので 2×2。220px のナビに 4 つ並べると字が潰れる（2026-08、ガラスの追加） */
 .theme-switch{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 14px 12px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin:0 14px 12px;
   padding:0;background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad-s);overflow:hidden;
 }
 .theme-switch>button{
   padding:8px 2px;border:0;background:transparent;color:var(--tx3);cursor:pointer;
   font:400 10px var(--f-ui);white-space:nowrap;transition:background .13s ease,color .13s ease;
 }
-.theme-switch>button+button{border-left:1px solid var(--line2)}
+/* 2 列なので、罫は「左の列以外に左罫」「1 行目以外に上罫」 */
+.theme-switch>button:nth-child(2n){border-left:1px solid var(--line2)}
+.theme-switch>button:nth-child(n+3){border-top:1px solid var(--line2)}
 .theme-switch>button:hover{background:var(--bg3);color:var(--tx0)}
 /* テーマは画面をまたぐ設定なので、ここだけは `--view` に染めず地の墨で塗る */
 .theme-switch>button.is-on{background:var(--tx1);color:var(--bg1)}

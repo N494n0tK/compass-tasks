@@ -17,6 +17,7 @@ import "./nb-aiedit.css";
 import "./nb-summary.css";
 import "./clawd.css";
 import "./clawd-chat.css";
+import "./glass.css";
 
 export const metadata: Metadata = {
   title: "Compass 復習スケジュール",

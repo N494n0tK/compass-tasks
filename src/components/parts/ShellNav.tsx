@@ -177,6 +177,7 @@ export function ShellNav({
 
   const light = S.theme === 'light';
   const note = S.theme === 'note';
+  const glass = S.theme === 'glass';
   const setTheme = (theme: AppState['theme']) =>
     store.setState({ theme, themeVersion: 3 }, () => savePrefs());
 
@@ -479,8 +480,8 @@ export function ShellNav({
           </button>
           <button
             type="button"
-            className={'mo-press ' + (!light && !note ? 'is-on' : '')}
-            aria-pressed={!light && !note}
+            className={'mo-press ' + (!light && !note && !glass ? 'is-on' : '')}
+            aria-pressed={!light && !note && !glass}
             onClick={() => setTheme('dark')}
           >
             ✦ ダーク
@@ -492,6 +493,17 @@ export function ShellNav({
             onClick={() => setTheme('light')}
           >
             ☀ ライト
+          </button>
+          {/* Liquid Glass。ほかの 3 つが「同じ版を違う紙に刷ったもの」なのに対し、
+              これだけ紙が無い（`app/glass.css`）。並びの最後に置くのは、
+              いつもの 3 つを押し間違えないため */}
+          <button
+            type="button"
+            className={'mo-press ' + (glass ? 'is-on' : '')}
+            aria-pressed={glass}
+            onClick={() => setTheme('glass')}
+          >
+            ◈ ガラス
           </button>
         </div>
         <div className="nav-shortcuts" aria-hidden="true">

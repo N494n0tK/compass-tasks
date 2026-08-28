@@ -1,0 +1,179 @@
+/* ============================================================================
+   Compass — Liquid Glass（`data-theme="glass"`）
+
+   ほかの 3 テーマは「同じ版を違う紙に刷ったもの」だが、**これだけ紙が無い**。
+   面は色を持たず、後ろの景色を透かして曇らせたガラス板として置かれる。
+   色（字・差し色）は `ShellTheme.ts` の `GLASS_TOKENS`、透け方はここ。
+
+   ## 3 つの決めごと
+
+   1. **ガラスにするのは「面」だけ。** パネル・ナビ・トップバー・モーダル・浮き窓。
+      チップやボタンのような小さいものまで曇らせると、画面が白い霧で埋まって
+      どれが押せるのか分からなくなる。
+   2. **縁は線ではなく光。** 上辺だけ明るい 1px を入れて、板の厚みを出す
+      （`inset 0 1px 0 rgba(255,255,255,.35)`）。四辺を均等に光らせると
+      枠線に見えてガラスにならない。
+   3. **後ろに景色を置く。** 透かす相手が無いガラスはただの半透明の板なので、
+      `.compass-shell::before` の方眼を消して、代わりに大きなグラデーションを敷く。
+
+   ## backdrop-filter の代償
+
+   ぼかしは合成が重い。数を増やすほど効くので、**面の単位でしか掛けない**
+   （行やチップには掛けない）。動きを止めている人には、ぼかしを弱めて
+   透け具合だけ残す ―― 動かないぶんには重さも目立たないので消しはしない。
+   ============================================================================ */
+
+/* ── 後ろの景色。ガラスが透かす相手 ─────────────────────────────────
+   方眼（`--grid`）は `GLASS_TOKENS` で transparent にしてあるので、
+   `.compass-shell::before` は色だけを敷く面として残る */
+.compass-theme-mode[data-theme='glass'] .compass-shell::before {
+  background-color: #0b1020;
+  background-image:
+    radial-gradient(120% 90% at 12% 8%, rgba(255, 120, 60, 0.34), transparent 58%),
+    radial-gradient(110% 80% at 88% 12%, rgba(120, 90, 255, 0.32), transparent 60%),
+    radial-gradient(120% 100% at 70% 92%, rgba(40, 200, 200, 0.26), transparent 62%),
+    radial-gradient(90% 70% at 20% 88%, rgba(255, 90, 140, 0.22), transparent 60%);
+  background-size: auto;
+}
+
+/* ── ガラスの板。ここに挙げたものだけが曇る ───────────────────────── */
+.compass-theme-mode[data-theme='glass'] .compass-nav,
+.compass-theme-mode[data-theme='glass'] .compass-topbar,
+.compass-theme-mode[data-theme='glass'] .ovl-panel,
+.compass-theme-mode[data-theme='glass'] .app-search-popover,
+.compass-theme-mode[data-theme='glass'] .app-switcher-panel,
+.compass-theme-mode[data-theme='glass'] .nbdlg-panel,
+.compass-theme-mode[data-theme='glass'] .nbtc-sheet,
+.compass-theme-mode[data-theme='glass'] .nb-menu,
+.compass-theme-mode[data-theme='glass'] .cw,
+.compass-theme-mode[data-theme='glass'] .ccheer,
+.compass-theme-mode[data-theme='glass'] .cc__sheet,
+.compass-theme-mode[data-theme='glass'] .nb-paper {
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  backdrop-filter: blur(26px) saturate(180%);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  /* 上辺の光 = 板の厚み。四辺を光らせると枠線に見えてガラスにならない */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 18px 50px rgba(0, 0, 0, 0.34);
+}
+
+/* 画面の中のカード類。ナビより奥にあるので、ぼかしは弱く・地は薄く */
+.compass-theme-mode[data-theme='glass'] .compass-shell [style*='var(--bg1)'],
+.compass-theme-mode[data-theme='glass'] .compass-shell [style*='var(--bg2)'] {
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  border-radius: var(--rad);
+}
+
+/* ── 角。ガラスは丸く取る（トークンの `--rad` が 16px に変わっている）───
+   `!important` を使うのは、レガシー移植の CSS が角丸を直に書いている場所が
+   あるため。テーマごとの差し替えなので、ここだけは名指しで勝たせる */
+.compass-theme-mode[data-theme='glass'] .compass-nav,
+.compass-theme-mode[data-theme='glass'] .app-nav-item,
+.compass-theme-mode[data-theme='glass'] .compass-brand {
+  border-radius: 0 !important;
+}
+
+.compass-theme-mode[data-theme='glass'] .ovl-panel,
+.compass-theme-mode[data-theme='glass'] .app-search-popover,
+.compass-theme-mode[data-theme='glass'] .app-switcher-panel {
+  border-radius: 18px !important;
+}
+
+/* ── 押せるもの。押した瞬間だけ光が差す ───────────────────────────── */
+.compass-theme-mode[data-theme='glass'] button,
+.compass-theme-mode[data-theme='glass'] .app-nav-item {
+  transition:
+    background 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.09s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.compass-theme-mode[data-theme='glass'] .app-nav-item:hover,
+.compass-theme-mode[data-theme='glass'] .app-nav-item.is-active {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* ナビの選択中の縦罫は、ガラスでは「差し込む光」にする */
+.compass-theme-mode[data-theme='glass'] .app-nav-item.is-active::after {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--view) 22%,
+    var(--view) 78%,
+    transparent
+  ) !important;
+  box-shadow: 0 0 14px var(--view);
+}
+
+/* ── 検索欄・入力欄。凹んだガラスに見せる（面ではなく溝）───────────── */
+.compass-theme-mode[data-theme='glass'] .app-search,
+.compass-theme-mode[data-theme='glass'] input,
+.compass-theme-mode[data-theme='glass'] textarea,
+.compass-theme-mode[data-theme='glass'] select {
+  background: rgba(0, 0, 0, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.26);
+}
+
+/* ── ノートの紙面。ここだけは「ガラスの下の紙」を残す ─────────────────
+   本文は長く読むところなので、透かすと単純に読みにくい。
+   板の縁と角だけガラスに合わせて、地は不透明に近く保つ */
+.compass-theme-mode[data-theme='glass'] .nb-paper {
+  background: rgba(14, 18, 34, 0.62);
+}
+
+/* ── 影は 1 段深く。浮いているものが多いので、重なりの順が読めなくなる ── */
+.compass-theme-mode[data-theme='glass'] .ovl-back,
+.compass-theme-mode[data-theme='glass'] .nbdlg-back,
+.compass-theme-mode[data-theme='glass'] .nbtc-back {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* ── テーマの切替ボタン自身 ────────────────────────────────────────── */
+.compass-theme-mode[data-theme='glass'] .theme-switch > button.is-on {
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* ── 動きを止めている人 ─────────────────────────────────────────────
+   ぼかしは**消さない**（消すと面が透明なだけの板になって、字が景色に埋もれる）。
+   代わりに弱めて、合成の重さだけ下げる */
+@media (prefers-reduced-motion: reduce) {
+  .compass-theme-mode[data-theme='glass'] .compass-nav,
+  .compass-theme-mode[data-theme='glass'] .compass-topbar,
+  .compass-theme-mode[data-theme='glass'] .ovl-panel,
+  .compass-theme-mode[data-theme='glass'] .cc__sheet,
+  .compass-theme-mode[data-theme='glass'] .cw {
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+  }
+  .compass-theme-mode[data-theme='glass'] button,
+  .compass-theme-mode[data-theme='glass'] .app-nav-item {
+    transition: none;
+  }
+}
+
+/* ── ぼかしが効かない環境。Firefox の一部や、設定で切っている場合 ───────
+   透けたまま曇らないと、字の後ろで景色がそのまま動いて読めなくなる。
+   ぼかせないなら**透かすのをやめる**（暗い面に戻す）のが正しい */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .compass-theme-mode[data-theme='glass'] .compass-nav,
+  .compass-theme-mode[data-theme='glass'] .compass-topbar,
+  .compass-theme-mode[data-theme='glass'] .ovl-panel,
+  .compass-theme-mode[data-theme='glass'] .app-search-popover,
+  .compass-theme-mode[data-theme='glass'] .app-switcher-panel,
+  .compass-theme-mode[data-theme='glass'] .nbdlg-panel,
+  .compass-theme-mode[data-theme='glass'] .nbtc-sheet,
+  .compass-theme-mode[data-theme='glass'] .nb-menu,
+  .compass-theme-mode[data-theme='glass'] .cw,
+  .compass-theme-mode[data-theme='glass'] .ccheer,
+  .compass-theme-mode[data-theme='glass'] .cc__sheet,
+  .compass-theme-mode[data-theme='glass'] .nb-paper {
+    background: rgba(14, 18, 34, 0.9);
+  }
+}
