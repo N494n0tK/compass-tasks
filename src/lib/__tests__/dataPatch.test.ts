@@ -90,6 +90,36 @@ describe('dataPatch — M1 テーマ移行', () => {
     expect(run({ state: {} }).state.themeVersion).toBe(3);
     expect(run({}).state.themeVersion).toBe(3);
   });
+
+  it('Glass の時刻設定を旧データへ追加せず、そのまま patch する', () => {
+    const out = run({
+      state: {
+        theme: 'glass',
+        glassTimeMinutes: 315,
+        glassFollowCurrentTime: false,
+      },
+    });
+    expect(out.state.theme).toBe('glass');
+    expect(out.state.glassTimeMinutes).toBe(315);
+    expect(out.state.glassFollowCurrentTime).toBe(false);
+  });
+
+  it('旧データに Glass 設定がなければ新しいキーを捏造しない', () => {
+    const out = run({ state: { theme: 'note' } });
+    expect('glassTimeMinutes' in out.state).toBe(false);
+    expect('glassFollowCurrentTime' in out.state).toBe(false);
+  });
+
+  it('不正な Glass 設定は patch から落として初期値を保つ', () => {
+    const out = run({
+      state: {
+        glassTimeMinutes: 2000,
+        glassFollowCurrentTime: 'yes',
+      },
+    });
+    expect('glassTimeMinutes' in out.state).toBe(false);
+    expect('glassFollowCurrentTime' in out.state).toBe(false);
+  });
 });
 
 describe('dataPatch — M2 GOAL 当日以降の seg を前日へ（C-497）', () => {

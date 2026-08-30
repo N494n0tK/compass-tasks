@@ -25,21 +25,22 @@
  * ## 何をしているか / していないか
  *
  * Clawd の言葉は `lib/logic/clawdTalk.ts` に**書いてある固定の文**で、その場で
- * 考えているわけではない。だから**自由入力の欄を置いていない** ―― 何を打っても
- * 返せるふりをするのは、この画面ができることを偽ることになる。
- * 言えることをボタンで見せて選ばせるほうが正直だし、疲れているときに
- * 文章を考えなくて済むぶん、実際に押せる。
+ * 考えているわけではない。だから会話そのものの自由入力欄は置かず、言えることをボタンで見せて
+ * 選ばせる。作業時間だけは、必要な長さを自分で決められる専用欄を用意する。
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import {
   CLAWD_PROMPTS,
+  CLAWD_WORK_MAX_MINUTES,
   CLAWD_WORK_MINUTES,
   clawdHello,
   clawdPoke,
   clawdReply,
   clawdWorkGo,
   type ClawdPrompt,
+  shouldSubmitClawdWorkMinutes,
+  validateClawdWorkMinutes,
 } from '../../lib/logic/clawdTalk';
 import type { ClawdMsg } from '../../lib/model/types';
 import { Clawd } from '../parts/Clawd';
@@ -64,8 +65,23 @@ export function ClawdChat() {
 
   /** 会話の末尾。1 通増えるたびにそこへ寄せる */
   const tailRef = useRef<HTMLDivElement | null>(null);
+  /** 作業窓を閉じたとき、一時的な分数ボタンではなく常設の入口へ戻す。 */
+  const workTriggerRef = useRef<HTMLButtonElement | null>(null);
   /** 長さを決める札を出しているか。会話の末尾に置く一時的な操作なので state に持たない */
   const [askMin, setAskMin] = useState(false);
+  /** 自由入力する作業時間。候補札を選ぶ場合はこの値を経由しない。 */
+  const [customMinutes, setCustomMinutes] = useState('');
+  const customMinutesRef = useRef<HTMLInputElement | null>(null);
+  /** Enter と form submit が同じ作業を二重起動しないための 1 回ロック。 */
+  const customSubmitLockRef = useRef(false);
+
+  const customMinutesValidation = validateClawdWorkMinutes(customMinutes);
+  const customMinutesError =
+    customMinutes && !customMinutesValidation.ok
+      ? customMinutesValidation.reason === 'range'
+        ? `1〜${CLAWD_WORK_MAX_MINUTES}分で入力してください`
+        : `1〜${CLAWD_WORK_MAX_MINUTES}分の整数で入力してください`
+      : null;
 
   // 開いたら挨拶から始める。**保存していない**ので、開くたびに 1 通目が置かれる
   useEffect(() => {
@@ -78,6 +94,13 @@ export function ClawdChat() {
   useEffect(() => {
     tailRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [log.length, askMin]);
+
+  useEffect(() => {
+    if (askMin) {
+      customSubmitLockRef.current = false;
+      customMinutesRef.current?.focus();
+    }
+  }, [askMin]);
 
   /** Clawd を触る。押すたびに違う言葉が返る */
   const poke = () => push('clawd', clawdPoke(store.getState().clawdLog.length));
@@ -97,10 +120,30 @@ export function ClawdChat() {
    * ここを離れて別の画面へ移っても回り続ける（それがこの窓の存在理由）。
    */
   const startWork = (min: number) => {
+    if (!Number.isSafeInteger(min) || min < 1 || min > CLAWD_WORK_MAX_MINUTES) return;
     setAskMin(false);
+    setCustomMinutes('');
     push('me', min + '分');
-    startClawdWork(min);
+    startClawdWork(min, workTriggerRef.current);
     setTimeout(() => push('clawd', clawdWorkGo(min)), 380);
+  };
+
+  const submitCustomWork = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!customMinutesValidation.ok) return;
+    if (customSubmitLockRef.current) return;
+    customSubmitLockRef.current = true;
+    startWork(customMinutesValidation.minutes);
+  };
+
+  const submitCustomWorkFromKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    const composing = event.nativeEvent.isComposing;
+    if (!shouldSubmitClawdWorkMinutes(event.key, composing, customMinutesValidation)) return;
+    event.preventDefault();
+    if (customSubmitLockRef.current) return;
+    if (!customMinutesValidation.ok) return;
+    customSubmitLockRef.current = true;
+    startWork(customMinutesValidation.minutes);
   };
 
   return (
@@ -135,21 +178,71 @@ export function ClawdChat() {
           {/* 長さの札。返しの続きに見えるよう、Clawd のアイコンぶん字下げして置く */}
           {askMin ? (
             <div className="cc__mins" role="group" aria-label="作業する長さ">
-              {CLAWD_WORK_MINUTES.map((m) => (
-                <button key={m} type="button" className="cc__min" onClick={() => startWork(m)}>
-                  {m}分
-                </button>
-              ))}
+              <div className="cc__min-choices" role="group" aria-label="おすすめの長さ">
+                {CLAWD_WORK_MINUTES.map((m) => (
+                  <button key={m} type="button" className="cc__min" onClick={() => startWork(m)}>
+                    {m}分
+                  </button>
+                ))}
+              </div>
+              <form className="cc__custom" onSubmit={submitCustomWork} noValidate>
+                <label className="cc__custom-label" htmlFor="cc-custom-minutes">
+                  好きな分数
+                </label>
+                <div className="cc__custom-controls">
+                  <input
+                    ref={customMinutesRef}
+                    id="cc-custom-minutes"
+                    className="cc__custom-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    value={customMinutes}
+                    onChange={(event) => setCustomMinutes(event.target.value)}
+                    onKeyDown={submitCustomWorkFromKey}
+                    aria-describedby="cc-custom-minutes-help"
+                    aria-errormessage={customMinutesError ? 'cc-custom-minutes-error' : undefined}
+                    aria-invalid={customMinutes.length > 0 && !customMinutesValidation.ok}
+                    placeholder="例: 30"
+                  />
+                  <span className="cc__custom-unit" aria-hidden="true">
+                    分
+                  </span>
+                  <button
+                    type="submit"
+                    className="cc__custom-submit"
+                    disabled={!customMinutesValidation.ok}
+                  >
+                    決定
+                  </button>
+                </div>
+                <p id="cc-custom-minutes-help" className="cc__custom-help">
+                  1〜{CLAWD_WORK_MAX_MINUTES}分の整数。Enterでも決定できます
+                </p>
+                {customMinutesError ? (
+                  <p id="cc-custom-minutes-error" className="cc__custom-error" role="alert">
+                    {customMinutesError}
+                  </p>
+                ) : null}
+              </form>
             </div>
           ) : null}
           <div ref={tailRef} />
         </div>
       </div>
 
-      {/* ── 話しかける。自由入力は置かない（このファイルの冒頭を見よ） */}
+      {/* ── 話しかける。会話はボタン、作業時間は上の専用欄で受け取る */}
       <div className="cc__asks" role="group" aria-label="Clawdに話しかける">
         {CLAWD_PROMPTS.map((p) => (
-          <button key={p.say} type="button" className="cc__ask" onClick={() => say(p)}>
+          <button
+            key={p.say}
+            ref={p.kind === 'work' ? workTriggerRef : undefined}
+            type="button"
+            className="cc__ask"
+            onClick={() => say(p)}
+          >
             {p.say}
           </button>
         ))}

@@ -17,7 +17,7 @@
  * DOM 位置は `.compass-theme-mode` 直下（`<ShellOverlay>` で包んで呼ぶこと）。
  */
 
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { dayLabel, fmtMD, type DateContext } from '../../lib/logic/dates';
 import {
   applyRedist as applyRedistToSegs,
@@ -30,6 +30,7 @@ import { subjectColorFor, type SubjColors } from '../../lib/logic/subjects';
 import type { AppState, Plans, RedistMode } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
 import { addToOrder } from './ShellActions';
+import { useDialogFocus } from './useDialogFocus';
 
 /** `redistModeChips`（HTML:3811-3816） */
 const REDIST_MODE_CHIPS: readonly { id: RedistMode; label: string }[] = [
@@ -69,6 +70,14 @@ export function TestsRedistModal({
 
   const closeRedist = () => store.setState({ redistOpen: false, redistPlan: null });
   const stopProp = (e: ReactMouseEvent) => e.stopPropagation();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const onPanelKeyDown = useDialogFocus({
+    open: S.redistOpen,
+    panelRef,
+    initialFocusRef: cancelRef,
+    onClose: closeRedist,
+  });
 
   // ── 移動リスト（HTML:3790-3800）
   const redistMoves = pv
@@ -200,6 +209,7 @@ export function TestsRedistModal({
 
   return (
     <div
+      className="glass-overlay-backdrop"
       onClick={closeRedist}
       style={{
         position: 'fixed',
@@ -214,7 +224,14 @@ export function TestsRedistModal({
       }}
     >
       <div
+        ref={panelRef}
+        className="glass-overlay-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="計画の再配分"
+        tabIndex={-1}
         onClick={stopProp}
+        onKeyDown={onPanelKeyDown}
         style={{
           width: '620px',
           maxWidth: '92vw',
@@ -549,6 +566,7 @@ export function TestsRedistModal({
         </div>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
           <button
+            ref={cancelRef}
             onClick={closeRedist}
             style={{
               padding: '10px 18px',

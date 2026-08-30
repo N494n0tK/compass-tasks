@@ -6,7 +6,7 @@
  * （`src/lib/logic/morningBrief.ts`）。ここはそれを呼んで表示するだけ ――
  * 同じ判断を 2 か所に置くと、片方だけ直したときに朝の 1 枚が静かにずれる。
  *
- * 毎日の実行は ChatGPT のスケジュール「Compass朝のメモ」がやる。
+ * 毎日の実行は GitHub Actions → `/api/cron/morning-brief` がやる。
  *
  *   node scripts/morning-brief.mjs
  *   node scripts/morning-brief.mjs --date 2026-08-28

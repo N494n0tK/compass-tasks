@@ -72,6 +72,13 @@ export interface ClawdMsg {
 export interface ClawdWork {
   /** 決めた長さ（分） */
   min: number;
+  /**
+   * オフィスの秒単位カスタム入力を損なわない総秒数。古い実行中 state は
+   * `min * 60` にフォールバックするので、途中のリリースでも安全に読める。
+   */
+  totalSec?: number;
+  /** 実時刻ベースの締切（バックグラウンドタブ復帰時の再計算用） */
+  deadlineAt?: number;
   /** 残り秒 */
   leftSec: number;
   running: boolean;
@@ -456,6 +463,10 @@ export interface PersistentState {
    * **保存する** ―― 見つけたものを起動のたびに探し直させるのは、隠し扉ではなく嫌がらせ。
    */
   clawdFound: boolean;
+  /** Glass の背景を手動で合わせる時刻（0:00〜23:59、分）。旧データには無い追加キー。 */
+  glassTimeMinutes?: number;
+  /** true のとき Glass の背景時刻を端末の現在時刻へ追従する。 */
+  glassFollowCurrentTime?: boolean;
 }
 
 /**
@@ -498,6 +509,9 @@ export const PERSISTENT_KEYS = [
   'notionPullLog',
   // 隠しタブを見つけたか。**一度見つけたら覚えておく**（毎回探させない）
   'clawdFound',
+  // Glass の時刻設定。既存キーの JSON 順を変えないため末尾に追記する。
+  'glassTimeMinutes',
+  'glassFollowCurrentTime',
 ] as const satisfies readonly (keyof PersistentState)[];
 
 export type PersistentKey = (typeof PERSISTENT_KEYS)[number];
@@ -575,6 +589,10 @@ export interface UiPrefs {
   theme: Theme;
   themeVersion: number;
   panelW: PanelW;
+  /** Glass の手動時刻。未保存の旧 prefs では undefined のまま初期値を使う。 */
+  glassTimeMinutes?: number;
+  /** Glass の現在時刻追従。未保存の旧 prefs では undefined のまま既定値を使う。 */
+  glassFollowCurrentTime?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────

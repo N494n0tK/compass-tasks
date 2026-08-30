@@ -33,9 +33,7 @@ import {
   type NotionChildPage,
   type NotionNoteBlock,
 } from '../../../../lib/logic/notionPull';
-
-const NOTION_API = 'https://api.notion.com/v1';
-const NOTION_VERSION = '2022-06-28';
+import { createNotionApiClient } from '../../../../lib/server/notionApi';
 
 /**
  * 1 回の受け取りで読む日付ページの上限。1 ページ = API 1 往復なので、全履歴を
@@ -52,8 +50,6 @@ const MAX_PAGES = 30;
 const FIREBASE_JWKS = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'),
 );
-
-class NotionApiError extends Error {}
 
 /** 許可するメールアドレス（小文字に揃える）。空なら本人確認をしない */
 function allowedEmails(): string[] {
@@ -93,34 +89,6 @@ async function verifyCaller(req: NextRequest): Promise<{ ok: true } | { ok: fals
   }
 }
 
-/** `blocks.children.list` を最後のページまで読む（1 往復 100 件） */
-async function listChildren(token: string, blockId: string): Promise<unknown[]> {
-  const out: unknown[] = [];
-  let cursor: string | null = null;
-  do {
-    const query = '?page_size=100' + (cursor ? '&start_cursor=' + encodeURIComponent(cursor) : '');
-    const res = await fetch(NOTION_API + '/blocks/' + blockId + '/children' + query, {
-      headers: { Authorization: 'Bearer ' + token, 'Notion-Version': NOTION_VERSION },
-      // Next のフェッチキャッシュに乗せない（受け取りは常に今の Notion を見る）
-      cache: 'no-store',
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new NotionApiError(
-        'Notion API ' + res.status + (body ? ': ' + body.slice(0, 300) : ''),
-      );
-    }
-    const json = (await res.json()) as {
-      results?: unknown[];
-      has_more?: boolean;
-      next_cursor?: string | null;
-    };
-    out.push(...(Array.isArray(json.results) ? json.results : []));
-    cursor = json.has_more && json.next_cursor ? json.next_cursor : null;
-  } while (cursor);
-  return out;
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const caller = await verifyCaller(req);
   if (!caller.ok) {
@@ -141,7 +109,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const rootChildren = await listChildren(token, normalizeNotionId(pageId));
+    const notion = createNotionApiClient(token);
+    const rootChildren = await notion.listBlockChildren(normalizeNotionId(pageId));
     const pages: NotionChildPage[] = [];
     rootChildren.forEach((raw) => {
       const page = notionChildPage(raw);
@@ -150,7 +119,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const blocks: NotionNoteBlock[] = [];
     for (const page of selectNotionPages(pages, MAX_PAGES)) {
-      const children = await listChildren(token, page.id);
+      const children = await notion.listBlockChildren(page.id);
       children.forEach((raw) => {
         const code = notionCodeBlock(raw);
         if (!code) return;

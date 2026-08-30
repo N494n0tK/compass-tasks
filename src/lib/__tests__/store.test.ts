@@ -84,6 +84,8 @@ describe('createInitialState', () => {
     expect(s.dataRange).toBe('all');
     expect(s.cloudStatus).toBe('loading');
     expect(s.cloudUser).toBe('');
+    expect(s.glassTimeMinutes).toBe(720);
+    expect(s.glassFollowCurrentTime).toBe(true);
   });
 
   it('fills the four TODAY-derived keys', () => {
@@ -339,6 +341,8 @@ describe('exportData', () => {
       'focusLog',
       'notionPullLog',
       'clawdFound',
+      'glassTimeMinutes',
+      'glassFollowCurrentTime',
     ]);
   });
 

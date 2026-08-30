@@ -401,6 +401,13 @@ describe('check_notes / morning_brief', () => {
     expect(String(data.body)).toContain('### 思い出せるか');
   });
 
+  it('morning_brief は引数なしなら今日（Asia/Tokyo）を使う', async () => {
+    const { store } = fakeStore([]);
+    const { data } = await call(store, 'morning_brief', {});
+    expect(data.date).toBe(TODAY);
+    expect(data.skipped).toBe(false);
+  });
+
   it('新しい 2 つは読むだけのツールとして出ている', () => {
     ['check_notes', 'morning_brief'].forEach((name) => {
       expect(TOOLS.find((t) => t.name === name)?.readOnly).toBe(true);

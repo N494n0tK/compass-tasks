@@ -33,6 +33,7 @@ import type { CompassStore } from '../../lib/store';
 import { mutSeg, addToOrder } from './ShellActions';
 import { savePrefs } from './ShellPrefs';
 import { makeResizer } from './ShellResizer';
+import { useDialogFocus } from './useDialogFocus';
 
 /**
  * `this.SIZE_MIN`（HTML:2037）。`lib/logic/reviews.ts` では非公開なのでローカルに置く
@@ -77,6 +78,8 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
   // ここではドロワー内に限定して同じ計算を行う（skip 判定・3px 未満スキップ・220ms は同一）。
   const flipRoot = useRef<HTMLDivElement | null>(null);
   const flipSnap = useRef<Record<string, number> | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   /** `this._miniTap`（HTML:3955-3959）— ダブルタップ判定（360ms） */
   const miniTap = useRef<{ id: string; t: number } | null>(null);
 
@@ -116,6 +119,17 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
     });
   });
 
+  const edCollapsed = !!S.editorCollapsed;
+  const closeEditor = () =>
+    store.setState({ editorPlan: null, editorCollapsed: false, dragMini: null, dragMiniOver: null });
+  const onDrawerKeyDown = useDialogFocus({
+    open: !!edPid,
+    panelRef: drawerRef,
+    initialFocusRef: closeButtonRef,
+    onClose: closeEditor,
+    trapFocus: !edCollapsed,
+  });
+
   if (!edPid) return null;
   const pl = plans[edPid];
   // レガシーは `P[edPid]` が無いと TypeError で落ちるが、`editorPlan` は削除時に必ず null に
@@ -135,13 +149,10 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
   const edPct = list.length ? Math.round((doneN / list.length) * 100) : 0;
   const edDash = list.length ? Math.round((doneN / list.length) * 182) : 0;
   const edW = Math.min(520, Math.max(320, S.panelW.editor || 410)) + 'px';
-  const edCollapsed = !!S.editorCollapsed;
   const edOverlayBg = S.editorCollapsed ? 'transparent' : 'rgba(5,9,20,.45)';
   const edOverlayPointer = S.editorCollapsed ? 'none' : 'auto';
 
   const stopProp = (e: ReactMouseEvent) => e.stopPropagation();
-  const closeEditor = () =>
-    store.setState({ editorPlan: null, editorCollapsed: false, dragMini: null, dragMiniOver: null });
   const collapseEditor = () =>
     store.setState({ editorCollapsed: true, dragMini: null, dragMiniOver: null });
   const expandEditor = () => store.setState({ editorCollapsed: false });
@@ -295,6 +306,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
 
   return (
     <div
+      className={'glass-overlay-backdrop' + (edCollapsed ? ' is-pass-through' : '')}
       onClick={closeEditor}
       style={{
         position: 'fixed',
@@ -307,6 +319,8 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
     >
       {edCollapsed ? (
         <div
+          ref={drawerRef}
+          className="glass-overlay-drawer glass-overlay-drawer--collapsed"
           onClick={stopProp}
           style={{
             pointerEvents: 'auto',
@@ -361,7 +375,14 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
       ) : null}
       {!edCollapsed ? (
         <div
+          ref={drawerRef}
+          className="glass-overlay-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="計画の編集"
+          tabIndex={-1}
           onClick={stopProp}
+          onKeyDown={onDrawerKeyDown}
           style={{
             position: 'absolute',
             right: 0,
@@ -380,6 +401,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
           }}
         >
           <div
+            className="drawer-resizer"
             onMouseDown={edResize}
             style={{
               position: 'absolute',
@@ -423,6 +445,7 @@ export function TestsEditorDrawer({ state, plans, store, ctx, subjColors }: Test
               しまう ›
             </button>
             <button
+              ref={closeButtonRef}
               onClick={closeEditor}
               style={{
                 width: '26px',

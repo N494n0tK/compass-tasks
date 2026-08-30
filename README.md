@@ -42,6 +42,13 @@ Firebase の `NEXT_PUBLIC_FIREBASE_*` 6 つと、Notion 受け取り用の `NOTI
 `/api/notion/pull` を叩けないようにする)。Notion のエージェントから呼ばせるなら
 `COMPASS_MCP_TOKEN` / `COMPASS_MCP_UID` / `FIREBASE_SERVICE_ACCOUNT` も要る。
 
+朝のメモは GitHub Actions（`.github/workflows/morning-brief.yml`）が `timezone: Asia/Tokyo` の
+毎日 `07:30` に Vercel の `/api/cron/morning-brief` を呼ぶ。Vercel Hobby の Cron は指定した
+1 時間内の任意時刻になり得るため使わない。Vercel Production と GitHub Actions secret に
+同じ `CRON_SECRET` を追加する。既存の `NOTION_TOKEN` のインテグレーションは Notion 親ページ
+「☀️ 朝のメモ」へ接続し、Insert content / Insert property / Read content を許可する。
+生成には既存の `COMPASS_MCP_UID` / `FIREBASE_SERVICE_ACCOUNT` を再利用する。
+
 ## ドキュメント
 
 - [docs/notebook/](docs/notebook/) … 授業ノート(仕様 `spec.md` / 決定事項 `decisions.md` /

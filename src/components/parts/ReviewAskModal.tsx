@@ -14,6 +14,7 @@
  * マウントされないので、最終的には `CompassApp` に **1 個だけ** 置くのが正しい（下の注記）。
  */
 
+import { useId, useRef } from 'react';
 import { noteRefOf } from '../../lib/logic/noteCards';
 import { subjectColorFor } from '../../lib/logic/subjects';
 import { GRADE_REQUIRED_MESSAGE, askSizeOf } from '../../lib/logic/reviews';
@@ -22,6 +23,7 @@ import { NoteMath } from './NoteMath';
 import { ShellOverlay } from './ShellOverlay';
 import { SIZE_MIN, completeReview } from './ReviewShared';
 import { useSubjColors } from './ShellSubjects';
+import { useDialogFocus } from './useDialogFocus';
 import { dateCtx, store, useAppStore } from '../useStore';
 
 /** `askGrades`（HTML:3140-3144）。並び順・文言・色トークンまで 1:1 */
@@ -48,6 +50,16 @@ export function ReviewAskModal() {
   // `askR = S.reviews.find(r => r.id === S.revAsk) || null`（HTML:3139）
   const askR = S.reviews.find((r) => r.id === S.revAsk) || null;
   // `askOpen: !!askR`（HTML:4282）
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const firstGradeRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const closeAsk = () => store.setState({ revAsk: null, revAskReveal: false });
+  const onPanelKeyDown = useDialogFocus({
+    open: !!askR,
+    panelRef,
+    initialFocusRef: firstGradeRef,
+    onClose: closeAsk,
+  });
   if (!askR) return null;
 
   const askSubj = subjectColorFor(subjColors, askR.subj);
@@ -64,8 +76,6 @@ export function ReviewAskModal() {
   const note = noteRef ? S.notes.find((n) => n.id === noteRef.noteId) || null : null;
   const card = note && noteRef ? note.cards.find((c) => c.cardId === noteRef.cardId) || null : null;
 
-  const closeAsk = () => store.setState({ revAsk: null, revAskReveal: false });
-
   /** `confirmAsk()`（HTML:3146-3185）— 完了 → studyLog 記録 → 次回復習の生成 */
   const confirmAsk = () => {
     if (!S.revAskGrade) {
@@ -80,6 +90,7 @@ export function ReviewAskModal() {
   return (
     <ShellOverlay>
       <div
+        className="glass-overlay-backdrop"
         onClick={closeAsk}
         style={{
           position: 'fixed',
@@ -94,7 +105,14 @@ export function ReviewAskModal() {
         }}
       >
         <div
+          ref={panelRef}
+          className="glass-overlay-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={onPanelKeyDown}
           style={{
             width: '460px',
             maxWidth: '92vw',
@@ -110,7 +128,7 @@ export function ReviewAskModal() {
           }}
         >
           <div>
-            <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
+            <div id={titleId} style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
               復習おつかれさま！理解度はどうでしたか？
             </div>
             <div
@@ -190,15 +208,27 @@ export function ReviewAskModal() {
               )}
             </div>
           ) : null}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          <div
+            role="group"
+            aria-label="今回の復習の理解度"
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}
+          >
             {ASK_GRADES.map((g) => {
               // 選択時 c:'var(--onAcc)' / bg:g.c、bd は常に g.c（HTML:4286-4292）
               const on = S.revAskGrade === g.id;
               const c = on ? 'var(--onAcc)' : g.c;
               return (
-                <div
+                <button
+                  ref={g.id === ASK_GRADES[0].id ? firstGradeRef : undefined}
                   key={g.id}
+                  type="button"
+                  aria-pressed={on}
                   onClick={() => store.setState({ revAskGrade: g.id })}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    store.setState({ revAskGrade: g.id });
+                  }}
                   style={{
                     border: '1px solid ' + g.c,
                     borderRadius: 'var(--rad)',
@@ -206,6 +236,7 @@ export function ReviewAskModal() {
                     padding: '12px 8px',
                     textAlign: 'center',
                     cursor: 'pointer',
+                    font: 'inherit',
                   }}
                 >
                   <div style={{ font: "700 22px var(--f-ui)", color: c, lineHeight: 1 }}>
@@ -217,7 +248,7 @@ export function ReviewAskModal() {
                   <div style={{ fontSize: '10px', color: 'var(--tx3)', marginTop: '3px' }}>
                     {g.desc}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -229,9 +260,16 @@ export function ReviewAskModal() {
               {SIZE_KEYS.map((z) => {
                 const on = askSizeCur === z;
                 return (
-                  <span
+                  <button
                     key={z}
+                    type="button"
+                    aria-pressed={on}
                     onClick={() => store.setState({ revAskSize: z })}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      store.setState({ revAskSize: z });
+                    }}
                     style={{
                       font: "700 11.5px var(--f-num)",
                       color: on ? 'var(--onAcc)' : 'var(--tx2)',
@@ -243,7 +281,7 @@ export function ReviewAskModal() {
                     }}
                   >
                     {z + '·' + SIZE_MIN[z] + '分'}
-                  </span>
+                  </button>
                 );
               })}
             </div>

@@ -24,7 +24,13 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { daysUntil, fmtMD, type DateContext } from '../../lib/logic/dates';
 import type { AppState, Countdown, ViewId } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
-import { ALL_VIEW_IDS, VIEWS, normalizeNavOrder } from './ShellTheme';
+import {
+  ALL_VIEW_IDS,
+  VIEWS,
+  formatGlassTime,
+  normalizeNavOrder,
+  useLocalMinuteOfDay,
+} from './ShellTheme';
 
 /** `cloudStatusMap`（HTML:4097）。`login` は architecture §5 で到達不能だが表引きは残す */
 const CLOUD_STATUS_MAP: Readonly<Record<string, string>> = {
@@ -47,6 +53,21 @@ const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties
  * これを過ぎてから state を落とす ―― 先に落とすと DOM ごと消えて 1 フレームも見えない。
  */
 const ROW_OUT_MS = 160;
+
+/**
+ * 下部ナビは最大 8 タブ + 追加 FAB を 320px に収める。
+ * 読み上げ名は元の `v.label` のままにし、ここは見た目だけを短くする。
+ */
+const MOBILE_NAV_LABEL: Readonly<Partial<Record<ViewId, string>>> = {
+  cockpit: 'ホーム',
+  tests: '計画',
+  todo: 'ToDo',
+  review: '復習',
+  data: 'データ',
+  notebook: 'ノート',
+  extract: '問題',
+  clawd: 'Claw',
+};
 
 /**
  * 動きを止めている人か。止めている人に「消えるのを見せるための待ち時間」だけ課すと、
@@ -84,6 +105,11 @@ export function ShellNav({
   const S = state;
   const T = ctx.today;
   const navW = S.panelW.nav + 'px';
+  const glass = S.theme === 'glass';
+  const glassSystemMinutes = useLocalMinuteOfDay(glass && !!S.glassFollowCurrentTime);
+  const displayedGlassMinutes = S.glassFollowCurrentTime
+    ? glassSystemMinutes
+    : S.glassTimeMinutes ?? 12 * 60;
 
   const orderedViews = normalizeNavOrder(S.navOrder)
     .map((id) => VIEWS.find((v) => v.id === id))
@@ -176,8 +202,8 @@ export function ShellNav({
   };
 
   const light = S.theme === 'light';
-  const note = S.theme === 'note';
-  const glass = S.theme === 'glass';
+  // 旧保存値 `note` は破壊的に書き換えず、UI 上だけ Dark と同じ選択状態にする。
+  const dark = S.theme === 'dark' || S.theme === 'note';
   const setTheme = (theme: AppState['theme']) =>
     store.setState({ theme, themeVersion: 3 }, () => savePrefs());
 
@@ -198,6 +224,7 @@ export function ShellNav({
       })}
     >
       <div
+        className="nav-resizer"
         onMouseDown={onNavResize}
         style={{
           position: 'absolute',
@@ -246,6 +273,7 @@ export function ShellNav({
             draggable
             className={'app-nav-item ' + (active ? 'is-active' : '') + ' ' + dragClass}
             data-nav={v.id}
+            aria-label={v.label}
             onDragStart={(e) => {
               store.setState({ dragNav: v.id });
               try {
@@ -296,6 +324,7 @@ export function ShellNav({
             ></span>
             <span
               className="app-nav-item__label"
+              data-mobile-label={MOBILE_NAV_LABEL[v.id] ?? v.label}
               style={{ flex: 1, color: active ? v.dot : 'var(--tx2)' }}
             >
               {v.label}
@@ -469,19 +498,51 @@ export function ShellNav({
         </div>
         {/* 選択中は `.is-on`（配色は globals.css）。旧実装はインライン style + <span> で
             キーボードから操作できなかったので、ボタンにして aria-pressed を付けた */}
+        {glass ? (
+          <div className="glass-time-controls" aria-label="Glass の背景時刻">
+            <div className="glass-time-controls__head">
+              <label htmlFor="glass-time-slider">背景時刻</label>
+              <output htmlFor="glass-time-slider" aria-live="polite">
+                {formatGlassTime(displayedGlassMinutes)}
+              </output>
+            </div>
+            <input
+              id="glass-time-slider"
+              type="range"
+              min="0"
+              max="1439"
+              step="15"
+              value={Math.max(0, Math.min(1439, Math.round(displayedGlassMinutes)))}
+              disabled={!!S.glassFollowCurrentTime}
+              aria-label="Glass 背景時刻"
+              aria-valuetext={formatGlassTime(displayedGlassMinutes)}
+              onChange={(e) =>
+                store.setState(
+                  { glassTimeMinutes: Number(e.currentTarget.value) },
+                  savePrefs
+                )
+              }
+            />
+            <label className="glass-time-controls__follow">
+              <input
+                type="checkbox"
+                checked={!!S.glassFollowCurrentTime}
+                onChange={(e) =>
+                  store.setState(
+                    { glassFollowCurrentTime: e.currentTarget.checked },
+                    savePrefs
+                  )
+                }
+              />
+              <span>現在時刻に合わせる</span>
+            </label>
+          </div>
+        ) : null}
         <div className="theme-switch" role="group" aria-label="テーマ">
           <button
             type="button"
-            className={'mo-press ' + (note ? 'is-on' : '')}
-            aria-pressed={note}
-            onClick={() => setTheme('note')}
-          >
-            ✎ ノート
-          </button>
-          <button
-            type="button"
-            className={'mo-press ' + (!light && !note && !glass ? 'is-on' : '')}
-            aria-pressed={!light && !note && !glass}
+            className={'mo-press ' + (dark ? 'is-on' : '')}
+            aria-pressed={dark}
             onClick={() => setTheme('dark')}
           >
             ✦ ダーク

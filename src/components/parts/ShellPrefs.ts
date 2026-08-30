@@ -22,7 +22,13 @@ export const LS_UI_DATA = 'compass-ui-data';
 export function savePrefs(store: CompassStore): void {
   try {
     const s = store.getState();
-    const prefs: UiPrefs = { theme: s.theme, themeVersion: 3, panelW: s.panelW };
+    const prefs: UiPrefs = {
+      theme: s.theme,
+      themeVersion: 3,
+      panelW: s.panelW,
+      glassTimeMinutes: s.glassTimeMinutes,
+      glassFollowCurrentTime: s.glassFollowCurrentTime,
+    };
     localStorage.setItem(LS_UI, JSON.stringify(prefs));
   } catch {
     /* C-33 */
@@ -37,12 +43,28 @@ export function readPrefsPatch(defaults: PanelW): Partial<AppState> {
   const initial: Partial<AppState> = {};
   try {
     const saved = JSON.parse(localStorage.getItem(LS_UI) || '{}') as Partial<UiPrefs>;
-    if (saved.theme === 'light' || saved.theme === 'dark' || saved.theme === 'note') {
+    if (
+      saved.theme === 'light' ||
+      saved.theme === 'dark' ||
+      saved.theme === 'note' ||
+      saved.theme === 'glass'
+    ) {
       // v0.6.9までの dark はノートテーマだったため、一度だけ note へ移行する。
       initial.theme = (saved.theme === 'dark' && saved.themeVersion !== 3
         ? 'note'
         : saved.theme) as Theme;
       initial.themeVersion = 3;
+    }
+    if (
+      typeof saved.glassTimeMinutes === 'number' &&
+      Number.isFinite(saved.glassTimeMinutes) &&
+      saved.glassTimeMinutes >= 0 &&
+      saved.glassTimeMinutes <= 1439
+    ) {
+      initial.glassTimeMinutes = Math.round(saved.glassTimeMinutes);
+    }
+    if (typeof saved.glassFollowCurrentTime === 'boolean') {
+      initial.glassFollowCurrentTime = saved.glassFollowCurrentTime;
     }
     if (saved.panelW) {
       const pw: PanelW = { ...defaults };

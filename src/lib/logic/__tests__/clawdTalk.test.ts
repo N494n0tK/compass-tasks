@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CLAWD_PROMPTS,
+  CLAWD_WORK_MAX_MINUTES,
+  CLAWD_WORK_MINUTES,
   clawdCheerText,
   clawdHello,
   clawdPoke,
   clawdReply,
+  clawdWorkDoneDuration,
+  shouldSubmitClawdWorkMinutes,
+  validateClawdWorkMinutes,
 } from '../clawdTalk';
 
 describe('clawdCheerText — 片づけたときの一言', () => {
@@ -78,5 +83,58 @@ describe('clawdPoke / clawdReply — 触れ合い', () => {
     const p = CLAWD_PROMPTS.find((x) => x.reply.length > 1)!;
     expect(clawdReply(p, 0)).not.toBe(clawdReply(p, 1));
     expect(clawdReply(p, 0)).toBe(clawdReply(p, p.reply.length));
+  });
+});
+
+describe('validateClawdWorkMinutes — 作業時間の自由入力', () => {
+  it('正の整数を分数として返し、固定候補も変更しない', () => {
+    expect(validateClawdWorkMinutes('1')).toEqual({ ok: true, minutes: 1 });
+    expect(validateClawdWorkMinutes(String(CLAWD_WORK_MAX_MINUTES))).toEqual({
+      ok: true,
+      minutes: CLAWD_WORK_MAX_MINUTES,
+    });
+    expect(validateClawdWorkMinutes(' 025 ')).toEqual({ ok: true, minutes: 25 });
+    expect(CLAWD_WORK_MINUTES).toEqual([15, 25, 45, 60]);
+  });
+
+  it('空欄は未入力として扱う', () => {
+    expect(validateClawdWorkMinutes('')).toEqual({ ok: false, reason: 'empty' });
+    expect(validateClawdWorkMinutes('   ')).toEqual({ ok: false, reason: 'empty' });
+  });
+
+  it('0・上限超過・巨大値を受け付けない', () => {
+    for (const raw of ['0', String(CLAWD_WORK_MAX_MINUTES + 1), '9'.repeat(100)]) {
+      expect(validateClawdWorkMinutes(raw)).toEqual({ ok: false, reason: 'range' });
+    }
+  });
+
+  it('負数・小数・指数表記を整数として受け付けない', () => {
+    for (const raw of ['-1', '1.5', '1e2', '+5']) {
+      expect(validateClawdWorkMinutes(raw)).toEqual({ ok: false, reason: 'integer' });
+    }
+  });
+});
+
+describe('clawdWorkDoneDuration — 秒単位の完了文', () => {
+  it('秒と分を丸めずに表示する', () => {
+    expect(clawdWorkDoneDuration(5, 0)).toContain('（5秒）');
+    expect(clawdWorkDoneDuration(65, 0)).toContain('（1分5秒）');
+    expect(clawdWorkDoneDuration(25 * 60, 0)).toContain('（25分）');
+  });
+});
+
+describe('shouldSubmitClawdWorkMinutes — キーボード確定', () => {
+  const valid = validateClawdWorkMinutes('8');
+  const invalid = validateClawdWorkMinutes('1.5');
+
+  it('Enter と Return は有効な分数だけ確定する', () => {
+    expect(shouldSubmitClawdWorkMinutes('Enter', false, valid)).toBe(true);
+    expect(shouldSubmitClawdWorkMinutes('Return', false, valid)).toBe(true);
+    expect(shouldSubmitClawdWorkMinutes('Enter', false, invalid)).toBe(false);
+  });
+
+  it('IME変換中や別キーでは確定しない', () => {
+    expect(shouldSubmitClawdWorkMinutes('Enter', true, valid)).toBe(false);
+    expect(shouldSubmitClawdWorkMinutes('Escape', false, valid)).toBe(false);
   });
 });

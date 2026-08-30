@@ -1,0 +1,27 @@
+name: Compass morning brief
+
+on:
+  schedule:
+    - cron: '30 7 * * *'
+      timezone: 'Asia/Tokyo'
+  workflow_dispatch:
+
+concurrency:
+  group: compass-morning-brief
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  create-morning-brief:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Compass morning brief job
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --retry 2 --retry-all-errors --retry-delay 10 \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            https://compass-tasks.vercel.app/api/cron/morning-brief
