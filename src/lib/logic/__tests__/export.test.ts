@@ -168,7 +168,9 @@ const SAMPLE_EXPORT: ExportData = {
     noteSumLog: [],
     focusLog: [{ day: '2026-08-04', subj: '数学', min: 25 }],
     notionPullLog: {},
-  clawdFound: false,
+    clawdFound: false,
+    glassTimeMinutes: 720,
+    glassFollowCurrentTime: true,
   },
 };
 

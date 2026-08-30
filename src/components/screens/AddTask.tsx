@@ -28,6 +28,7 @@ import {
   generateMissionTasks,
   missionStreaks,
   newMissionId,
+  reconcileMissionToday,
 } from '../../lib/logic/missionAutogen';
 import { computeInitialPlacement, resolvePlanStart, type MiniDraft } from '../../lib/logic/schedule';
 import { orderedSubjectNames, subjectColorFor, type SubjColor } from '../../lib/logic/subjects';
@@ -132,6 +133,7 @@ function focusEl(id: string): void {
 const intValue = (value: string): number => Math.floor(Number(value));
 
 interface Chip {
+  id?: string;
   label: string;
   c: string;
   bg: string;
@@ -142,6 +144,7 @@ interface Chip {
 /** `sizeChip(cur, onPick)`（HTML:3636-3642） */
 function sizeChip(cur: SizeKey, onPick: (z: SizeKey) => void): (z: SizeKey) => Chip {
   return (z) => ({
+    id: z,
     label: z + '·' + SIZE_MIN[z] + '分',
     c: cur === z ? 'var(--onAcc)' : 'var(--tx2)',
     bg: cur === z ? 'var(--acc)' : 'var(--bg2)',
@@ -181,6 +184,7 @@ export function AddTask() {
 
   // ── 種類チップ（HTML:3549-3555）
   const addTypeChips: Chip[] = ADD_TYPES.map((t) => ({
+    id: t.id,
     label: t.label,
     c: S.addType === t.id ? 'var(--tx0)' : 'var(--tx2)',
     bg: S.addType === t.id ? 'var(--bg3)' : 'var(--bg2)',
@@ -302,6 +306,7 @@ export function AddTask() {
     {
       label: '‹',
       aria: '前の週',
+      selected: false,
       c: 'var(--tx2)',
       bg: 'var(--bg2)',
       bd: 'var(--line2)',
@@ -316,6 +321,7 @@ export function AddTask() {
         return {
           label: label + ' ' + fmtMD(iso),
           aria: label + '曜日 ' + fmtMD(iso),
+          selected: active,
           c: active ? 'var(--onAcc)' : 'var(--tx2)',
           bg: active ? 'var(--acc)' : 'var(--bg2)',
           bd: active ? 'var(--acc)' : 'var(--line2)',
@@ -328,6 +334,7 @@ export function AddTask() {
       {
         label: '›',
         aria: '次の週',
+        selected: false,
         c: 'var(--tx2)',
         bg: 'var(--bg2)',
         bd: 'var(--line2)',
@@ -369,6 +376,7 @@ export function AddTask() {
   const addGeneratorChips: Chip[] = GENERATOR_MODES.map((mode) => {
     const active = S.addGenerator === mode.id;
     return {
+      id: mode.id,
       label: mode.label,
       c: active ? 'var(--onAcc)' : 'var(--tx2)',
       bg: active ? 'var(--acc)' : 'var(--bg2)',
@@ -694,16 +702,49 @@ export function AddTask() {
           ? s.addDows.filter((x) => x !== d)
           : s.addDows.concat([d]).sort((a, b) => a - b),
     }));
-  const toggleMissionActive = (id: string) =>
-    store.setState((s) => ({
-      missions: s.missions.map((m) => (m.id === id ? { ...m, active: !m.active } : m)),
-    }));
-  /** 台帳から外すだけ。生成済み Extra（＝完了履歴と連続日数の根拠）は消さない */
+  const toggleMissionActive = (id: string) => {
+    const previous = store.getState().missions.find((m) => m.id === id);
+    if (!previous) return;
+    const next = { ...previous, active: !previous.active };
+    store.setState((s) => {
+      const sync = reconcileMissionToday({
+        today: T,
+        previous,
+        next,
+        extras: s.extras,
+        genLog: s.missionGenLog,
+        order: s.order,
+      });
+      return {
+        missions: s.missions.map((m) => (m.id === id ? next : m)),
+        extras: sync.extras,
+        missionGenLog: sync.genLog,
+        order: sync.order,
+      };
+    });
+  };
+  /** 未完了の今日ぶんだけ外す。生成済みの完了 Extra（連続日数の根拠）は消さない。 */
   const removeMission = (id: string) => {
-    const target = S.missions.find((m) => m.id === id);
-    store.setState((s) => ({ missions: s.missions.filter((m) => m.id !== id) }));
+    const target = store.getState().missions.find((m) => m.id === id);
+    if (!target) return;
+    store.setState((s) => {
+      const sync = reconcileMissionToday({
+        today: T,
+        previous: target,
+        next: null,
+        extras: s.extras,
+        genLog: s.missionGenLog,
+        order: s.order,
+      });
+      return {
+        missions: s.missions.filter((m) => m.id !== id),
+        extras: sync.extras,
+        missionGenLog: sync.genLog,
+        order: sync.order,
+      };
+    });
     store.showToast(
-      '「' + (target ? target.title : 'ミッション') + '」を毎日やることから外しました(記録は残ります)'
+      '「' + target.title + '」を毎日やることから外しました(完了記録は残ります)'
     );
   };
 
@@ -858,7 +899,20 @@ export function AddTask() {
                 {addTypeChips.map((t) => (
                   <span
                     key={t.label}
+                    className={
+                      'glass-control glass-chip' +
+                      (S.addType === t.id ? ' is-selected' : '')
+                    }
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={S.addType === t.id}
                     onClick={t.onPick}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        t.onPick();
+                      }
+                    }}
                     style={{
                       font: "500 12px var(--f-ui)",
                       color: t.c,
@@ -887,7 +941,15 @@ export function AddTask() {
                 <span
                   onClick={toggleWeakPreset}
                   role="button"
+                  className={'glass-control glass-chip' + (weakPresetOn ? ' is-selected' : '')}
+                  tabIndex={0}
                   aria-pressed={weakPresetOn}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleWeakPreset();
+                    }
+                  }}
                   style={{
                     display: 'inline-block',
                     font: "700 11.5px var(--f-ui)",
@@ -1012,7 +1074,17 @@ export function AddTask() {
                 {addSubjChips.map((s) => (
                   <span
                     key={s.name}
+                    className={'glass-control glass-chip' + (S.addSubj === s.name ? ' is-selected' : '')}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={S.addSubj === s.name}
                     onClick={s.onPick}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        s.onPick();
+                      }
+                    }}
                     style={{
                       font: "700 11.5px var(--f-ui)",
                       color: s.c,
@@ -1065,7 +1137,17 @@ export function AddTask() {
                     }}
                   />
                   <span
+                    className={'glass-control glass-chip' + (S.addDay === T ? ' is-selected' : '')}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={S.addDay === T}
                     onClick={pickToday}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        pickToday();
+                      }
+                    }}
                     style={{
                       font: "700 11px var(--f-ui)",
                       color: S.addDay === T ? 'var(--onAcc)' : 'var(--tx2)',
@@ -1081,7 +1163,17 @@ export function AddTask() {
                     今日
                   </span>
                   <span
+                    className={'glass-control glass-chip' + (S.addDay === TOMORROW ? ' is-selected' : '')}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={S.addDay === TOMORROW}
                     onClick={pickTomorrow}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        pickTomorrow();
+                      }
+                    }}
                     style={{
                       font: "700 11px var(--f-ui)",
                       color: S.addDay === TOMORROW ? 'var(--onAcc)' : 'var(--tx2)',
@@ -1142,7 +1234,17 @@ export function AddTask() {
                     return (
                       <span
                         key={d}
+                        className={'glass-control glass-chip' + (on ? ' is-selected' : '')}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={on}
                         onClick={() => toggleAddDow(d)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleAddDow(d);
+                          }
+                        }}
                         style={{
                           font: "700 11.5px var(--f-ui)",
                           color: on ? 'var(--onAcc)' : 'var(--tx2)',
@@ -1175,7 +1277,17 @@ export function AddTask() {
                   {addSizeChips.map((z) => (
                     <span
                       key={z.label}
+                      className={'glass-control glass-chip' + (S.addSize === z.id ? ' is-selected' : '')}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={S.addSize === z.id}
                       onClick={z.onPick}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          z.onPick();
+                        }
+                      }}
                       style={{
                         font: "700 11.5px var(--f-num)",
                         color: z.c,
@@ -1258,6 +1370,9 @@ export function AddTask() {
                           {addGeneratorChips.map((g) => (
                             <button
                               key={g.label}
+                              className={'glass-control glass-chip' +
+                                (S.addGenerator === g.id ? ' is-selected' : '')}
+                              aria-pressed={S.addGenerator === g.id}
                               onClick={g.onPick}
                               style={{
                                 padding: '5px 9px',
@@ -1441,7 +1556,18 @@ export function AddTask() {
                         {addMiniSizeChips.map((z) => (
                           <span
                             key={z.label}
+                            className={'glass-control glass-chip' +
+                              (S.addMiniSize === z.id ? ' is-selected' : '')}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={S.addMiniSize === z.id}
                             onClick={z.onPick}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                z.onPick();
+                              }
+                            }}
                             style={{
                               font: "700 11.5px var(--f-num)",
                               color: z.c,
@@ -1655,6 +1781,7 @@ export function AddTask() {
               {scheduleWeekControls.map((d, i) => (
                 <button
                   key={i}
+                  className={'glass-control glass-chip' + (d.selected ? ' is-selected' : '')}
                   onClick={d.onPick}
                   aria-label={d.aria}
                   style={{
@@ -1688,8 +1815,18 @@ export function AddTask() {
             {addScheduleSlots.map((slot) => (
               <div
                 key={slot.no}
-                className={'timetable-slot ' + slot.slotClass}
+                className={'timetable-slot glass-control glass-timetable-slot ' +
+                  (slot.active ? 'is-selected ' : '') + slot.slotClass}
+                role="button"
+                tabIndex={slot.subj ? 0 : -1}
+                aria-disabled={!slot.subj}
                 onClick={slot.onPick}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && slot.subj) {
+                    e.preventDefault();
+                    slot.onPick();
+                  }
+                }}
                 style={cssVars({
                   '--slot-pencil': slot.pencil,
                   position: 'relative',

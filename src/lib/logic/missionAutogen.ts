@@ -34,7 +34,12 @@ export const MISSION_STREAK_MAX_DAYS = 3650;
  * `this.SIZE_MIN`（HTML:2037）。`lib/logic` では非公開のローカルコピーになっているので
  * ここでも同値を置く（`ShellTodayItems.ts` / `AddTask.tsx` と同じ扱い）。
  */
-const SIZE_MIN: Readonly<Record<SizeKey, number>> = { XS: 5, S: 10, M: 20, L: 30 };
+export const MISSION_SIZE_MIN: Readonly<Record<SizeKey, number>> = {
+  XS: 5,
+  S: 10,
+  M: 20,
+  L: 30,
+};
 
 /**
  * 生成 Extra の id の形。`missionId` は `newMissionId` が作る `'dm' + base36`。
@@ -125,7 +130,7 @@ export function buildMissionExtra(mission: Mission, day: ISODate): Extra {
     title: mission.title,
     subj: mission.subj,
     size: mission.size,
-    min: SIZE_MIN[mission.size],
+    min: MISSION_SIZE_MIN[mission.size],
     day,
     done: false,
     src: MISSION_SRC,
@@ -194,6 +199,122 @@ export function generateMissionTasks(input: MissionPlanInput): MissionPlanResult
     genLog: nextLog,
     message: extras.length + '件のデイリーミッションを追加しました',
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 台帳の編集と「今日ぶん」の同期
+// ─────────────────────────────────────────────────────────────
+
+export interface ReconcileMissionTodayInput {
+  today: ISODate;
+  /** 編集・停止・削除される前の台帳。id は `next` と同じでなければならない。 */
+  previous: Mission;
+  /** 編集後。`null` は台帳から削除する操作。 */
+  next: Mission | null;
+  extras: readonly Extra[];
+  genLog: MissionGenLog;
+  order: readonly string[];
+}
+
+export interface ReconcileMissionTodayResult {
+  extras: Extra[];
+  genLog: MissionGenLog;
+  order: string[];
+  /** 今日ぶんを新しく積んだか。 */
+  created: boolean;
+  /** 今日ぶんの表示内容を更新したか。 */
+  updated: boolean;
+  /** 今日ぶんの未完了タスクを外したか。 */
+  removed: boolean;
+}
+
+/** `genLog[today]` から 1 件だけ外す。ほかの日・ほかのミッションは触らない。 */
+function forgetMissionToday(
+  genLog: MissionGenLog,
+  today: ISODate,
+  missionId: string,
+): MissionGenLog {
+  const ids = genLog[today] || [];
+  if (ids.indexOf(missionId) < 0) return genLog;
+  const nextIds = ids.filter((id) => id !== missionId);
+  const next = { ...genLog };
+  if (nextIds.length) next[today] = nextIds;
+  else delete next[today];
+  return next;
+}
+
+/**
+ * 台帳の編集・ON/OFF・削除を、今日すでに生成された `Extra` と食い違わせない。
+ *
+ * - 未完了の今日ぶんは、タイトル・教科・見積りをその場で更新する。
+ * - OFF / 今日を実施曜日から外す / 台帳削除では、未完了の今日ぶんだけを外す。
+ * - 完了済みは履歴なので消さず、内容も過去の実績として固定する。
+ * - ユーザーが ToDo 側で今日ぶんを手動削除していた場合、通常の編集では復活させない。
+ *   ただし OFF にした時点でログを外すため、もう一度 ON にすれば今日ぶんを作り直せる。
+ *
+ * React / store を知らない純関数にして、専用タブと既存の追加画面から共有する。
+ */
+export function reconcileMissionToday(
+  input: ReconcileMissionTodayInput,
+): ReconcileMissionTodayResult {
+  const { today, previous, next } = input;
+  const extraId = missionExtraId(previous.id, today);
+  const existing = input.extras.find((extra) => extra.id === extraId) || null;
+  const shouldAppear = !!next && next.active && isMissionDay(next, today);
+
+  let extras = input.extras.slice();
+  let genLog = input.genLog;
+  let order = input.order.slice();
+  let created = false;
+  let updated = false;
+  let removed = false;
+
+  if (!shouldAppear) {
+    // 完了済みは「今日やった」という実績。台帳を止めたり消したりしても残す。
+    if (existing && !existing.done) {
+      extras = extras.filter((extra) => extra.id !== extraId);
+      order = order.filter((id) => id !== extraId);
+      removed = true;
+    }
+    // OFF → ON、曜日を戻す、という明示操作では今日ぶんを再生成できるようにする。
+    if (!existing || !existing.done) genLog = forgetMissionToday(genLog, today, previous.id);
+    return { extras, genLog, order, created, updated, removed };
+  }
+
+  if (existing) {
+    // 完了前だけ台帳の最新内容へ追従。完了後は履歴を後から書き換えない。
+    if (!existing.done && next) {
+      const fresh = buildMissionExtra(next, today);
+      extras = extras.map((extra) =>
+        extra.id === extraId
+          ? {
+              ...extra,
+              title: fresh.title,
+              subj: fresh.subj,
+              size: fresh.size,
+              min: fresh.min,
+              src: fresh.src,
+            }
+          : extra,
+      );
+      updated = true;
+    }
+    return { extras, genLog, order, created, updated, removed };
+  }
+
+  const logged = (genLog[today] || []).indexOf(previous.id) >= 0;
+  if (!logged && next) {
+    const fresh = buildMissionExtra(next, today);
+    extras = extras.concat([fresh]);
+    order = order.indexOf(fresh.id) >= 0 ? order : order.concat([fresh.id]);
+    genLog = {
+      ...genLog,
+      [today]: (genLog[today] || []).concat([previous.id]),
+    };
+    created = true;
+  }
+
+  return { extras, genLog, order, created, updated, removed };
 }
 
 // ─────────────────────────────────────────────────────────────

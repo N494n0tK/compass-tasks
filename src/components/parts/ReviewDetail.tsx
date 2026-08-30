@@ -10,7 +10,7 @@
  * `state.revSel` が指す復習が無ければ何も描かない（`revDetailOpen: !!rSel`）。
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { fmtD } from '../../lib/logic/dates';
 import { noteRefOf } from '../../lib/logic/noteCards';
 import { reviewNoOf, shiftDue, sizeOfMin } from '../../lib/logic/reviews';
@@ -22,6 +22,7 @@ import { addToOrder, mutReview } from './ShellActions';
 import { savePrefs } from './ShellPrefs';
 import { makeResizer } from './ShellResizer';
 import { useSubjColors } from './ShellSubjects';
+import { useDialogFocus } from './useDialogFocus';
 import { dateCtx, store, useAppStore } from '../useStore';
 
 /** 情報カード 5 枚の外枠（HTML:1662-1666。5 枚とも同じ） */
@@ -41,6 +42,8 @@ export function ReviewDetail() {
   const T = ctx.today;
 
   const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
   /** `this._reviewTitleTap`（HTML:4352）— 420ms 以内の連続タップでダブルタップ判定 */
   const lastTapRef = useRef(0);
 
@@ -52,6 +55,13 @@ export function ReviewDetail() {
   // `rSel = S.reviews.find(r => r.id === S.revSel) || null`（HTML:3335）
   const rSel = S.reviews.find((r) => r.id === S.revSel) || null;
   const editing = !!rSel && S.revEditName === rSel.id;
+  const closeRevDetail = useCallback(() => store.setState({ revSel: null }), []);
+  const onPanelKeyDown = useDialogFocus({
+    open: !!rSel,
+    panelRef,
+    initialFocusRef: closeRef,
+    onClose: closeRevDetail,
+  });
 
   // `focusEl('review-title-editor')`（HTML:2608 / 4351-4352）を effect に置き換えた
   useEffect(() => {
@@ -74,8 +84,6 @@ export function ReviewDetail() {
   const rdCanAdd = !rSel.added && !rSel.done && rSel.due <= T;
   const rdIsAdded = rSel.added && !rSel.done;
   const rdCanDone = !rSel.done && rSel.due <= T;
-
-  const closeRevDetail = () => store.setState({ revSel: null });
 
   /** `rdShiftMinus` / `rdShiftPlus` → `shiftDue(delta)`（HTML:3340-3349、v0.9 の相対シフト） */
   const doShiftDue = (delta: number) => {
@@ -141,6 +149,7 @@ export function ReviewDetail() {
   return (
     <ShellOverlay>
       <div
+        className="glass-overlay-backdrop"
         onClick={closeRevDetail}
         style={{
           position: 'fixed',
@@ -151,7 +160,14 @@ export function ReviewDetail() {
         }}
       >
         <div
+          ref={panelRef}
+          className="glass-overlay-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="復習の詳細"
+          tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={onPanelKeyDown}
           style={{
             position: 'absolute',
             right: 0,
@@ -170,6 +186,7 @@ export function ReviewDetail() {
           }}
         >
           <div
+            className="drawer-resizer"
             onMouseDown={rdResize}
             style={{
               position: 'absolute',
@@ -230,6 +247,7 @@ export function ReviewDetail() {
               </span>
             ) : null}
             <button
+              ref={closeRef}
               onClick={closeRevDetail}
               style={{
                 marginLeft: 'auto',

@@ -23,6 +23,7 @@
  * `note`=夜の藍刷り（既定） / `light`=印刷したプリント / `dark`=深夜（OLED）。
  */
 
+import { useEffect, useState } from 'react';
 import type { Theme, ThemeSkin, ViewId } from '../../lib/model/types';
 
 // ─────────────────────────────────────────────────────────────
@@ -295,11 +296,139 @@ const NOTE_TOKENS: Record<string, string> = {
   '--grid2': 'rgba(120,165,210,.10)',
 };
 
+// ─────────────────────────────────────────────────────────────
+// Glass の時刻背景
+// ─────────────────────────────────────────────────────────────
+
+/** CSS に渡す Glass 背景の時刻レイヤー。値は純粋な helper から作る。 */
+export interface GlassTimePalette {
+  base: string;
+  dawn: string;
+  warm: string;
+  cool: string;
+}
+
+interface GlassTimeStop {
+  minute: number;
+  base: string;
+  dawn: string;
+  warm: string;
+  cool: string;
+}
+
+/**
+ * 0:00〜24:00 の数点を補間した、暗い背景に白文字が乗るための色見本。
+ * 境目を分岐で切り替えず RGB 補間するので、夜明け・日中・夕焼け・夜が滑らかに
+ * つながる。最後の 24:00 は 0:00 と同じ色にして日周の継ぎ目も連続にする。
+ */
+const GLASS_TIME_STOPS: readonly GlassTimeStop[] = [
+  { minute: 0, base: '#091329', dawn: '#394a9a', warm: '#67406d', cool: '#234e79' },
+  { minute: 240, base: '#112049', dawn: '#765196', warm: '#b46a7d', cool: '#355b8d' },
+  { minute: 420, base: '#1b4673', dawn: '#e48b6f', warm: '#7cb9d2', cool: '#34759c' },
+  { minute: 720, base: '#214d72', dawn: '#86b7e5', warm: '#e4b18b', cool: '#2c8690' },
+  { minute: 960, base: '#28466c', dawn: '#f2ae75', warm: '#bd7186', cool: '#2b6b85' },
+  { minute: 1140, base: '#3f2d55', dawn: '#f08a67', warm: '#9f5879', cool: '#25536f' },
+  { minute: 1320, base: '#131a3a', dawn: '#7966be', warm: '#4d4a91', cool: '#1c3d63' },
+  { minute: 1440, base: '#091329', dawn: '#394a9a', warm: '#67406d', cool: '#234e79' },
+];
+
+function clampGlassMinute(minutes: number): number {
+  if (!Number.isFinite(minutes)) return 720;
+  const rounded = Math.round(minutes);
+  return ((rounded % 1440) + 1440) % 1440;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const value = hex.replace('#', '');
+  return [parseInt(value.slice(0, 2), 16), parseInt(value.slice(2, 4), 16), parseInt(value.slice(4, 6), 16)];
+}
+
+function rgbToHex(rgb: [number, number, number]): string {
+  return (
+    '#' +
+    rgb
+      .map((channel) => Math.round(channel).toString(16).padStart(2, '0'))
+      .join('')
+  );
+}
+
+function mixHex(a: string, b: string, amount: number): string {
+  const left = hexToRgb(a);
+  const right = hexToRgb(b);
+  return rgbToHex([
+    left[0] + (right[0] - left[0]) * amount,
+    left[1] + (right[1] - left[1]) * amount,
+    left[2] + (right[2] - left[2]) * amount,
+  ]);
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Glass の背景色を時刻から純粋に求める。範囲外は一周するため、保存データが壊れても
+ * UI が白飛びせず、slider と現在時刻のどちらから呼んでも同じ結果になる。
+ */
+export function glassTimePalette(minutes: number): GlassTimePalette {
+  const value = clampGlassMinute(minutes);
+  let left = GLASS_TIME_STOPS[0];
+  let right = GLASS_TIME_STOPS[GLASS_TIME_STOPS.length - 1];
+  for (let i = 1; i < GLASS_TIME_STOPS.length; i += 1) {
+    if (value <= GLASS_TIME_STOPS[i].minute) {
+      right = GLASS_TIME_STOPS[i];
+      left = GLASS_TIME_STOPS[i - 1];
+      break;
+    }
+  }
+  const span = Math.max(1, right.minute - left.minute);
+  const amount = Math.max(0, Math.min(1, (value - left.minute) / span));
+  const base = mixHex(left.base, right.base, amount);
+  const dawn = mixHex(left.dawn, right.dawn, amount);
+  const warm = mixHex(left.warm, right.warm, amount);
+  const cool = mixHex(left.cool, right.cool, amount);
+  return {
+    base,
+    dawn: withAlpha(dawn, 0.34),
+    warm: withAlpha(warm, 0.3),
+    cool: withAlpha(cool, 0.28),
+  };
+}
+
+/** slider の値・ラベルを同じ規則で表示する（秒は時計側で別に表示する）。 */
+export function formatGlassTime(minutes: number): string {
+  const value = clampGlassMinute(minutes);
+  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+}
+
+/** Date を直接受け取る純粋な現在時刻 helper（テストと表示側の共通基準）。 */
+export function localMinuteOfDay(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+/**
+ * 現在時刻追従を必要とする面だけ 15 秒ごとに同期する。初期値は正午で固定して hydration
+ * を安定させ、最初の effect でローカル時刻へ追従する。
+ */
+export function useLocalMinuteOfDay(enabled: boolean): number {
+  const [minutes, setMinutes] = useState(12 * 60);
+  useEffect(() => {
+    if (!enabled) return;
+    const sync = () => setMinutes(localMinuteOfDay(new Date()));
+    sync();
+    const timer = window.setInterval(sync, 15_000);
+    return () => window.clearInterval(timer);
+  }, [enabled]);
+  return minutes;
+}
+
 /** 画面ごとの署名カラー（HTML:2674） */
 export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
   cockpit: 'acc',
   tests: 'vio',
   todo: 'pink',
+  daily: 'acc',
   review: 'grn',
   add: 'org',
   data: 'blue',
@@ -315,7 +444,11 @@ export const VIEW_TOKEN: Readonly<Record<ViewId, string>> = {
  * `themeStyle`（HTML:2640-2678）。`.compass-theme-mode` のインラインスタイルになる。
  * 末尾で `--view` / `--viewBg` / `--grad` を上書きする順序までレガシーどおり。
  */
-export function buildThemeStyle(theme: Theme, view: ViewId): Record<string, string> {
+export function buildThemeStyle(
+  theme: Theme,
+  view: ViewId,
+  glassTimeMinutes = 12 * 60
+): Record<string, string> {
   const light = theme === 'light';
   const note = theme === 'note';
   const glass = theme === 'glass';
@@ -327,6 +460,13 @@ export function buildThemeStyle(theme: Theme, view: ViewId): Record<string, stri
   style['--view'] = 'var(--' + viewToken + ')';
   style['--viewBg'] = 'var(--' + viewToken + 'Bg)';
   style['--grad'] = 'var(--view)';
+  if (glass) {
+    const palette = glassTimePalette(glassTimeMinutes);
+    style['--glass-time-base'] = palette.base;
+    style['--glass-time-dawn'] = palette.dawn;
+    style['--glass-time-warm'] = palette.warm;
+    style['--glass-time-cool'] = palette.cool;
+  }
   return style;
 }
 
@@ -346,6 +486,7 @@ export const VIEWS: readonly ViewDef[] = [
   { id: 'cockpit', label: 'コックピット', dot: 'var(--acc)', g: 'var(--gAcc)' },
   { id: 'tests', label: '試験計画', dot: 'var(--vio)', g: 'var(--gVio)' },
   { id: 'todo', label: '今日のToDo', dot: 'var(--pink)', g: 'none' },
+  { id: 'daily', label: 'デイリータスク', dot: 'var(--acc)', g: 'var(--gAcc)' },
   { id: 'review', label: '復習', dot: 'var(--grn)', g: 'var(--gGrn)' },
   { id: 'add', label: 'タスク追加', dot: 'var(--org)', g: 'none' },
   { id: 'data', label: 'データ', dot: 'var(--blue)', g: 'none' },
@@ -370,6 +511,7 @@ export const TITLES: Readonly<Record<ViewId, readonly [string, string]>> = {
   review: ['復習', '復習予定を一覧表でチェックする'],
   tests: ['試験計画', '予習・テスト計画と負荷を見る'],
   todo: ['今日のToDo', '今日のタスクを実行する'],
+  daily: ['デイリータスク', '毎日やることを整えて、今日の負荷を見える化'],
   add: ['タスク追加', 'タスク・復習・予習・テストを自由に追加'],
   data: ['学習データ', '勉強時間とテスト結果をふり返る'],
   notebook: ['ノート', '授業ノートを読み、想起問題で引き出す'],
@@ -385,5 +527,16 @@ export function normalizeNavOrder(navOrder: unknown): ViewId[] {
   const saved = Array.isArray(navOrder)
     ? (navOrder as ViewId[]).filter((id) => ALL_VIEW_IDS.indexOf(id) >= 0)
     : [];
-  return saved.concat(ALL_VIEW_IDS.filter((id) => saved.indexOf(id) < 0));
+  const normalized = saved.concat(ALL_VIEW_IDS.filter((id) => saved.indexOf(id) < 0));
+  // 既存ユーザーの保存順には daily が無い。末尾へ追いやらず、意味の近い「今日のToDo」の
+  // 直後へ 1 回だけ差し込む。すでに並べ替え済みならその位置を尊重する。
+  if (saved.indexOf('daily') < 0) {
+    const from = normalized.indexOf('daily');
+    const todo = normalized.indexOf('todo');
+    if (from >= 0 && todo >= 0) {
+      normalized.splice(from, 1);
+      normalized.splice(todo + 1, 0, 'daily');
+    }
+  }
+  return normalized;
 }

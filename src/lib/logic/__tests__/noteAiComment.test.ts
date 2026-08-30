@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseNoteAiComment, type NoteAiBlock } from '../noteAiComment';
+import {
+  parseNoteAiComment,
+  shouldUseNoteAiBlockComment,
+  type NoteAiBlock,
+} from '../noteAiComment';
 
 /** 行の中身を `//` の後ろに出る素のテキストに戻す（記号を落としたぶんも込み） */
 function textOf(b: NoteAiBlock): string {
@@ -154,5 +158,22 @@ describe('数式の取り違え（行を畳む判定）', () => {
   it('閉じないまま終わっても落ちない', () => {
     expect(() => parseNoteAiComment('開いたまま $$\nx = 1')).not.toThrow();
     expect(() => parseNoteAiComment('価格は $100 です')).not.toThrow();
+  });
+});
+
+describe('短い行コメント / 長いブロックコメントの切り替え', () => {
+  it('短い添削は // のまま', () => {
+    const src = '正しくは 2 mol';
+    expect(shouldUseNoteAiBlockComment(src, parseNoteAiComment(src))).toBe(false);
+  });
+
+  it('4行以上はブロックコメントにする', () => {
+    const src = '一行め\n二行め\n三行め\n四行め';
+    expect(shouldUseNoteAiBlockComment(src, parseNoteAiComment(src))).toBe(true);
+  });
+
+  it('1行でも長文ならブロックコメントにする', () => {
+    const src = '長い補足'.repeat(25);
+    expect(shouldUseNoteAiBlockComment(src, parseNoteAiComment(src))).toBe(true);
   });
 });

@@ -88,7 +88,17 @@ export function ReviewForecastStrip({
         </span>
         {selected ? (
           <span
+            className="glass-control glass-chip"
+            role="button"
+            tabIndex={0}
+            aria-label="7日予報の絞り込みを解除"
             onClick={() => onPick(selected)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onPick(selected);
+              }
+            }}
             title="絞り込みを解除"
             style={{
               marginLeft: 'auto',
@@ -124,7 +134,9 @@ export function ReviewForecastStrip({
           return (
             <button
               key={d.iso}
+              className={'glass-control glass-chip' + (on ? ' is-selected' : '')}
               onClick={() => onPick(d.iso)}
+              aria-pressed={on}
               title={tipOf(d)}
               style={{
                 display: 'flex',
@@ -170,7 +182,7 @@ export function ReviewForecastStrip({
                     height: loadBarPct(d.min, scale),
                     minHeight: '2px',
                     background: barC,
-                    borderRadius: 'var(--rad-s) var(--rad-s) 0 0',
+                    borderRadius: 0,
                     boxShadow: peak ? '0 0 0 1px color-mix(in srgb,' + barC + ' 45%,transparent)' : 'none',
                     transition: 'height .4s ease,background .3s ease',
                   }}

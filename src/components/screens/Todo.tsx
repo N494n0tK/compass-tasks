@@ -14,7 +14,7 @@
  * spec §5.5 / §5.6 / §7.7、パリティ C-236〜C-287。
  *
  * ## この画面の要点
- * - 左カラムは「テスト・予習計画」＋「復習・単発タスク」の 2 セクション。**並べ替えはできない**
+ * - 左カラムは「テスト・予習計画」＋「デイリータスク」＋「復習・単発タスク」。**並べ替えはできない**
  *   （`todoItems` / `dragProps` はテンプレート未参照のデッドコード, spec §5.9）。
  * - 復習・単発カードはカード全体が `onSelect`、内側のチェックが `onToggle`。
  *   **stopPropagation が無いので両方発火する**（spec §11-Q7 / C-244）。1:1 で再現する。
@@ -69,6 +69,9 @@ export function Todo() {
   // ── 今日のリスト（HTML:2886-2912 / parts/ShellTodayItems）
   const todayItems = buildTodayItems(state, plans, T);
   const otherItems = todayItems.filter((i) => i.kind !== 'seg');
+  const dailyItems = otherItems.filter((item) => !!missionRefOf(item.id));
+  const regularOtherItems = otherItems.filter((item) => !missionRefOf(item.id));
+  const dailyMinutes = dailyItems.reduce((sum, item) => sum + item.min, 0);
   const totals = todayTotals(todayItems);
   // デイリーミッションの連続日数（docs/daily-mission/plan.md §3.3-5）。保存せず完了 Extra から導出する
   const missionStreakMap = missionStreaks(S.missions, S.extras, T);
@@ -216,6 +219,128 @@ export function Todo() {
   };
 
   const selSubs = sel && sel.subs ? sel.subs : [];
+
+  /** 復習・単発・デイリーで共通のカード。所属する枠だけを分け、操作は従来と同じにする。 */
+  const renderOtherItem = (it: TodayItem) => {
+    const active = S.selId === it.id;
+    const sub = subjectColorFor(subjColors, it.subj);
+    const missionRef = missionRefOf(it.id);
+    const streak = missionRef ? missionStreakMap[missionRef.missionId] || 0 : 0;
+    const mission = missionRef
+      ? S.missions.find((row) => row.id === missionRef.missionId) || null
+      : null;
+    const weakMission = isWeakMission(mission) ? mission : null;
+    const sumNoteId = noteSummaryRefOf(it.id);
+    return (
+      <div
+        key={it.id}
+        className="todo-other-card"
+        onClick={() => store.setState({ selId: it.id })}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '11px 12px',
+          background: active
+            ? 'color-mix(in srgb, ' + sub.c + ' 14%, var(--bg3))'
+            : 'color-mix(in srgb, ' + sub.c + ' 7%, var(--bg2))',
+          borderTop: '1px solid ' + (active ? sub.c : 'var(--line)'),
+          borderRight: '1px solid ' + (active ? sub.c : 'var(--line)'),
+          borderBottom: '1px solid ' + (active ? sub.c : 'var(--line)'),
+          borderLeft: '3px solid ' + sub.c,
+          borderRadius: 'var(--rad-s)',
+          cursor: 'pointer',
+          opacity: it.done ? 0.5 : 1,
+          boxShadow: active
+            ? '0 0 0 1px color-mix(in srgb, ' + sub.c + ' 30%, transparent), ' + gl(sub.c, 7)
+            : 'none',
+        }}
+      >
+        <div
+          onClick={() => toggleItem(store, it)}
+          style={{
+            width: '18px',
+            height: '18px',
+            flex: 'none',
+            border: '1.5px solid ' + (it.done ? 'var(--acc)' : 'var(--line2)'),
+            borderRadius: 'var(--rad-s)',
+            background: it.done ? 'var(--acc)' : 'transparent',
+            color: 'var(--onAcc)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '11px',
+            fontWeight: 700,
+          }}
+        >
+          {it.done ? '✓' : ''}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              font: "500 13px var(--f-ui)",
+              color: 'var(--tx0)',
+              textDecoration: it.done ? 'line-through' : 'none',
+            }}
+          >
+            {it.title}
+          </div>
+          <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
+            {it.min + '分 · ' + (missionRef ? 'デイリータスク' : it.src)}
+          </div>
+        </div>
+        {streak >= 2 ? (
+          <span style={{ flex: 'none', font: "700 10.5px var(--f-num)", color: 'var(--org)' }}>
+            {'🔥' + streak}
+          </span>
+        ) : null}
+        {it.noteId ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openNoteDrill(store, it.noteId as string);
+            }}
+            style={CARD_GO_BTN}
+          >
+            ノートで復習
+          </button>
+        ) : null}
+        {weakMission ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openWeakDrill(store, missionSubjFilter(weakMission));
+            }}
+            style={CARD_GO_BTN}
+          >
+            弱点をやる
+          </button>
+        ) : null}
+        {sumNoteId ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openNote(store, sumNoteId);
+            }}
+            style={CARD_GO_BTN}
+          >
+            ノートを開く
+          </button>
+        ) : null}
+        <span
+          style={{
+            font: "700 10px var(--f-ui)",
+            color: sub.c,
+            background: sub.bg,
+            borderRadius: 'var(--rad-s)',
+            padding: '2px 8px',
+          }}
+        >
+          {it.subj}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -390,6 +515,58 @@ export function Todo() {
         </div>
 
         <div
+          className="todo-daily-heading"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 2px 2px',
+            font: "700 10.5px var(--f-ui)",
+            color: 'var(--acc)',
+            letterSpacing: '.04em',
+          }}
+        >
+          <span>{'デイリータスク · ' + dailyItems.length + '件 · ' + dailyMinutes + '分'}</span>
+          <span style={{ flex: 1, borderTop: '1px solid var(--line)' }}></span>
+          <button
+            type="button"
+            onClick={() => store.setState({ view: 'daily' })}
+            style={{
+              padding: '3px 7px',
+              border: '1px solid var(--acc)',
+              borderRadius: 'var(--rad-s)',
+              background: 'var(--accBg)',
+              color: 'var(--acc)',
+              font: "700 9.5px var(--f-ui)",
+              cursor: 'pointer',
+            }}
+          >
+            管理
+          </button>
+        </div>
+        <div className="todo-daily-list" style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+          {dailyItems.length ? (
+            dailyItems.map(renderOtherItem)
+          ) : (
+            <button
+              type="button"
+              onClick={() => store.setState({ view: 'daily' })}
+              style={{
+                padding: '12px',
+                border: '1px dashed var(--line2)',
+                borderRadius: 'var(--rad-s)',
+                background: 'transparent',
+                color: 'var(--tx3)',
+                font: "500 10.5px var(--f-ui)",
+                cursor: 'pointer',
+              }}
+            >
+              今日のデイリータスクはありません · 設定を見る →
+            </button>
+          )}
+        </div>
+
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -400,153 +577,11 @@ export function Todo() {
             letterSpacing: '.04em',
           }}
         >
-          <span>{'復習・単発タスク · ' + otherItems.length + '件'}</span>
+          <span>{'復習・単発タスク · ' + regularOtherItems.length + '件'}</span>
           <span style={{ flex: 1, borderTop: '1px solid var(--line)' }}></span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-          {otherItems.map((it) => {
-            const active = S.selId === it.id;
-            const sub = subjectColorFor(subjColors, it.subj);
-            // ミッション由来のカードだけ連続日数を添える。1 日目は「連続」ではないので出さない
-            const missionRef = missionRefOf(it.id);
-            const streak = missionRef ? missionStreakMap[missionRef.missionId] || 0 : 0;
-            // 弱点ドリルのミッションか（台帳を引く。台帳から外したら普通のタスクに戻る）
-            const mission = missionRef
-              ? S.missions.find((m) => m.id === missionRef.missionId) || null
-              : null;
-            const weakMission = isWeakMission(mission) ? mission : null;
-            // まとめタスク（plan.md §4.1）。id の文字列規約からノートを引き直す
-            const sumNoteId = noteSummaryRefOf(it.id);
-            return (
-              <div
-                key={it.id}
-                className="todo-other-card"
-                onClick={() => store.setState({ selId: it.id })}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '11px 12px',
-                  background: active
-                    ? 'color-mix(in srgb, ' + sub.c + ' 14%, var(--bg3))'
-                    : 'color-mix(in srgb, ' + sub.c + ' 7%, var(--bg2))',
-                  // レガシー: `border:1px solid …;border-left:3px solid …`。
-                  // React は shorthand と longhand を混ぜると再レンダーで border-left が
-                  // 消えることがある（"conflicting property" 警告）ので辺ごとに分ける。
-                  // 計算値はレガシーと同一。
-                  borderTop: '1px solid ' + (active ? sub.c : 'var(--line)'),
-                  borderRight: '1px solid ' + (active ? sub.c : 'var(--line)'),
-                  borderBottom: '1px solid ' + (active ? sub.c : 'var(--line)'),
-                  borderLeft: '3px solid ' + sub.c,
-                  borderRadius: 'var(--rad-s)',
-                  cursor: 'pointer',
-                  opacity: it.done ? 0.5 : 1,
-                  boxShadow: active
-                    ? '0 0 0 1px color-mix(in srgb, ' +
-                      sub.c +
-                      ' 30%, transparent), ' +
-                      gl(sub.c, 7)
-                    : 'none',
-                }}
-              >
-                {/* stopPropagation は無い＝トグルと選択が同時に起きる（C-244） */}
-                <div
-                  onClick={() => toggleItem(store, it)}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    flex: 'none',
-                    border: '1.5px solid ' + (it.done ? 'var(--acc)' : 'var(--line2)'),
-                    borderRadius: 'var(--rad-s)',
-                    background: it.done ? 'var(--acc)' : 'transparent',
-                    color: 'var(--onAcc)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                  }}
-                >
-                  {it.done ? '✓' : ''}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      font: "500 13px var(--f-ui)",
-                      color: 'var(--tx0)',
-                      textDecoration: it.done ? 'line-through' : 'none',
-                    }}
-                  >
-                    {it.title}
-                  </div>
-                  <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>
-                    {it.min + '分 · ' + it.src}
-                  </div>
-                </div>
-                {streak >= 2 ? (
-                  <span
-                    style={{
-                      flex: 'none',
-                      font: "700 10.5px var(--f-num)",
-                      color: 'var(--org)',
-                    }}
-                  >
-                    {'🔥' + streak}
-                  </span>
-                ) : null}
-                {/* ノート由来の復習は、その授業の問題だけを並べたドリル面で解く（spec §8） */}
-                {it.noteId ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openNoteDrill(store, it.noteId as string);
-                    }}
-                    style={CARD_GO_BTN}
-                  >
-                    ノートで復習
-                  </button>
-                ) : null}
-                {/* 弱点ドリルのミッションは、問題抽出を「苦手な順」で開くだけで中身が決まる
-                    （plan.md §4.1）。完了は通常どおり手動チェック ―― 抽出画面での丸つけは
-                    「予定の外の解き直し」なので、何問やったらミッション達成かを機械が決められない */}
-                {weakMission ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openWeakDrill(store, missionSubjFilter(weakMission));
-                    }}
-                    style={CARD_GO_BTN}
-                  >
-                    弱点をやる
-                  </button>
-                ) : null}
-                {/* まとめは自分で書く欄なので、書く場所（ノートの紙面）へ連れて行くだけ。
-                    書き終えれば `commitNote` がこのカードを完了にする（plan.md §4.1） */}
-                {sumNoteId ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openNote(store, sumNoteId);
-                    }}
-                    style={CARD_GO_BTN}
-                  >
-                    ノートを開く
-                  </button>
-                ) : null}
-                <span
-                  style={{
-                    font: "700 10px var(--f-ui)",
-                    color: sub.c,
-                    background: sub.bg,
-                    borderRadius: 'var(--rad-s)',
-                    padding: '2px 8px',
-                  }}
-                >
-                  {it.subj}
-                </span>
-              </div>
-            );
-          })}
+          {regularOtherItems.map(renderOtherItem)}
         </div>
       </div>
 
@@ -641,6 +676,7 @@ export function Todo() {
         {/* ── (A) 計画詳細（HTML:1162-1185 / spec §7.7） */}
         {todoShowPlanDetail ? (
           <div
+            className="todo-plan-detail"
             style={{
               background: 'var(--bg1)',
               border: '1px solid var(--line)',
@@ -929,7 +965,13 @@ export function Todo() {
                     padding: '3px 9px',
                   }}
                 >
-                  {sel.kind === 'rev' ? '復習' : sel.kind === 'extra' ? '単発タスク' : '計画'}
+                  {sel.kind === 'rev'
+                    ? '復習'
+                    : sel.kind === 'extra'
+                      ? missionRefOf(sel.id)
+                        ? 'デイリータスク'
+                        : '単発タスク'
+                      : '計画'}
                 </span>
                 <span
                   style={{

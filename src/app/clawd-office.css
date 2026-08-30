@@ -1,0 +1,116 @@
+/* Clawd Office — supplied clawd_office_timer.html の囲い、色、密度を保つ。 */
+.clawd-office {
+  position: fixed;
+  z-index: 156;
+  inset: 0;
+  color: #fff;
+  background: #121212;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.clawd-office__app { position: fixed; inset: 0; display: flex; outline: none; }
+.clawd-office__stage { position: absolute; inset: 0; min-width: 0; min-height: 0; }
+.clawd-office__scene { display: block; width: 100%; height: 100%; cursor: pointer; }
+.clawd-office__scene:focus-visible,
+.clawd-office button:focus-visible,
+.clawd-office input:focus-visible { outline: 2px solid #8fc0f0; outline-offset: 2px; }
+
+.clawd-office__exit {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  left: 20px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 8px;
+  background: rgba(20, 20, 20, .62);
+  color: rgba(255, 255, 255, .84);
+  font: 600 12px/1 inherit;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.clawd-office__exit:hover { background: rgba(255,255,255,.13); color: #fff; }
+.clawd-office__exit span { margin-right: 4px; font-size: 15px; }
+
+.clawd-office__panel {
+  --clay: #d77656;
+  --clay-soft: rgba(215,118,86,.16);
+  --line: rgba(255,255,255,.16);
+  --raised: rgba(255,255,255,.07);
+  --txt2: rgba(255,255,255,.62);
+  --txt3: rgba(255,255,255,.40);
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: 28px;
+  width: 352px;
+  max-height: calc(100% - 40px);
+  overflow: auto;
+  transform: translateY(-50%);
+  padding: 24px 24px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(20,20,20,.62);
+  box-shadow: 0 1px 2px rgba(0,0,0,.35), 0 18px 48px rgba(0,0,0,.45);
+  scrollbar-width: thin;
+  -webkit-backdrop-filter: blur(26px) saturate(115%);
+  backdrop-filter: blur(26px) saturate(115%);
+}
+.clawd-office__panel::-webkit-scrollbar { width: 6px; }
+.clawd-office__panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 3px; }
+.clawd-office__head, .clawd-office__label, .clawd-office__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.clawd-office__eyebrow { color: var(--txt3); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.clawd-office__badge { padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--txt2); background: var(--raised); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.clawd-office__badge.is-on { border-color: rgba(215,118,86,.5); color: #f2b79c; background: var(--clay-soft); }
+.clawd-office__time { margin: 14px 0 2px; color: #fff; font-size: 60px; font-weight: 600; line-height: 1.05; letter-spacing: -.02em; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+.clawd-office__sub { margin-bottom: 14px; color: var(--txt3); font-size: 13px; }
+.clawd-office__bar { height: 4px; margin-bottom: 18px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.1); }
+.clawd-office__bar i { display: block; height: 100%; border-radius: inherit; background: var(--clay); transition: width .3s linear; }
+.clawd-office__label { margin: 0 0 8px; color: var(--txt2); font-size: 12px; font-weight: 600; }
+.clawd-office__label b { color: #fff; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.clawd-office__chips { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; }
+.clawd-office__chips--two { grid-template-columns: repeat(2,minmax(0,1fr)); margin-bottom: 9px; }
+.clawd-office__chip { width: 100%; min-width: 0; height: 40px; padding: 0 4px; border: 1px solid transparent; border-radius: 8px; background: var(--raised); color: var(--txt2); font: 500 13px inherit; white-space: nowrap; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.clawd-office__chip:hover { color: #fff; background: rgba(255,255,255,.12); }
+.clawd-office__chip.is-selected { border-color: rgba(215,118,86,.55); color: #f2b79c; background: var(--clay-soft); }
+.clawd-office__custom { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.clawd-office__stepper { display: flex; flex: 1; align-items: center; gap: 2px; min-width: 0; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+.clawd-office__stepper button { width: 32px; height: 34px; flex: none; border: 0; border-radius: 6px; background: transparent; color: var(--txt2); font: 17px/1 inherit; cursor: pointer; }
+.clawd-office__stepper button:hover { color: #fff; background: rgba(255,255,255,.1); }
+.clawd-office__stepper input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #fff; font: 600 15px inherit; text-align: center; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
+.clawd-office__stepper input::-webkit-outer-spin-button, .clawd-office__stepper input::-webkit-inner-spin-button { margin: 0; -webkit-appearance: none; }
+.clawd-office__stepper span { padding-right: 8px; color: var(--txt3); font-size: 12px; }
+.clawd-office__actions { display: flex; gap: 8px; margin-top: 16px; }
+.clawd-office__primary, .clawd-office__ghost { height: 46px; border-radius: 8px; font: 600 14px inherit; cursor: pointer; transition: filter .15s, background .15s; }
+.clawd-office__primary { flex: 2; border: 1px solid transparent; background: var(--clay); color: #1a1210; }
+.clawd-office__primary:hover { filter: brightness(1.08); }
+.clawd-office__ghost { flex: 1; border: 1px solid var(--line); background: var(--raised); color: var(--txt2); }
+.clawd-office__ghost:hover { color: #fff; background: rgba(255,255,255,.12); }
+.clawd-office__hint { margin: 10px 0 0; color: var(--txt3); font-size: 11.5px; line-height: 1.6; }
+.clawd-office__panel hr { margin: 20px 0; border: 0; border-top: 1px solid var(--line); }
+.clawd-office__field + .clawd-office__field { margin-top: 16px; }
+.clawd-office__slider { width: 100%; height: 22px; margin: 0; cursor: pointer; background: transparent; -webkit-appearance: none; appearance: none; }
+.clawd-office__slider::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: rgba(255,255,255,.14); }
+.clawd-office__slider::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -6px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); -webkit-appearance: none; }
+.clawd-office__slider::-moz-range-track { height: 4px; border-radius: 999px; background: rgba(255,255,255,.14); }
+.clawd-office__slider::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: #fff; }
+.clawd-office__moments { margin-top: 6px; }
+.clawd-office__foot { margin-top: 18px; color: var(--txt3); font-size: 12px; }
+.clawd-office__foot button { padding: 6px; border: 0; border-radius: 6px; background: transparent; color: var(--txt3); font: 12px inherit; cursor: pointer; }
+.clawd-office__foot button:hover { color: #fff; background: var(--raised); }
+.clawd-office__done { margin-top: 12px; color: #f2b79c; font-size: 12px; font-weight: 600; text-align: center; }
+
+@media (max-width: 900px) {
+  .clawd-office { position: absolute; min-height: 100dvh; overflow: auto; }
+  .clawd-office__app { position: relative; min-height: 100dvh; display: flex; flex-direction: column; }
+  .clawd-office__stage { position: relative; flex: 1 1 auto; min-height: 44svh; }
+  .clawd-office__panel { position: relative; top: auto; right: auto; width: 100%; max-height: none; transform: none; border-right: 0; border-bottom: 0; border-left: 0; border-radius: 0; background: #161616; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .clawd-office__time { font-size: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clawd-office *, .clawd-office *::before, .clawd-office *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}

@@ -225,7 +225,17 @@ export function Review() {
               {SORT_MODES.map((mode) => (
                 <span
                   key={mode.id}
+                  className={'glass-control glass-chip' + (S.revSort === mode.id ? ' is-selected' : '')}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={S.revSort === mode.id}
                   onClick={() => store.setState({ revSort: mode.id })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      store.setState({ revSort: mode.id });
+                    }
+                  }}
                   style={{
                     font: "700 11px var(--f-ui)",
                     color: S.revSort === mode.id ? 'var(--onAcc)' : 'var(--tx2)',
@@ -247,11 +257,23 @@ export function Review() {
           {revSubjChips.map((chip) => (
             <span
               key={chip.name}
+              className={'glass-control glass-chip' + (chip.on ? ' is-selected' : '')}
+              role="button"
+              tabIndex={0}
+              aria-pressed={chip.on}
               onClick={() =>
                 store.setState((s) => ({
                   revFilter: s.revFilter === chip.name ? null : chip.name,
                 }))
               }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  store.setState((s) => ({
+                    revFilter: s.revFilter === chip.name ? null : chip.name,
+                  }));
+                }
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -312,7 +334,18 @@ export function Review() {
             <span>状態</span>
             <span style={{ textAlign: 'right' }}>操作</span>
           </div>
-          {revFiltered.map((r, idx) => {
+          {revFiltered.length === 0 ? (
+            <div className="glass-empty review-empty" role="status">
+              <div className="glass-empty__title">
+                {S.reviews.length === 0 ? '復習はまだありません' : '条件に一致する復習はありません'}
+              </div>
+              <div className="glass-empty__hint">
+                {S.reviews.length === 0
+                  ? 'タスクを追加すると、ここに復習予定が表示されます。'
+                  : '教科または7日予報の絞り込みを解除すると、ほかの復習を表示できます。'}
+              </div>
+            </div>
+          ) : revFiltered.map((r, idx) => {
             const color = subjectColorFor(subjColors, r.subj);
             const st = statusOf(ctx, r);
             const ttLabel = ttLabelOf(r);

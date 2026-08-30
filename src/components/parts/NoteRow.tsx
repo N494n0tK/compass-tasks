@@ -55,9 +55,11 @@ export interface NoteRowProps {
    * 教科色の帯は字ではないので、この指定に関わらず常に出る。
    */
   showSubject?: boolean;
+  /** カレンダー表示だけで添える、時間割から逆引きした時限 */
+  periods?: readonly number[];
 }
 
-export function NoteRow({ note, colors, on, onClick, onContextMenu, showSubject }: NoteRowProps) {
+export function NoteRow({ note, colors, on, onClick, onContextMenu, showSubject, periods }: NoteRowProps) {
   const { state: S } = useAppStore();
   /**
    * 教科名が空のノートは `NotebookTree` が「その他」のフォルダにまとめる。
@@ -79,7 +81,9 @@ export function NoteRow({ note, colors, on, onClick, onContextMenu, showSubject 
   const trashed = !!note.trashedAt;
   const unit = note.unit || '(単元名なし)';
   const facts = note.date
-    ? fmtMD(note.date) + '(' + dowOf(note.date) + ') · カード' + note.cards.length
+    ? fmtMD(note.date) + '(' + dowOf(note.date) + ')' +
+      (periods?.length ? ' · ' + periods.join('・') + '限' : '') +
+      ' · カード' + note.cards.length
     : 'カード' + note.cards.length;
 
   return (

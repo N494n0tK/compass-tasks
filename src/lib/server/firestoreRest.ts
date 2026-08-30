@@ -111,6 +111,8 @@ export function fieldPath(key: string): string {
 export interface FirestoreClient {
   /** 1 件読む。無ければ `null` */
   get(path: string): Promise<Record<string, unknown> | null>;
+  /** 競合検出に使う `updateTime` 付きの読み取り。 */
+  getSnapshot(path: string): Promise<FirestoreSnapshot | null>;
   /** コレクションを全件読む（`LIST_HARD_LIMIT` まで）。戻りは `{ id, data }` */
   list(collectionPath: string): Promise<{ id: string; data: Record<string, unknown> }[]>;
   /**
@@ -118,6 +120,20 @@ export interface FirestoreClient {
    * （クライアントの `setDoc` と同じ挙動。`previousKeys` で消す対象を明示する）。
    */
   set(path: string, data: Record<string, unknown>, previousKeys?: readonly string[]): Promise<void>;
+  /** ドキュメントが無いときだけ作る。既存なら `false`（日付単位ロック用）。 */
+  create(path: string, data: Record<string, unknown>): Promise<boolean>;
+  /** 読み取った `updateTime` から変わっていないときだけ全置換する。 */
+  setIfUnchanged(
+    path: string,
+    data: Record<string, unknown>,
+    updateTime: string,
+    previousKeys?: readonly string[],
+  ): Promise<boolean>;
+}
+
+export interface FirestoreSnapshot {
+  data: Record<string, unknown>;
+  updateTime: string;
 }
 
 function docsRoot(projectId: string): string {
@@ -149,14 +165,28 @@ export function createFirestoreClient(sa: ServiceAccount): FirestoreClient {
     );
   }
 
+  async function getSnapshot(path: string): Promise<FirestoreSnapshot | null> {
+    const res = await call(root + '/' + path);
+    if (res.status === 404) return null;
+    if (!res.ok) await fail(res, 'get ' + path);
+    const json = (await res.json()) as { fields?: Record<string, unknown>; updateTime?: unknown };
+    return {
+      data: fromFirestoreFields(json.fields ?? {}),
+      updateTime: typeof json.updateTime === 'string' ? json.updateTime : '',
+    };
+  }
+
+  function updateQuery(data: Record<string, unknown>, previousKeys: readonly string[] = []): string {
+    const paths = Array.from(new Set([...Object.keys(data), ...previousKeys])).map(fieldPath);
+    return paths.map((p) => 'updateMask.fieldPaths=' + encodeURIComponent(p)).join('&');
+  }
+
   return {
     async get(path) {
-      const res = await call(root + '/' + path);
-      if (res.status === 404) return null;
-      if (!res.ok) await fail(res, 'get ' + path);
-      const json = (await res.json()) as { fields?: Record<string, unknown> };
-      return fromFirestoreFields(json.fields ?? {});
+      return (await getSnapshot(path))?.data ?? null;
     },
+
+    getSnapshot,
 
     async list(collectionPath) {
       const out: { id: string; data: Record<string, unknown> }[] = [];
@@ -185,13 +215,57 @@ export function createFirestoreClient(sa: ServiceAccount): FirestoreClient {
     async set(path, data, previousKeys = []) {
       // 新しいキー ∪ 消したい古いキー を updateMask に並べる。マスクに載って本文に無い
       // フィールドはサーバー側で削除されるので、これで「全置換」と同じ結果になる。
-      const paths = Array.from(new Set([...Object.keys(data), ...previousKeys])).map(fieldPath);
-      const query = paths.map((p) => 'updateMask.fieldPaths=' + encodeURIComponent(p)).join('&');
+      const query = updateQuery(data, previousKeys);
       const res = await call(root + '/' + path + '?' + query, {
         method: 'PATCH',
         body: JSON.stringify({ fields: toFirestoreFields(data) }),
       });
       if (!res.ok) await fail(res, 'set ' + path);
+    },
+
+    async create(path, data) {
+      const parts = path.split('/').filter(Boolean);
+      if (parts.length < 2 || parts.length % 2 !== 0) {
+        throw new FirestoreError('Firestore create の document path が不正です: ' + path, 400);
+      }
+      const documentId = parts.pop() as string;
+      const collectionPath = parts.join('/');
+      const res = await call(
+        root + '/' + collectionPath + '?documentId=' + encodeURIComponent(documentId),
+        {
+          method: 'POST',
+          body: JSON.stringify({ fields: toFirestoreFields(data) }),
+        },
+      );
+      if (res.status === 409) return false;
+      if (!res.ok) await fail(res, 'create ' + path);
+      return true;
+    },
+
+    async setIfUnchanged(path, data, updateTime, previousKeys = []) {
+      if (!updateTime) return false;
+      const mask = updateQuery(data, previousKeys);
+      const query =
+        mask +
+        (mask ? '&' : '') +
+        'currentDocument.updateTime=' +
+        encodeURIComponent(updateTime);
+      const res = await call(root + '/' + path + '?' + query, {
+        method: 'PATCH',
+        body: JSON.stringify({ fields: toFirestoreFields(data) }),
+      });
+      if (res.status === 409 || res.status === 412) return false;
+      // Firestore は precondition 不一致を HTTP 400 + FAILED_PRECONDITION で返すこともある。
+      if (res.status === 400) {
+        const body = await res.text().catch(() => '');
+        if (body.includes('FAILED_PRECONDITION')) return false;
+        throw new FirestoreError(
+          'Firestore compare-and-set ' + path + ' に失敗 (400)' + (body ? ': ' + body.slice(0, 300) : ''),
+          400,
+        );
+      }
+      if (!res.ok) await fail(res, 'compare-and-set ' + path);
+      return true;
     },
   };
 }

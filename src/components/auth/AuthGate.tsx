@@ -49,7 +49,20 @@ export interface AuthGateProps {
 export function AuthGate({ preview = false }: AuthGateProps) {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
+  /**
+   * preview も最初のクライアント描画までは SSR と同じ殻を返す。
+   *
+   * `CompassApp` はモジュール共有の `dateCtx` を読むため、日付をまたいだ Next dev
+   * サーバーでは SSR 側に前日の値が残り得る。preview だけ直ちに本体を SSR すると、
+   * ブラウザの「今日」と食い違って hydration error（左下の `1 Issue`）になる。
+   * 本体は mount 後に出せば、今日の値を持つクライアントだけで描画される。
+   */
+  const [clientReady, setClientReady] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
 
   // SHELL:288-302 — preview / 未設定なら購読しない
   useEffect(() => {
@@ -73,7 +86,7 @@ export function AuthGate({ preview = false }: AuthGateProps) {
     };
   }, [preview, uid]);
 
-  if (preview) {
+  if (preview && clientReady) {
     return <CompassApp uid="" email={PREVIEW_EMAIL} preview />;
   }
 
@@ -91,7 +104,7 @@ export function AuthGate({ preview = false }: AuthGateProps) {
     );
   }
 
-  if (checking) {
+  if (checking || preview) {
     return (
       <main className="auth-screen">
         <p className="auth-loading">読み込み中…</p>

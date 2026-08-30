@@ -302,7 +302,17 @@ export function DataScreen() {
             {DATA_RANGE_CHIPS.map((m) => (
               <span
                 key={m.id}
+                className={'glass-control glass-chip' + (agg.range === m.id ? ' is-selected' : '')}
+                role="button"
+                tabIndex={0}
+                aria-pressed={agg.range === m.id}
                 onClick={() => store.setState({ dataRange: m.id })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    store.setState({ dataRange: m.id });
+                  }
+                }}
                 style={{
                   font: "700 11px var(--f-ui)",
                   color: agg.range === m.id ? 'var(--onAcc)' : 'var(--tx2)',

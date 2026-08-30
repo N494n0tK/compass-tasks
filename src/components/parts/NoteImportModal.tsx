@@ -10,7 +10,15 @@
  * 検証結果はモーダル内で完結する一時値なので `useState`（`AppState` に置くほどの寿命が無い）。
  */
 
-import { useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { parseNoteJson, type NoteImportIssue } from '../../lib/logic/noteImport';
 import { timetableSubjects } from '../../lib/logic/timetable';
 import { NOTE_SCHEMA, NOTE_SUBJECT_OTHER } from '../../lib/model/notes';
@@ -34,6 +42,10 @@ const STEP_BADGE = {
   flex: '0 0 auto',
 } as const;
 
+/** NoteDangerDialog と同じ順で、Tab をモーダル内に折り返す。 */
+const FOCUSABLE =
+  'a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+
 export function NoteImportModal() {
   const { state: S } = useAppStore();
   const [issues, setIssues] = useState<NoteImportIssue[]>([]);
@@ -41,15 +53,56 @@ export function NoteImportModal() {
   // 教科の候補は時間割から取る。プロンプトにもこの一覧を埋め込む（spec §3.7）
   const subjects = useMemo(() => timetableSubjects().concat([NOTE_SUBJECT_OTHER]), []);
   const prompts = useMemo(() => notePrompts(subjects), [subjects]);
-
-  if (!S.nbImportOpen) return null;
-
   const target = S.nbImportTarget ? S.notes.find((n) => n.id === S.nbImportTarget) || null : null;
+  const titleId = useId();
+  const descId = useId();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const jsonRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const close = () => {
+  const close = useCallback(() => {
     setIssues([]);
     store.setState({ nbImportOpen: false, nbImportText: '', nbImportTarget: null });
+  }, []);
+
+  // 開いたら、次に必要な JSON 欄へ直接入る。Esc と Tab は NoteDangerDialog と同じ約束。
+  useEffect(() => {
+    if (!S.nbImportOpen) return;
+    const frame = window.requestAnimationFrame(() => jsonRef.current?.focus());
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      close();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [S.nbImportOpen, close]);
+
+  const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab') return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    if (e.shiftKey) {
+      if (active === first || !active || !panel.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+      return;
+    }
+    if (active === last || !active || !panel.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
   };
+
+  if (!S.nbImportOpen) return null;
 
   const copy = async (label: string, text: string) => {
     const ok = await copyText(text);
@@ -94,6 +147,7 @@ export function NoteImportModal() {
   return (
     <ShellOverlay>
       <div
+        className="glass-overlay-backdrop"
         onClick={close}
         style={{
           position: 'fixed',
@@ -109,7 +163,14 @@ export function NoteImportModal() {
         }}
       >
         <div
+          ref={panelRef}
+          className="nb-import-modal-panel glass-overlay-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descId}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={onPanelKeyDown}
           style={{
             width: '620px',
             maxWidth: '100%',
@@ -127,10 +188,10 @@ export function NoteImportModal() {
           }}
         >
           <div>
-            <div style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
+            <div id={titleId} style={{ font: "700 15px var(--f-ui)", color: 'var(--tx0)' }}>
               {target ? 'ノートを上書き取り込み' : 'ノートを取り込む'}
             </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '5px' }}>
+            <div id={descId} style={{ fontSize: '11.5px', color: 'var(--tx3)', marginTop: '5px' }}>
               {target
                 ? '「' + target.unit + '」を新しいJSONで置き換えます。貼った写真と、想起問題の順番が同じなら復習の履歴も引き継がれます'
                 : '授業の文字起こしとノート／スライドの写真をAIに渡し、返ってきたJSONを貼り付けてください。取り込んだあと、ノートの写真をこのノートに貼れます'}
@@ -142,6 +203,7 @@ export function NoteImportModal() {
             {prompts.map((p) => (
               <div
                 key={p.id}
+                className="nb-import-prompt"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -188,6 +250,7 @@ export function NoteImportModal() {
               </div>
             </div>
             <textarea
+              ref={jsonRef}
               className="fc-acc"
               value={S.nbImportText}
               onChange={(e) => {

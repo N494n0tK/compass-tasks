@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dowOf, fmtMD, longDayLabel, monthLabel } from '../../lib/logic/dates';
+import { timetablePeriodsFor } from '../../lib/logic/timetable';
 import type { Note } from '../../lib/model/notes';
 import { DOW_HEADS, MINI_BTN, SECTION_LABEL, daysInMonth, shiftMonth } from './NotebookShared';
 import { NoteRow } from './NoteRow';
@@ -277,6 +278,7 @@ export function NotebookCalendar({ notes, today, onSelect, onContextMenu }: Note
               onClick={onSelect}
               onContextMenu={onContextMenu}
               showSubject
+              periods={timetablePeriodsFor(n.date, n.subject, S.dayOverrides)}
             />
           ))}
         </div>

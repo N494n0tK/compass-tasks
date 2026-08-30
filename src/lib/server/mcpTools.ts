@@ -20,7 +20,6 @@
  */
 
 import { isoShift, todayISO } from '../logic/dates';
-import { buildMorningBrief } from '../logic/morningBrief';
 import { auditNotes } from '../logic/noteAudit';
 import { parseNoteJson } from '../logic/noteImport';
 import { searchNotes } from '../logic/noteSearch';
@@ -45,6 +44,7 @@ import { TIMETABLE, timetableSubjects } from '../logic/timetable';
 import { NOTE_GRADE_META, type Note } from '../model/notes';
 import type { ISODate } from '../model/types';
 import type { CompassServerStore } from './compassStore';
+import { generateMorningBrief } from './morningBriefService';
 
 /** MCP のツール 1 個ぶん */
 export interface ToolDef {
@@ -654,11 +654,8 @@ export async function callTool(
 
     case 'morning_brief': {
       const store = ctx.store();
-      const notes = await store.loadNotes();
       const date = argStr(args, 'date') || today;
-      const brief = buildMorningBrief({ date, notes });
-      if (!brief) return ok({ ok: true, date, skipped: true, reason: '土日なので朝のメモは作らない' });
-      return ok({ ok: true, skipped: false, ...brief });
+      return ok(await generateMorningBrief(store, date));
     }
 
     default:

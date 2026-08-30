@@ -7,7 +7,7 @@ import {
   nextSchoolDay,
   prunePrepGenLog,
 } from '../prepAutogen';
-import { TIMETABLE, timetableSubjects } from '../timetable';
+import { TIMETABLE, timetablePeriodsFor, timetableSubjects } from '../timetable';
 
 /**
  * 2026-08 の曜日:
@@ -203,6 +203,19 @@ describe('既定値と時間割ヘルパ', () => {
     expect(subjects).toContain('LHR');
     expect(new Set(subjects).size).toBe(subjects.length);
     expect(subjects).not.toContain(null);
+  });
+
+  it('ノートの日付と教科から時限を逆引きし、連続授業もすべて返す', () => {
+    expect(timetablePeriodsFor('2026-09-02', '数学')).toEqual([1, 2]);
+    expect(timetablePeriodsFor('2026-09-02', '現国')).toEqual([6]);
+  });
+
+  it('日別の時間割変更と休講を時限の逆引きにも反映する', () => {
+    expect(
+      timetablePeriodsFor('2026-09-02', '数学', {
+        '2026-09-02': { '1': { held: false }, '3': { subj: '数学', held: true } },
+      }),
+    ).toEqual([2, 3]);
   });
 
   it('TIMETABLE はレガシーの値のまま（月〜金 × 7 コマ）', () => {

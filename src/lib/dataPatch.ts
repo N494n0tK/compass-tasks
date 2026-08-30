@@ -98,6 +98,21 @@ export function dataPatch(
 
   let repaired = false;
 
+  // ── Glass 時刻設定。新しい optional キーは旧データに存在しないままが正常だが、
+  //    壊れた値をそのまま初期 state へ流し込むと slider / CSS の計算を汚すため、
+  //    採用できる値だけを残す。欠落・不正値は createInitialState の安全な既定値を使う。
+  if ('glassTimeMinutes' in patch) {
+    const value = patch.glassTimeMinutes;
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1439) {
+      patch.glassTimeMinutes = Math.round(value);
+    } else {
+      delete (patch as Record<string, unknown>).glassTimeMinutes;
+    }
+  }
+  if ('glassFollowCurrentTime' in patch && typeof patch.glassFollowCurrentTime !== 'boolean') {
+    delete (patch as Record<string, unknown>).glassFollowCurrentTime;
+  }
+
   // ── M1. テーマ移行（HTML:2208-2209）
   if (patch.theme === 'dark' && patch.themeVersion !== 3) patch.theme = 'note';
   patch.themeVersion = 3;

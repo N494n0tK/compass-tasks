@@ -71,7 +71,7 @@ describe('createInitialState', () => {
     expect(s.theme).toBe('note');
     expect(s.themeVersion).toBe(3);
     expect(s.view).toBe('cockpit');
-    expect(s.navOrder).toEqual(['cockpit', 'tests', 'todo', 'review', 'add', 'data']);
+    expect(s.navOrder).toEqual(['cockpit', 'tests', 'todo', 'daily', 'review', 'add', 'data']);
     expect(s.wkMax).toBe(240);
     expect(s.weMax).toBe(360);
     expect(s.panelW).toEqual({ nav: 196, search: 308, editor: 410, review: 380, score: 400 });
@@ -84,6 +84,8 @@ describe('createInitialState', () => {
     expect(s.dataRange).toBe('all');
     expect(s.cloudStatus).toBe('loading');
     expect(s.cloudUser).toBe('');
+    expect(s.glassTimeMinutes).toBe(720);
+    expect(s.glassFollowCurrentTime).toBe(true);
   });
 
   it('fills the four TODAY-derived keys', () => {
@@ -339,6 +341,8 @@ describe('exportData', () => {
       'focusLog',
       'notionPullLog',
       'clawdFound',
+      'glassTimeMinutes',
+      'glassFollowCurrentTime',
     ]);
   });
 

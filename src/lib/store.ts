@@ -167,7 +167,7 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     searchOpen: false,
     query: '',
     appSwitcherOpen: false,
-    navOrder: ['cockpit', 'tests', 'todo', 'review', 'add', 'data'],
+    navOrder: ['cockpit', 'tests', 'todo', 'daily', 'review', 'add', 'data'],
     dragNav: null,
     navDragOver: null,
     planOrder: [],
@@ -321,6 +321,10 @@ export function createInitialState(today: ISODate, cloudUser = ''): AppState {
     // Notion 取り込みの冪等化ログ（docs/notebook/notion-pull.md）。ブロック id 単位
     notionPullLog: {},
     clawdFound: false,
+    // Glass は旧データに無い追加キー。既定は現在時刻追従を有効にし、手動時刻は正午を
+    // 置いて SSR と初回描画の色を安定させる（追従時はマウント後に現在時刻へ同期する）。
+    glassTimeMinutes: 12 * 60,
+    glassFollowCurrentTime: true,
   };
 }
 

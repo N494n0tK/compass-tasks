@@ -57,6 +57,11 @@
    地の字よりさらに一段弱くして、記号が中身を食わないようにする */
 .nb-aic__slash{flex:none;color:var(--tx3);user-select:text}
 .nb-aic__body{flex:1;min-width:0}
+.nb-aic--block .nb-aic__line:not(.nb-aic__fence){padding-left:1.35em}
+.nb-aic__fence{
+  color:var(--tx3);font-weight:500;user-select:text;
+}
+.nb-aic__fence--end{margin-top:1px}
 /* 空行の `//`。中身が無いぶん高さが潰れないよう、行の高さだけ確保する */
 .nb-aic__line--gap{min-height:calc((var(--nb-size) - 2.5px) * 1.8)}
 

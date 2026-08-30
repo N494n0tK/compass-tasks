@@ -489,6 +489,11 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   border-right:1px solid var(--line2)!important;
   box-shadow:none;
 }
+
+/* 左ナビは高さの短い画面でも、フッターを切り落とさず中で読めるようにする。 */
+@media (min-width:821px){
+  .compass-nav{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+}
 .compass-brand{
   width:100%;display:flex;align-items:center;gap:10px;
   padding:15px 14px 14px!important;margin:0;
@@ -531,6 +536,7 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .app-nav-item[data-nav="cockpit"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="tests"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M6 3v3M18 3v3M3 9h18M3 5h18v15H3z'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="todo"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M4 3h16v18H4z'/%3E%3Cpath d='m8 9 2 2 4-4M8 16h8'/%3E%3C/svg%3E")}
+.app-nav-item[data-nav="daily"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 2v3M12 19v3M2 12h3M19 12h3M9 12l2 2 4-5'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="review"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M4 12a8 8 0 1 0 2-5.3L4 9'/%3E%3Cpath d='M4 4v5h5M12 8v5l3 2'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="add"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M3 3h18v18H3z'/%3E%3Cpath d='M12 7v10M7 12h10'/%3E%3C/svg%3E")}
 .app-nav-item[data-nav="data"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8'%3E%3Cpath d='M5 20v-7h4v7M10 20V8h4v12M15 20V4h4v16M3 20h18'/%3E%3C/svg%3E")}
@@ -611,6 +617,23 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   border-bottom:1px solid var(--line2)!important;
   -webkit-backdrop-filter:none;backdrop-filter:none;z-index:12;
 }
+/* Desktop の検索 slot はタイトルの実幅や auto margin の配分から切り離す。
+   左の見出しは可変だが、検索欄は同じ列から始まり、右側には Clawd / 時計の
+   追加余地を残す。狭幅では既存の mobile flex レイアウトへ戻す。 */
+@media (min-width:821px){
+  .compass-topbar{
+    display:grid!important;align-items:center;
+    grid-template-columns:clamp(180px,24.6vw,315px) minmax(0,1fr) auto;
+    column-gap:16px;row-gap:0;
+  }
+  .app-view-title{grid-column:1;min-width:0;width:100%}
+  .app-search{
+    grid-column:2;justify-self:start;
+    width:min(32vw,410px);max-width:100%;min-width:0!important;
+    box-sizing:border-box;margin-left:0!important;
+  }
+  .app-top-actions{grid-column:3;min-width:0;margin-left:0!important}
+}
 .app-view-title{order:1;min-width:180px;display:flex;flex-direction:column;justify-content:center;gap:1px;padding-left:13px;position:relative}
 .app-view-title::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;background:var(--view);transition:background .3s ease}
 .app-view-title__name{font:900 19px var(--f-disp)!important;letter-spacing:.05em;color:var(--tx0);line-height:1.2}
@@ -629,32 +652,30 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   box-shadow:inset 0 1px 0 rgba(0,0,0,.16);
   transition:border-color .15s ease,background .15s ease,box-shadow .15s ease;
 }
-/* 書き始めたら差し色の罫が左から伸びる（欄が「開いた」合図） */
-.app-search::after{
-  content:"";position:absolute;left:-1px;right:-1px;bottom:-1px;height:2px;
-  background:var(--view);
-  transform:scaleX(0);transform-origin:left;
-  transition:transform .26s cubic-bezier(.2,.85,.2,1);
-}
-.app-search:focus-within::after{transform:scaleX(1)}
-@media(prefers-reduced-motion:reduce){.app-search::after{transition:none}}
 .app-search:hover{border-color:color-mix(in srgb,var(--view) 45%,var(--line2))}
 .app-search:focus-within{
   border-color:var(--view);background:var(--bg2);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--view) 15%,transparent);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.2);
 }
 .app-search-icon{flex:none;color:var(--tx3);transition:color .15s ease}
 .app-search:focus-within .app-search-icon{color:var(--view)}
 /* さがす相手。ノートの画面では「ノート内」＝ 紙面の中の語をさがしている */
 .app-search-scope{
-  flex:none;padding:3px 7px;border-radius:2px;
-  background:var(--bg3);color:var(--tx2);
+  flex:none;padding:0 8px 0 0;border-right:1px solid var(--line2);border-radius:0;
+  background:transparent;color:var(--tx3);
   font:700 9.5px var(--f-ui);letter-spacing:.1em;white-space:nowrap;
   transition:background .15s ease,color .15s ease;
 }
-.app-search--note .app-search-scope{background:var(--viewBg);color:var(--view)}
+.app-search--note .app-search-scope{background:transparent;color:var(--view)}
 .app-search-input{flex:1;min-width:0;height:34px;padding:0;border:0;outline:0;background:transparent;color:var(--tx0);font:400 12.5px var(--f-ui)}
 .app-search-input::placeholder{color:var(--tx3)}
+/* 検索欄の外枠だけを focus indicator にする。全体の input focus 規則や
+   Glass の共通 input 規則が、欄の内側に別の輪郭を描かないように閉じる。 */
+.app-search-input:focus,
+.app-search-input:focus-visible{
+  border:0!important;border-radius:0!important;outline:none!important;
+  background:transparent!important;box-shadow:none!important;
+}
 /* ⌘K は打ち始めたら引っ込む（用が済んだ案内を出しっぱなしにしない） */
 .app-search-shortcut{
   flex:none;padding:2px 6px;
@@ -669,8 +690,8 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .app-search-popover{
   position:absolute;left:0;right:0;top:calc(100% + 7px);z-index:80;
   max-height:min(620px,calc(100vh - 90px));padding:0 13px 13px;
-  background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad);
-  border-top:2px solid var(--view);
+  background:var(--bg1);border:1px solid var(--line2);border-radius:var(--rad-s);
+  border-top:1px solid var(--view);
   box-shadow:0 20px 44px rgba(0,0,0,.34);
   display:flex;flex-direction:column;gap:10px;animation:fadeUp .14s ease;
 }
@@ -862,6 +883,7 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
 .quota-line:active{filter:none}
 .timetable-week-strip button{border-radius:var(--rad-s)!important;transition:border-color .13s ease,background .13s ease,color .13s ease}
 .timetable-week-strip button:hover{transform:none;border-color:var(--view)!important;color:var(--tx0)!important}
+.app-search-subject-chip:focus-visible{outline:2px solid var(--view);outline-offset:2px;box-shadow:0 0 0 4px color-mix(in srgb,var(--view) 22%,transparent)}
 .mobile-scroll-hint,.mini-day-mobile,.mini-mobile-actions{display:none}
 
 /* ══ 署名: 今日のコマ帯 ═════════════════════════════════════════════
@@ -996,28 +1018,42 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
     position:fixed!important;left:0;right:0;bottom:0;z-index:100;width:100%!important;
     height:var(--mobile-nav-h);
     padding:0 max(0px,env(safe-area-inset-left)) env(safe-area-inset-bottom) max(0px,env(safe-area-inset-right))!important;
-    display:flex!important;flex-direction:row!important;gap:1px!important;
+    display:flex!important;flex-direction:row!important;justify-content:flex-start!important;gap:4px!important;
     border:0!important;border-top:1px solid var(--line2)!important;
     background:var(--line)!important;
     -webkit-backdrop-filter:none;backdrop-filter:none;
+    overflow-x:auto!important;overflow-y:hidden!important;overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;scrollbar-width:none;
   }
   .compass-brand,.compass-nav-footer{display:none!important}
   .mobile-app-launcher{display:flex}
   .app-nav-item{
-    min-width:0!important;min-height:56px!important;flex:1;
+    min-width:56px!important;min-height:56px!important;flex:0 0 56px!important;
     flex-direction:column!important;justify-content:center;gap:4px!important;
     padding:6px 2px!important;border:0!important;background:var(--bg2)!important;text-align:center;
+    scroll-snap-align:center;
   }
   .app-nav-item::before{width:19px;height:19px}
   .app-nav-item__key{display:none}
-  .app-nav-item__label{font:400 9px var(--f-ui)!important;text-align:center;flex:none!important}
+  /* 320px では 8 タブと FAB を並べるので、長い正式名を各タブの内側で
+     短縮する。元の文字列は DOM に残り、ボタンのアクセシブルネームは変えない。 */
+  .app-nav-item__label{
+    width:100%;max-width:100%;min-width:0;display:block;overflow:hidden;
+    font:0/12px var(--f-ui)!important;text-align:center;flex:none!important;
+  }
+  .app-nav-item__label::after{
+    content:attr(data-mobile-label);display:block;overflow:hidden;text-overflow:ellipsis;
+    color:inherit;font:600 9px/12px var(--f-ui);letter-spacing:0;white-space:nowrap;
+  }
   .app-nav-item.is-active{background:var(--bg0)!important;color:var(--nav-hue)!important;box-shadow:inset 0 3px 0 var(--nav-hue)}
   .app-nav-item__badge{position:absolute;top:3px;right:calc(50% - 21px);padding:0 4px;font-size:9px}
   /* 「タスク追加」だけは親指の届く丸ボタン。方眼の外に置いた 1 つの例外 */
   .compass-theme-mode[data-theme] .app-nav-item[data-nav="add"]{
     --nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
-    flex:0 0 56px!important;max-width:56px;height:56px;min-height:56px!important;
-    align-self:center;position:relative;top:-14px;margin:0 5px;padding:0!important;
+    flex:0 0 56px!important;min-width:56px!important;max-width:56px;height:56px;min-height:56px!important;
+    /* 横スクロールの viewport は縦を切るので、浮かせて上へ逃がさず 64px の帯の中で
+       56px を確保する。見切れず、タップ面も視覚面と一致する。 */
+    align-self:center;position:relative;top:0;margin:0 5px;padding:0!important;
     border-radius:50%!important;
     background:var(--org)!important;color:var(--onAcc)!important;
     border:1px solid var(--org)!important;
@@ -1078,7 +1114,9 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   .review-table-row>.rt-cell-subj{grid-area:subject}.review-table-row>.rt-cell-title{grid-area:title}.review-table-row>.rt-cell-last{grid-area:last}.review-table-row>.rt-cell-next{grid-area:next}.review-table-row>.rt-cell-round{grid-area:round}.review-table-row>.rt-cell-stage{grid-area:stage}.review-table-row>.rt-cell-status{grid-area:status}.review-table-row>.rt-cell-actions{grid-area:actions;flex-direction:column;align-items:flex-end!important;justify-content:flex-start!important}
   .review-table-row>.rt-cell[data-label]::before{content:attr(data-label);display:block;margin-bottom:2px;color:var(--tx3);font:400 8.5px var(--f-ui)}
   .review-divider{margin:10px 0 8px;border-radius:0}.review-table-foot{padding:10px 4px!important;line-height:1.7}
-  .timetable-week-strip{width:100%!important;min-width:0!important;margin-left:0!important;grid-template-columns:28px repeat(5,minmax(0,1fr)) 28px!important}
+  /* 日付を 5 等分して 26px まで潰すのではなく、横スクロールの中で 44px 以上を守る。 */
+  .timetable-week-strip{width:100%!important;min-width:0!important;margin-left:0!important;display:flex!important;grid-template-columns:none!important;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:2px}
+  .timetable-week-strip button{flex:0 0 48px!important;min-width:48px!important;min-height:44px!important}
   /* C-508: 同上。`.score-group-row>span:nth-child(1..6)` をセルの明示クラスへ置換 */
   .score-group-row{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 8px!important}.score-group-row>.sg-cell-subj{grid-column:1;grid-row:1/3}.score-group-row>.sg-cell-name{grid-column:2;grid-row:1}.score-group-row>.sg-cell-meta{grid-column:2;grid-row:2}.score-group-row>.sg-cell-delta{grid-column:3;grid-row:2}.score-group-row>.sg-cell-score{grid-column:3;grid-row:1}.score-group-row>.sg-cell-arrow{display:none}
   .mini-editor-row{flex-wrap:wrap}.mini-drag-handle,.mini-day-label{display:none!important}.mini-title{order:2;flex:1!important}.mini-size{order:3}.mini-delete{order:4}.mini-day-mobile{display:block!important;order:5;flex:1 1 150px;min-width:0;min-height:36px;padding:6px 8px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg1);color:var(--tx1);font:600 12px var(--f-num);color-scheme:dark}.mini-mobile-actions{display:flex!important;order:6;gap:5px}.mini-mobile-actions button{width:38px;min-height:36px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg3);color:var(--tx1);font-weight:700}
@@ -1090,6 +1128,20 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
   .koma{padding:7px 4px 6px;align-items:center;text-align:center}
   .koma__subj{font-size:11px;letter-spacing:0}
   .koma__tally{justify-content:center}
+}
+
+/* portal の side drawer は viewport を越えた分を自身で読める。画面の下に操作を
+   押し出して body ごと届かなくするのを避け、端末の safe area も余白に含める。 */
+.glass-overlay-drawer{box-sizing:border-box}
+@media(max-width:820px){
+  /* dialog / drawer は背景の下部ナビより手前に出す。ナビの上からでは、最下部の
+     キャンセルや保存が見えていても押せない。畳んだ editor だけは背景を触れる約束なので除外。 */
+  .glass-overlay-backdrop:not(.is-pass-through){z-index:120!important}
+  .glass-overlay-drawer:not(.glass-overlay-drawer--collapsed){
+    overflow-y:auto!important;overscroll-behavior-y:contain;
+    padding-bottom:max(24px,calc(18px + env(safe-area-inset-bottom)))!important;
+  }
+  .drawer-resizer,.nav-resizer{display:none!important}
 }
 @media(prefers-reduced-motion:reduce){
   [data-screen-label]{animation:none!important}
@@ -1201,7 +1253,12 @@ button,input,select,textarea{font:inherit;font-family:var(--f-ui)}
       ページ（初期包含ブロック）に載り、ノート画面でだけ**ウィンドウごと**
       縦にスクロールできてしまう（`.compass-shell` の overflow:hidden は
       包含ブロックの外にある要素を切り取れない）。基準をここに置いて閉じ込める。 */
-.nb-main{position:relative}
+.nb-main{
+  position:relative;
+  /* ノート本文の背面では全画面の方眼を止める。暗色テーマで太罫が大きな薄い枠に
+     見えることがあり、コーネル罫と競合するため。ノート固有の縦罫は残る。 */
+  background:var(--bg0);
+}
 
 /* ── 紙（v0.17）。
       Compass の他の画面は方眼の上に直接刷った「校内プリント」で、面は透明にして
@@ -1853,4 +1910,174 @@ mark.nb-find{
      余った高さぶんの空白になってしまうため（画面ごと 1 本のスクロールにする） */
   .nb-main{overflow:visible!important;flex:0 0 auto!important}
   .nb-title{font-size:23px}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   デイリータスク — 台帳 / 負荷予想 / 今日のプレビュー
+   同じ版を Dark・Light・Glass のトークンだけで刷り分ける。
+   ═══════════════════════════════════════════════════════════════ */
+.daily-screen{
+  flex:1;min-width:0;overflow:auto;padding:18px 20px 28px;
+  color:var(--tx0);animation:inkIn .22s cubic-bezier(.2,.85,.2,1)!important;
+}
+.daily-screen button,.daily-screen input{font-family:var(--f-ui)}
+.daily-metrics{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;
+}
+.daily-metric{
+  min-height:86px;display:grid;grid-template-columns:1fr auto auto;grid-template-rows:auto 1fr;
+  align-items:end;column-gap:5px;padding:13px 15px;background:var(--bg1);border:1px solid var(--line);
+  border-top:3px solid var(--daily-metric-color,var(--view));border-radius:var(--rad);
+}
+.daily-metric>span{grid-column:1/-1;align-self:start;color:var(--tx3);font:700 10.5px var(--f-ui);letter-spacing:.04em}
+.daily-metric>strong{justify-self:end;color:var(--daily-metric-color,var(--view));font:700 31px/1 var(--f-num)}
+.daily-metric>small{padding-bottom:3px;color:var(--tx2);font:700 11px var(--f-ui)}
+.daily-metric--today{--daily-metric-color:var(--pink)}
+.daily-metric--minutes{--daily-metric-color:var(--acc)}
+.daily-metric--done{--daily-metric-color:var(--grn)}
+.daily-metric--streak{--daily-metric-color:var(--vio)}
+
+.daily-layout{display:grid;grid-template-columns:minmax(480px,1.25fr) minmax(390px,1fr);gap:14px;align-items:start}
+.daily-column{display:flex;min-width:0;flex-direction:column;gap:14px}
+.daily-panel{background:var(--bg1);border:1px solid var(--line);border-radius:var(--rad);overflow:hidden}
+.daily-panel-head{
+  min-height:58px;display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--view) 4%,var(--bg1));
+}
+.daily-panel-head>div{min-width:0;flex:1}
+.daily-panel-head h2{margin:0;color:var(--tx0);font:700 14px/1.4 var(--f-disp);letter-spacing:.035em}
+.daily-panel-head p{margin:2px 0 0;color:var(--tx3);font:400 10.5px/1.4 var(--f-ui)}
+.daily-primary,.daily-save{
+  border:1px solid var(--view);border-radius:var(--rad-s);background:var(--view);color:var(--onAcc);
+  font:700 11px var(--f-ui);cursor:pointer;transition:filter .13s ease;
+}
+.daily-primary{padding:7px 11px}.daily-save{min-width:140px;padding:10px 16px}
+.daily-primary:hover,.daily-save:hover{filter:brightness(1.08)}
+.daily-quiet{
+  padding:6px 8px;border:1px solid transparent;border-radius:var(--rad-s);background:transparent;
+  color:var(--view);font:700 10.5px var(--f-ui);cursor:pointer;
+}
+.daily-quiet:hover{border-color:var(--line2);background:var(--bg2)}
+
+.daily-list{display:flex;flex-direction:column;padding:7px}
+.daily-row{
+  --daily-subj:var(--view);position:relative;display:grid;
+  grid-template-columns:4px minmax(0,1fr) auto auto auto;align-items:center;gap:10px;
+  min-height:66px;padding:9px 10px 9px 6px;border:1px solid transparent;border-bottom-color:var(--line);
+  background:transparent;cursor:pointer;outline:none;transition:background .13s ease,border-color .13s ease,opacity .13s ease;
+}
+.daily-row:last-child{border-bottom-color:transparent}
+.daily-row:hover,.daily-row:focus-visible{background:color-mix(in srgb,var(--daily-subj) 7%,var(--bg2));border-color:var(--line2)}
+.daily-row.is-selected{background:color-mix(in srgb,var(--daily-subj) 12%,var(--bg2));border-color:var(--daily-subj)}
+.daily-row.is-paused{opacity:.58}
+.daily-row-mark{align-self:stretch;background:var(--daily-subj)}
+.daily-row-main{min-width:0}
+.daily-row-main>strong{display:block;overflow:hidden;color:var(--tx0);font:700 12.5px var(--f-ui);text-overflow:ellipsis;white-space:nowrap}
+.daily-row-meta{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:5px;color:var(--tx3);font:600 9.5px var(--f-ui)}
+.daily-row-meta>span{padding:2px 5px;border:1px solid var(--line);border-radius:var(--rad-s);background:var(--bg2)}
+.daily-row-stats{display:flex;min-width:72px;flex-direction:column;align-items:flex-end;gap:3px;color:var(--tx3);font:600 9.5px var(--f-ui)}
+.daily-row-stats b{color:var(--org);font:700 10px var(--f-num)}
+.daily-switch{
+  min-width:49px;display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 6px;
+  border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg2);color:var(--tx3);
+  font:700 9px var(--f-num);cursor:pointer;
+}
+.daily-switch>span{width:8px;height:8px;border:1px solid currentColor;background:transparent}
+.daily-switch.is-on{border-color:var(--grn);background:var(--grnBg);color:var(--grn)}
+.daily-switch.is-on>span{background:var(--grn)}
+.daily-edit{
+  padding:5px 8px;border:1px solid var(--line2);border-radius:var(--rad-s);background:transparent;
+  color:var(--tx2);font:700 9.5px var(--f-ui);cursor:pointer;
+}
+.daily-edit:hover{border-color:var(--view);color:var(--view)}
+.daily-empty{display:flex;min-height:250px;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:24px;text-align:center}
+.daily-empty b{color:var(--tx1);font:700 14px var(--f-disp)}
+.daily-empty span{max-width:330px;color:var(--tx3);font:400 11px/1.7 var(--f-ui)}
+
+.daily-week-chart{height:205px;display:grid;grid-template-columns:repeat(7,minmax(38px,1fr));gap:8px;padding:16px 14px 14px}
+.daily-week-day{display:grid;grid-template-rows:18px 1fr 19px 15px 15px;align-items:end;text-align:center;color:var(--tx3)}
+.daily-week-min{color:var(--tx2);font:700 9.5px var(--f-num)}
+.daily-week-track{position:relative;height:100%;margin:5px auto;width:18px;border-left:1px solid var(--line);border-right:1px solid var(--line);background:var(--bg2)}
+.daily-week-track>span{position:absolute;right:0;bottom:0;left:0;background:var(--acc);transition:height .25s ease}
+.daily-week-day.is-today .daily-week-track{border-color:var(--pink)}
+.daily-week-day.is-today .daily-week-track>span{background:var(--pink)}
+.daily-week-day b{color:var(--tx1);font:700 11px var(--f-ui)}
+.daily-week-day.is-today b{color:var(--pink)}
+.daily-week-day small{font:500 9px var(--f-num)}
+.daily-week-day em{font:600 8.5px var(--f-ui);font-style:normal}
+
+.daily-form{display:flex;flex-direction:column;gap:14px;padding:15px}
+.daily-form label:not(.daily-active-field){display:flex;flex-direction:column;gap:6px}
+.daily-form label>span,.daily-form legend{color:var(--tx2);font:700 10.5px var(--f-ui);letter-spacing:.025em}
+.daily-form input[type="text"],.daily-form label:not(.daily-active-field)>input{
+  width:100%;height:38px;padding:0 10px;border:1px solid var(--line2);border-radius:var(--rad-s);
+  background:var(--bg2);color:var(--tx0);font:500 12px var(--f-ui);outline:none;
+}
+.daily-form input:focus{border-color:var(--view)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--view) 18%,transparent)!important}
+.daily-form fieldset{min-width:0;margin:0;padding:0;border:0}
+.daily-form legend{margin-bottom:7px}
+.daily-form fieldset>small{display:block;margin-top:6px;color:var(--tx3);font:400 9.5px var(--f-ui)}
+.daily-choice-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.daily-choice-row button{
+  min-height:36px;padding:6px;border:1px solid var(--line2);border-radius:var(--rad-s);background:var(--bg2);
+  color:var(--tx2);font:600 10.5px var(--f-ui);cursor:pointer;
+}
+.daily-choice-row button b{margin-right:2px;color:inherit;font:700 14px var(--f-num)}
+.daily-choice-row button:hover{border-color:var(--view);color:var(--tx0)}
+.daily-choice-row button.is-selected{border-color:var(--view);background:var(--viewBg);color:var(--view)}
+.daily-dow-row{grid-template-columns:1.35fr repeat(7,1fr)}
+.daily-dow-row button{min-width:0;padding-inline:3px}
+.daily-active-field{display:flex;align-items:center;gap:12px;padding:10px 11px;border:1px solid var(--line);background:var(--bg2)}
+.daily-active-field>span{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}
+.daily-active-field>span b{color:var(--tx1);font:700 11px var(--f-ui)}
+.daily-active-field>span small{color:var(--tx3);font:400 9.5px var(--f-ui)}
+.daily-active-field input{width:18px;height:18px;accent-color:var(--grn)}
+.daily-form-error{padding:8px 10px;border-left:3px solid var(--pink);background:var(--pinkBg);color:var(--pink);font:700 10.5px var(--f-ui)}
+.daily-form-actions{display:flex;align-items:center;gap:8px;padding-top:2px}
+.daily-delete{
+  padding:9px 13px;border:1px solid var(--pink);border-radius:var(--rad-s);background:transparent;
+  color:var(--pink);font:700 10.5px var(--f-ui);cursor:pointer;
+}
+.daily-delete.is-armed{background:var(--pink);color:var(--onAcc)}
+.daily-delete-note{margin:-6px 0 0;color:var(--pink);font:500 9.5px/1.5 var(--f-ui)}
+
+.daily-preview-list{display:flex;flex-direction:column;padding:7px}
+.daily-preview-list>button{
+  display:grid;grid-template-columns:20px minmax(0,1fr) auto auto auto;align-items:center;gap:8px;
+  min-height:42px;padding:7px 8px;border:0;border-bottom:1px solid var(--line);background:transparent;
+  color:var(--tx0);text-align:left;cursor:pointer;
+}
+.daily-preview-list>button:last-child{border-bottom:0}
+.daily-preview-list>button:hover{background:var(--bg2)}
+.daily-preview-list>button>span{color:var(--grn);font:700 13px var(--f-ui);text-align:center}
+.daily-preview-list>button>strong{overflow:hidden;font:600 11.5px var(--f-ui);text-overflow:ellipsis;white-space:nowrap}
+.daily-preview-list>button>small{color:var(--tx3);font:600 9.5px var(--f-ui)}
+.daily-preview-list>button>b{color:var(--acc);font:700 10px var(--f-num)}
+.daily-preview-list>button>em{color:var(--org);font:700 9.5px var(--f-num);font-style:normal}
+.daily-preview-list>button.is-done{opacity:.54}.daily-preview-list>button.is-done>strong{text-decoration:line-through}
+.daily-preview-empty{padding:24px;color:var(--tx3);font:400 11px var(--f-ui);text-align:center}
+
+@media(max-width:1100px){
+  .daily-layout{grid-template-columns:1fr}
+  .daily-column{display:contents}
+  .daily-list-panel{order:1}.daily-form-panel{order:2}.daily-preview-panel{order:3}.daily-week-panel{order:4}
+}
+@media(max-width:820px){
+  [data-screen-label="Daily"]{width:100%;min-width:0;padding:12px 12px calc(var(--mobile-nav-h) + 18px);overflow-x:hidden}
+  .daily-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .daily-metric{min-height:70px;padding:10px 11px}.daily-metric>strong{font-size:25px}
+  .daily-panel-head{align-items:flex-start;flex-wrap:wrap}.daily-panel-head>button{margin-left:auto}
+  .daily-row{grid-template-columns:4px minmax(0,1fr) auto;gap:8px}
+  .daily-row-stats{grid-column:2;align-items:flex-start;flex-direction:row}
+  .daily-switch{grid-column:3;grid-row:1}.daily-edit{grid-column:3;grid-row:2}
+  .daily-dow-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .daily-week-chart{gap:4px;padding-inline:8px}.daily-week-track{width:13px}
+  .daily-preview-list>button{grid-template-columns:20px minmax(0,1fr) auto auto}.daily-preview-list>button>em{display:none}
+}
+@media(max-width:430px){
+  .daily-screen{padding-inline:9px}.daily-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .daily-choice-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .daily-dow-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .daily-form-actions{align-items:stretch;flex-direction:column}.daily-form-actions>button{width:100%}
+  .daily-preview-list>button{grid-template-columns:20px minmax(0,1fr) auto}.daily-preview-list>button>small{display:none}
 }

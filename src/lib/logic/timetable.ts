@@ -11,7 +11,8 @@
  * 純ロジック。React / firebase を import しない。
  */
 
-import type { Dow } from '../model/types';
+import { dowOf } from './dates';
+import type { DayOverrides, Dow, ISODate, Period } from '../model/types';
 
 /** `this.TIMETABLE`（HTML:2044-2049） */
 export const TIMETABLE: Readonly<Partial<Record<Dow, readonly (string | null)[]>>> = {
@@ -36,4 +37,29 @@ export function timetableSubjects(
     });
   });
   return out;
+}
+
+/**
+ * 授業日と教科から、そのノートに対応する時限を時間割で引く。
+ * 同じ教科が連続する日は `1・2限` のように全コマを返し、休講は除く。
+ * その日だけの教科変更（`dayOverrides`）も Add 画面と同じ規則で反映する。
+ */
+export function timetablePeriodsFor(
+  date: ISODate,
+  subject: string,
+  dayOverrides: DayOverrides = {},
+  timetable: Readonly<Partial<Record<Dow, readonly (string | null)[]>>> = TIMETABLE,
+): Period[] {
+  const wanted = subject.trim();
+  if (!wanted) return [];
+  const slots = timetable[dowOf(date)] || EMPTY_SLOTS;
+  const overrides = dayOverrides[date] || {};
+  const periods: Period[] = [];
+  slots.forEach((base, index) => {
+    const period = (index + 1) as Period;
+    const override = overrides[String(period)] || {};
+    const actual = (override.subj || '').trim() || base || '';
+    if (override.held !== false && actual === wanted) periods.push(period);
+  });
+  return periods;
 }

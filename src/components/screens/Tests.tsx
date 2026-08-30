@@ -485,7 +485,14 @@ export function Tests() {
             </div>
           ))}
         </div>
-        {planIds.map((pid) => {
+        {planIds.length === 0 ? (
+          <div className="glass-empty plan-empty" role="status" style={{ minWidth: timelineMinW }}>
+            <div className="glass-empty__title">試験・予習計画はまだありません</div>
+            <div className="glass-empty__hint">
+              「追加」からテストまたは予習計画を作成すると、ここに日付ごとの予定が表示されます。
+            </div>
+          </div>
+        ) : planIds.map((pid) => {
           const pl = P[pid];
           const segs = S.segs.filter((s) => s.plan === pid);
           const doneN = segs.filter((s) => s.done).length;

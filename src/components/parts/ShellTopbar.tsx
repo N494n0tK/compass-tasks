@@ -40,6 +40,7 @@ import {
 } from './ShellSearch';
 import { TITLES } from './ShellTheme';
 import { todayTotals, type TodayItem } from './ShellTodayItems';
+import { TopbarClock } from './TopbarClock';
 
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
@@ -266,30 +267,35 @@ export function ShellTopbar({
               <>
                 <div style={{ fontSize: '10.5px', color: 'var(--tx3)' }}>教科で絞り込み</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {subjChips.map((s, i) => (
-                    <span
-                      key={s.name}
-                      className="mo-in mo-lift mo-press"
-                      onClick={() =>
-                        store.setState({
-                          query: canonicalSubject(store.getState().query) === s.name ? '' : s.name,
-                          searchOpen: true,
-                        })
-                      }
-                      style={cssVars({
-                        '--i': Math.min(i, 7),
-                        font: "700 10.5px var(--f-ui)",
-                        color: s.c,
-                        background: s.bg,
-                        border: '1px solid ' + s.bd,
-                        borderRadius: 'var(--rad-s)',
-                        padding: '4px 10px',
-                        cursor: 'pointer',
-                      })}
-                    >
-                      {s.name}
-                    </span>
-                  ))}
+                  {subjChips.map((s, i) => {
+                    const selected = canonicalSubject(S.query) === s.name;
+                    return (
+                      <button
+                        key={s.name}
+                        type="button"
+                        className="app-search-subject-chip mo-in mo-lift mo-press"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          store.setState({
+                            query: canonicalSubject(store.getState().query) === s.name ? '' : s.name,
+                            searchOpen: true,
+                          })
+                        }
+                        style={cssVars({
+                          '--i': Math.min(i, 7),
+                          font: "700 10.5px var(--f-ui)",
+                          color: s.c,
+                          background: s.bg,
+                          border: '1px solid ' + s.bd,
+                          borderRadius: 'var(--rad-s)',
+                          padding: '4px 10px',
+                          cursor: 'pointer',
+                        })}
+                      >
+                        {s.name}
+                      </button>
+                    );
+                  })}
                 </div>
                 {q.length === 0 ? (
                   <div
@@ -421,6 +427,7 @@ export function ShellTopbar({
         className="app-top-actions"
         style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}
       >
+        <TopbarClock />
         {/* Clawd の隠しタブへの入口（要望: 右上に、もっと大きく）。
             押すとタブが増えてそこへ移る。見つける前だけ少し薄い ―― 常時光らせない */}
         <button

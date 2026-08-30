@@ -10,8 +10,9 @@
  * 外部アプリへの遷移は spec Q28 のまま `window.top.location.assign(url)`。
  */
 
-import type { CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import type { CompassStore } from '../../lib/store';
+import { useDialogFocus } from './useDialogFocus';
 
 /** `this.APP_CATALOG`（HTML:2039-2043）。url を入れるだけで遷移が有効になる */
 export interface AppCatalogEntry {
@@ -64,14 +65,26 @@ export function ShellAppSwitcher({
   store: CompassStore;
   onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const onPanelKeyDown = useDialogFocus({
+    open: true,
+    panelRef,
+    initialFocusRef: closeRef,
+    onClose,
+  });
+
   return (
     <div className="app-switcher-backdrop" onClick={onClose}>
       <section
+        ref={panelRef}
         className="app-switcher-panel"
         role="dialog"
         aria-modal="true"
         aria-label="Compassアプリ一覧"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onPanelKeyDown}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -101,6 +114,7 @@ export function ShellAppSwitcher({
             </div>
           </div>
           <button
+            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="アプリ一覧を閉じる"

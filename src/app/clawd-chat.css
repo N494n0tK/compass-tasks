@@ -364,6 +364,13 @@
   border-color: var(--org);
 }
 
+/* 全画面オフィスを開いている間もこの component は timer tick の所有者として
+   mounted のままにする。見た目と操作だけ退避し、二重タイマーを作らない。 */
+.cw.is-office-open {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* ── 掴むところ（上辺ぜんぶ）*/
 .cw__grip {
   width: 100%;
@@ -403,6 +410,23 @@
 .cw__x:hover {
   color: var(--tx0);
   background: color-mix(in srgb, var(--org) 14%, transparent);
+}
+
+.cw__office {
+  flex: none;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--org) 28%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--org) 9%, transparent);
+  color: var(--tx2);
+  font: 700 9px var(--f-ui);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.cw__office:hover {
+  border-color: var(--org);
+  color: var(--tx0);
 }
 
 .cw__stage {
@@ -494,6 +518,14 @@
   animation: cc-say 0.24s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+.cc__min-choices {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
 .cc__min {
   padding: 7px 15px;
   border: 1px solid var(--cc-ink);
@@ -513,6 +545,98 @@
 
 .cc__min:active {
   transform: scale(0.96);
+}
+
+/* 固定候補にない長さだけ、ここで自分で決める */
+.cc__custom {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.cc__custom-label {
+  color: var(--tx2);
+  font: 600 11.5px var(--f-ui);
+}
+
+.cc__custom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 360px);
+  min-width: 0;
+}
+
+.cc__custom-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--cc-line);
+  border-radius: 10px;
+  background: var(--cc-paper);
+  color: var(--tx0);
+  font: 600 13px var(--f-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.cc__custom-input::placeholder {
+  color: var(--tx3);
+  opacity: 0.82;
+}
+
+.cc__custom-unit {
+  flex: none;
+  color: var(--tx2);
+  font: 600 12px var(--f-ui);
+}
+
+.cc__custom-submit {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid var(--cc-ink);
+  border-radius: 999px;
+  background: var(--cc-ink);
+  color: var(--onAcc);
+  font: 700 12px var(--f-ui);
+  cursor: pointer;
+  transition: filter 0.16s ease, opacity 0.16s ease, transform 0.09s ease;
+}
+
+.cc__custom-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.cc__custom-submit:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.cc__custom-submit:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.cc__custom-input:focus-visible,
+.cc__custom-submit:focus-visible {
+  outline: 2px solid var(--cc-ink);
+  outline-offset: 2px;
+}
+
+.cc__custom-help,
+.cc__custom-error {
+  margin: 0;
+  font: 400 10.5px/1.6 var(--f-ui);
+}
+
+.cc__custom-help {
+  color: var(--tx3);
+}
+
+.cc__custom-error {
+  color: var(--pink);
 }
 
 @keyframes cw-in {
@@ -535,12 +659,25 @@
   .cw__go,
   .cw__quit,
   .cw__x,
-  .cc__min {
+  .cc__min,
+  .cc__custom-submit {
     transition: none;
   }
   .cw__go:active,
   .cw__quit:active,
-  .cc__min:active {
+  .cc__min:active,
+  .cc__custom-submit:active {
     transform: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .cc__mins {
+    margin-left: 0;
+    margin-right: 2px;
+  }
+
+  .cc__custom-controls {
+    width: 100%;
   }
 }

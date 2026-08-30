@@ -16,13 +16,14 @@
  * ここは **`scArr` が 1 件以上ある前提**で描画する。
  */
 
-import { Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
+import { Fragment, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import { daysUntil, fmtMD, type DateContext } from '../../lib/logic/dates';
 import { subjectColorFor, type SubjColors } from '../../lib/logic/subjects';
 import type { AppState, Score } from '../../lib/model/types';
 import type { CompassStore } from '../../lib/store';
 import { savePrefs } from './ShellPrefs';
 import { makeResizer } from './ShellResizer';
+import { useDialogFocus } from './useDialogFocus';
 
 export interface DataScoreDrawerProps {
   state: AppState;
@@ -114,9 +115,18 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
   const closeSc = () => store.setState({ scoreSel: null });
   const stopProp = (e: ReactMouseEvent) => e.stopPropagation();
   const scResize = makeResizer(store, 'score', 'left', () => savePrefs(store));
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const onPanelKeyDown = useDialogFocus({
+    open: !!S.scoreSel,
+    panelRef,
+    initialFocusRef: closeRef,
+    onClose: closeSc,
+  });
 
   return (
     <div
+      className="glass-overlay-backdrop"
       onClick={closeSc}
       style={{
         position: 'fixed',
@@ -127,7 +137,14 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
       }}
     >
       <div
+        ref={panelRef}
+        className="glass-overlay-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={(S.scoreSel || '点数') + 'の推移'}
+        tabIndex={-1}
         onClick={stopProp}
+        onKeyDown={onPanelKeyDown}
         style={{
           position: 'absolute',
           right: 0,
@@ -146,6 +163,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
         }}
       >
         <div
+          className="drawer-resizer"
           onMouseDown={scResize}
           style={{
             position: 'absolute',
@@ -185,6 +203,7 @@ export function DataScoreDrawer({ state, store, ctx, subjColors, scArr }: DataSc
           </span>
           <button
             type="button"
+            ref={closeRef}
             onClick={closeSc}
             style={{
               width: '26px',

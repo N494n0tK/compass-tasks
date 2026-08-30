@@ -59,6 +59,25 @@ export type NoteAiBlock =
   /** 空行 = 段の切れ目。紙面では中身の無い `//` を 1 本置く */
   | { kind: 'gap' };
 
+/** 長文を JavaScript のブロックコメント表示へ切り替える目安。日本語でおよそ 3〜4 行ぶん。 */
+export const NOTE_AI_BLOCK_COMMENT_MIN_CHARS = 96;
+export const NOTE_AI_BLOCK_COMMENT_MIN_LINES = 4;
+
+/**
+ * 短い赤入れは `//`、長い補足は JavaScript のブロックコメントで見せる。
+ * 元の文字列やパース結果は変更せず、描画記号だけを選ぶ純粋な判定。
+ */
+export function shouldUseNoteAiBlockComment(
+  src: string | null | undefined,
+  blocks: readonly NoteAiBlock[],
+): boolean {
+  const visibleLines = blocks.filter((block) => block.kind === 'line').length;
+  return (
+    visibleLines >= NOTE_AI_BLOCK_COMMENT_MIN_LINES ||
+    (src || '').trim().length >= NOTE_AI_BLOCK_COMMENT_MIN_CHARS
+  );
+}
+
 /**
  * 訂正・注意へ倒す手がかり語。**ここ 1 か所にまとめる**（紙面と揃えるため）。
  *

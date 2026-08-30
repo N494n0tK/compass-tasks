@@ -16,6 +16,7 @@ import {
   missionSubjFilter,
   newMissionId,
   pruneMissionGenLog,
+  reconcileMissionToday,
 } from '../missionAutogen';
 
 /**
@@ -210,6 +211,101 @@ describe('generateMissionTasks — 重複防止（ログのみで判定）', () 
     });
     expect(res.extras.map((e) => e.title)).toEqual(['B']);
     expect(res.genLog[THU]).toEqual(['dma', 'dmb']);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// 台帳の編集と今日ぶんの同期
+// ─────────────────────────────────────────────────────────────
+
+describe('reconcileMissionToday', () => {
+  it('未完了の今日ぶんへタイトル・教科・見積りの編集を反映する', () => {
+    const before = mission();
+    const after = mission({ title: '英単語 2セクション', subj: '英コミ', size: 'M' });
+    const current = buildMissionExtra(before, THU);
+    const out = reconcileMissionToday({
+      today: THU,
+      previous: before,
+      next: after,
+      extras: [current],
+      genLog: { [THU]: [before.id] },
+      order: [current.id],
+    });
+
+    expect(out.updated).toBe(true);
+    expect(out.extras[0]).toMatchObject({
+      id: current.id,
+      title: '英単語 2セクション',
+      subj: '英コミ',
+      size: 'M',
+      min: 20,
+      done: false,
+    });
+    expect(out.genLog[THU]).toEqual([before.id]);
+    expect(out.order).toEqual([current.id]);
+  });
+
+  it('OFFにすると未完了の今日ぶんを外し、ONへ戻すと再生成する', () => {
+    const before = mission();
+    const current = buildMissionExtra(before, THU);
+    const off = reconcileMissionToday({
+      today: THU,
+      previous: before,
+      next: { ...before, active: false },
+      extras: [current],
+      genLog: { [THU]: [before.id] },
+      order: [current.id],
+    });
+    expect(off.removed).toBe(true);
+    expect(off.extras).toEqual([]);
+    expect(off.order).toEqual([]);
+    expect(off.genLog[THU]).toBeUndefined();
+
+    const on = reconcileMissionToday({
+      today: THU,
+      previous: { ...before, active: false },
+      next: before,
+      extras: off.extras,
+      genLog: off.genLog,
+      order: off.order,
+    });
+    expect(on.created).toBe(true);
+    expect(on.extras).toEqual([current]);
+    expect(on.order).toEqual([current.id]);
+    expect(on.genLog[THU]).toEqual([before.id]);
+  });
+
+  it('削除時も完了済みの今日ぶんと過去の記録は残す', () => {
+    const before = mission();
+    const past = doneOn(before, WED);
+    const todayDone = doneOn(before, THU);
+    const out = reconcileMissionToday({
+      today: THU,
+      previous: before,
+      next: null,
+      extras: [past, todayDone],
+      genLog: { [WED]: [before.id], [THU]: [before.id] },
+      order: [todayDone.id],
+    });
+    expect(out.removed).toBe(false);
+    expect(out.extras).toEqual([past, todayDone]);
+    expect(out.genLog[THU]).toEqual([before.id]);
+    expect(out.order).toEqual([todayDone.id]);
+  });
+
+  it('ToDoで手動削除した今日ぶんは、通常の編集だけでは復活させない', () => {
+    const before = mission();
+    const out = reconcileMissionToday({
+      today: THU,
+      previous: before,
+      next: { ...before, title: '編集後' },
+      extras: [],
+      genLog: { [THU]: [before.id] },
+      order: [],
+    });
+    expect(out.created).toBe(false);
+    expect(out.extras).toEqual([]);
+    expect(out.genLog[THU]).toEqual([before.id]);
   });
 });
 

@@ -24,7 +24,7 @@
  */
 
 import { useMemo, type CSSProperties } from 'react';
-import { parseNoteAiComment } from '../../lib/logic/noteAiComment';
+import { parseNoteAiComment, shouldUseNoteAiBlockComment } from '../../lib/logic/noteAiComment';
 import { NoteMathInline, type NoteMarkOptions } from './NoteMath';
 
 const cssVars = (vars: Record<string, string | number>) => vars as CSSProperties;
@@ -50,12 +50,21 @@ export function NoteAiComment({ src, mark, className }: NoteAiCommentProps) {
   // 割り方は `src` だけで決まる（確認モードの切り替えで組み直さない）
   const blocks = useMemo(() => parseNoteAiComment(src), [src]);
   if (!blocks.length) return null;
+  const blockComment = shouldUseNoteAiBlockComment(src, blocks);
 
   return (
-    <aside className={'nb-aic' + (className ? ' ' + className : '')} aria-label="AI の添削">
+    <aside
+      className={'nb-aic' + (blockComment ? ' nb-aic--block' : '') + (className ? ' ' + className : '')}
+      aria-label="AI の添削"
+    >
       <span className="nb-aic__chip" title="AI が足した添削・補足">
         AI
       </span>
+      {blockComment ? (
+        <p className="nb-aic__line nb-aic__fence" aria-hidden="true">
+          /*
+        </p>
+      ) : null}
       {blocks.map((b, i) => {
         const style = cssVars({ '--i': Math.min(i, STAGGER_LAST) });
         // 空行は `//` だけの行。コードのコメント塊の中の空行と同じ見え方にする。
@@ -63,14 +72,14 @@ export function NoteAiComment({ src, mark, className }: NoteAiCommentProps) {
         if (b.kind === 'gap') {
           return (
             <p key={i} className="nb-aic__line nb-aic__line--gap" style={style} aria-hidden="true">
-              <span className="nb-aic__slash">//</span>
+              <span className="nb-aic__slash">{blockComment ? '' : '//'}</span>
             </p>
           );
         }
         return (
           <p key={i} className={'nb-aic__line nb-aic__line--' + b.tone} style={style}>
             <span className="nb-aic__slash" aria-hidden="true">
-              //
+              {blockComment ? '' : '//'}
             </span>
             <span className="nb-aic__body">
               {b.spans.map((s, j) => (
@@ -90,6 +99,11 @@ export function NoteAiComment({ src, mark, className }: NoteAiCommentProps) {
           </p>
         );
       })}
+      {blockComment ? (
+        <p className="nb-aic__line nb-aic__fence nb-aic__fence--end" aria-hidden="true">
+          */
+        </p>
+      ) : null}
     </aside>
   );
 }

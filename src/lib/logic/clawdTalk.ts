@@ -69,7 +69,7 @@ const POKE: readonly string[] = [
   '水飲んだ？',
 ];
 
-/** ボタンで選べる話しかけ。**入力欄は置かない**（下の `CLAWD_PROMPTS` を見よ） */
+/** ボタンで選べる話しかけ。文章の自由入力は扱わず、作業時間だけ専用欄で受け取る。 */
 export interface ClawdPrompt {
   /** ボタンの字 = 自分が言うこと */
   say: string;
@@ -87,15 +87,49 @@ export interface ClawdPrompt {
  * 一緒に作業する長さの候補（分）。
  *
  * 25 を真ん中に置いたのはポモドーロの慣習に合わせたから。15 は「とりあえず机に向かう」、
- * 60 は「腰を据える」。**それ以上は出さない** ―― 1 時間を超えて座り続ける約束をさせるのは、
- * 守れなかったときに「できなかった」を増やすだけになる。
+ * 60 は「腰を据える」。固定候補はここまでにして、必要な人だけ自由入力（上限 720 分）を使う。
+ * 最初から長時間を約束させるのではなく、選びやすい短い札を中心に置く。
  */
 export const CLAWD_WORK_MINUTES: readonly number[] = [15, 25, 45, 60];
+
+/** 自由入力で許可する作業時間の上限（分）。桁外れの誤入力を防ぐため 12 時間まで。 */
+export const CLAWD_WORK_MAX_MINUTES = 720;
+
+export type ClawdWorkMinutesValidation =
+  | { ok: true; minutes: number }
+  | { ok: false; reason: 'empty' | 'integer' | 'range' };
+
+/**
+ * チャットから入力された作業時間を検証する。
+ *
+ * 入力欄はモバイルの数字キーボードを出しつつ、指数表記や小数も入力できるため、
+ * ここでは文字列の形を先に確認してから安全な整数へ変換する。
+ */
+export function validateClawdWorkMinutes(raw: string): ClawdWorkMinutesValidation {
+  const value = raw.trim();
+  if (!value) return { ok: false, reason: 'empty' };
+  if (!/^\d+$/.test(value)) return { ok: false, reason: 'integer' };
+
+  const minutes = Number(value);
+  if (!Number.isSafeInteger(minutes) || minutes < 1 || minutes > CLAWD_WORK_MAX_MINUTES) {
+    return { ok: false, reason: 'range' };
+  }
+  return { ok: true, minutes };
+}
+
+/** Enter/Return で送信してよいキー入力か。IME 変換中は確定しない。 */
+export function shouldSubmitClawdWorkMinutes(
+  key: string,
+  isComposing: boolean,
+  validation: ClawdWorkMinutesValidation,
+): boolean {
+  return (key === 'Enter' || key === 'Return') && !isComposing && validation.ok;
+}
 
 /**
  * 話しかけの候補。
  *
- * **自由入力の欄を置いていない。** 何を打っても返せるふりをするのは、この画面が
+ * 文章の自由入力欄は置かない。何を打っても返せるふりをするのは、この画面が
  * できることを偽ることになる（Clawd の言葉はここに書いてある固定の文で、
  * その場で考えているわけではない）。言えることを最初から見せて選ばせるほうが正直で、
  * 疲れているときに文章を考えなくて済むぶん、実際に押せる。
@@ -208,7 +242,18 @@ const WORK_DONE: readonly string[] = [
 ];
 
 export function clawdWorkDone(min: number, n: number): string {
-  return WORK_DONE[idx(n, WORK_DONE.length)] + '（' + min + '分）';
+  return clawdWorkDoneDuration(min * 60, n);
+}
+
+/** 秒単位のOfficeタイマーでも、実際に座った長さをそのまま言う。 */
+export function clawdWorkDoneDuration(totalSeconds: number, n: number): string {
+  const seconds = Math.max(0, Math.round(Number.isFinite(totalSeconds) ? totalSeconds : 0));
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  const duration = minutes > 0
+    ? `${minutes}分${rest > 0 ? `${rest}秒` : ''}`
+    : `${rest}秒`;
+  return WORK_DONE[idx(n, WORK_DONE.length)] + '（' + duration + '）';
 }
 
 /** 途中でやめたときの一言。**責めない**（やめられるのも力のうち） */

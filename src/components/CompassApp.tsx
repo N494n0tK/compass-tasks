@@ -55,7 +55,13 @@ import { readLocalData, readPrefsPatch, savePrefs as writePrefs } from './parts/
 import { makeResizer } from './parts/ShellResizer';
 import { ShellSplash } from './parts/ShellSplash';
 import { useSubjColors } from './parts/ShellSubjects';
-import { STATIC_THEME_TOKENS, THEME_ATTR, buildThemeStyle, normalizeNavOrder } from './parts/ShellTheme';
+import {
+  STATIC_THEME_TOKENS,
+  THEME_ATTR,
+  buildThemeStyle,
+  normalizeNavOrder,
+  useLocalMinuteOfDay,
+} from './parts/ShellTheme';
 import { ShellToast, ShellTooltip } from './parts/ShellToast';
 import { ShellTopbar } from './parts/ShellTopbar';
 import { buildTodayItems } from './parts/ShellTodayItems';
@@ -70,6 +76,7 @@ import { AddTask } from './screens/AddTask';
 import { ClawdChat } from './screens/ClawdChat';
 import { Cockpit } from './screens/Cockpit';
 import { DataScreen } from './screens/DataScreen';
+import { DailyTasks } from './screens/DailyTasks';
 import { Notebook } from './screens/Notebook';
 import { Review } from './screens/Review';
 import { Tests } from './screens/Tests';
@@ -94,6 +101,8 @@ function renderScreen(state: AppState) {
       return <Tests />;
     case 'todo':
       return <Todo />;
+    case 'daily':
+      return <DailyTasks />;
     case 'data':
       return <DataScreen />;
     case 'add':
@@ -455,9 +464,14 @@ export function CompassApp({ uid, email, preview = false }: CompassAppProps) {
     () => overdueSegs(state.segs, plans, dateCtx.today).length,
     [state.segs, plans, dateCtx.today]
   );
+  const glassClockEnabled = state.theme === 'glass' && !!state.glassFollowCurrentTime;
+  const glassSystemMinutes = useLocalMinuteOfDay(glassClockEnabled);
+  const activeGlassMinutes = state.glassFollowCurrentTime
+    ? glassSystemMinutes
+    : state.glassTimeMinutes ?? 12 * 60;
   const themeStyle = useMemo(
-    () => buildThemeStyle(state.theme, state.view),
-    [state.theme, state.view]
+    () => buildThemeStyle(state.theme, state.view, activeGlassMinutes),
+    [state.theme, state.view, activeGlassMinutes]
   );
   const onNavResize = useMemo(
     () => makeResizer(store, 'nav', 'right', savePrefs),
